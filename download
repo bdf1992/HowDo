@@ -1,0 +1,13 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+
+# Durable per-person contexts never belong in shared VCS.
+# CONTEXT.md is the shipped template and stays tracked (guarded by a test).
+CONTEXT.*.md
+*.context.md
+.howdo/
