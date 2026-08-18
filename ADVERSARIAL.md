@@ -29,6 +29,9 @@ The runtime is a small protocol kernel, not a complete trust system. v0.6 makes 
 | helper forks malformed older context missing onboarding/parent keys | required keys are inserted and new fork requires onboarding |
 | fork destination already exists | refused; source and destination are preserved |
 | completion helper receives placeholder evidence | refused |
+| settlement attempted on the shipped template | `TemplateContextError`; a template has no lineage to settle |
+| template forked as if it were a lineage | refused; instantiate with `ensure_context()` |
+| template marker carried into the instantiated store | stripped; the store opens at `context_id: pending` |
 | settlement attempted on a context inside the skill payload | `PayloadContextError`; template left untouched |
 | install or update run over a settled store | `ensure_context()` never overwrites an existing store |
 | store deliberately pointed inside the payload | `install.py` refuses before copying anything |

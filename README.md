@@ -32,9 +32,11 @@ python install.py --verify   # check an existing install, change nothing
 Two locations, two lifetimes:
 
 ```
-payload   <skills-dir>/how-do/     replaceable; every install overwrites it
-store     ~/.howdo/CONTEXT.md      per-person; install never touches it
+CONTEXT.template.md   in the payload   shipped artifact, versioned, replaced on update
+CONTEXT.md            in the store     per-person lineage, settled by onboarding
 ```
+
+These are two **types**, not two copies. The template carries `template: true`, has `context_id: template`, is skipped by the fork check, and can never become `ready`. `ensure_context()` strips the marker and opens a fresh lineage in the store. `complete_onboarding()`, `decline_onboarding()`, and `fork_context()` all refuse a template outright — a template has no lineage to settle into.
 
 The directory is named from `name:` in `SKILL.md`, not from the repo folder — a loader matching the frontmatter name will not find `HowDo/`. The store path is `--context`, else `$HOWDO_CONTEXT`, else `~/.howdo/CONTEXT.md`; its basename stays `CONTEXT.md`, because a different basename is read as a fork. Reinstalling re-copies the payload and leaves a settled store alone.
 

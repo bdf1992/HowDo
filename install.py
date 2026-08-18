@@ -3,8 +3,8 @@
 
 Two things live in different places on purpose:
 
-    payload   <skills-dir>/how-do/     replaceable; every install overwrites it
-    store     ~/.howdo/CONTEXT.md      per-person; never touched by install
+    template  <skills-dir>/how-do/CONTEXT.template.md   shipped artifact; replaced on update
+    store     ~/.howdo/CONTEXT.md                       per-person lineage; never touched
 
 The directory name comes from ``name:`` in ``SKILL.md`` rather than from the
 repository folder, because a loader that matches on the frontmatter name will
@@ -40,7 +40,7 @@ DEFAULT_SKILLS_DIR = Path.home() / ".claude" / "skills"
 
 # The payload is what a host loads. Tests, packaging, and contributor docs are
 # repository concerns and are deliberately not shipped into the skill directory.
-PAYLOAD = ("SKILL.md", "CONTEXT.md", "QUICKSTART.md", "LICENSE", "runtime", "examples")
+PAYLOAD = ("SKILL.md", "CONTEXT.template.md", "QUICKSTART.md", "LICENSE", "runtime", "examples")
 
 
 def skill_name(skill_md: Path) -> str:
@@ -140,7 +140,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     # ensure_context never overwrites, so reinstalling cannot clobber settled context.
-    status = ensure_context(store_path, template=payload / "CONTEXT.md")
+    status = ensure_context(store_path, template=payload / "CONTEXT.template.md")
     print()
     return report(payload, status.path)
 

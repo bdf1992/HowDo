@@ -3,6 +3,7 @@
 Versions are aligned across `SKILL.md`, `README.md`, `pyproject.toml`, and `CONTEXT.md`; `tests/test_release.py` enforces it.
 
 ## 0.7.0
+- **Template and context are separate types.** The shipped file is `CONTEXT.template.md`, marked `template: true`, with `inspect_context()` state `template`. It has no lineage, skips the fork check, is never `ready`, and is refused by `complete_onboarding()`, `decline_onboarding()`, and `fork_context()` (`TemplateContextError`). `ensure_context()` strips the marker when opening a store.
 - Install separates the **replaceable payload** from the **durable store**: the payload is copied to `<skills-dir>/how-do/`, the context is instantiated at `$HOWDO_CONTEXT` or `~/.howdo/CONTEXT.md`, and reinstall never clobbers a settled store.
 - `resolve_context_path()` and `ensure_context()` added; `ensure_context()` never overwrites an existing store.
 - `complete_onboarding()` and `decline_onboarding()` refuse a target inside a skill payload (`PayloadContextError`) unless `allow_payload=True`. A receipt the install cannot keep is no longer written silently.

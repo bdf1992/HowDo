@@ -35,7 +35,7 @@ Guide with this loop. The deeper vocabulary below exists for inspection, runtime
 
 ## Durable context and first-run onboarding
 
-Every installation carries a durable **`CONTEXT.md`** beside the skill. It is reusable orientation for how this How Do should be perceived, built, rendered, and interacted with. It is **not** the context of one task, a raw session log, or a personality dossier.
+Every installation ships **`CONTEXT.template.md`** in its payload and instantiates a durable **`CONTEXT.md`** in a store outside it. The template is an artifact — versioned, replaced by updates, marked `template: true`, never settled and never forked. The instance is a lineage. Do not conflate them. It is reusable orientation for how this How Do should be perceived, built, rendered, and interacted with. It is **not** the context of one task, a raw session log, or a personality dossier.
 
 A fresh installation ships with `onboarding: required`. **Before the first substantive HowDo, run one short comparative onboarding.** If the user explicitly declines calibration, persist `onboarding: declined`, continue context-free, and do not ask again on later sessions unless the user reopens calibration. A declined context is not learned context.
 
@@ -59,7 +59,8 @@ Onboarding is a calibration, not a psychometric test. Stop as soon as one useful
 
 `CONTEXT.md` is intentionally forkable. Its frontmatter records both `context_id` and `context_file`.
 
-- If no active context file exists, create the template and run onboarding before substantive work unless the user explicitly declines durable calibration.
+- A template is not a context: it has no `context_id`, fails the readiness check by type rather than by evidence, and is refused by the settlement and fork helpers.
+- If no active context file exists, instantiate one from the template and run onboarding before substantive work unless the user explicitly declines durable calibration.
 - If required lineage metadata is missing, treat the file as invalid rather than silently ready.
 - If `onboarding: required`, or the comparative evidence sections are placeholders, onboarding is unresolved. If `onboarding: declined`, do not ask again and do not use the file as learned context.
 - If the actual basename differs from embedded `context_file`, treat the file as a **new fork** and run onboarding for that lineage. Do not silently reuse the old identity.

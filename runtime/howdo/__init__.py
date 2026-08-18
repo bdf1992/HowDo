@@ -1,6 +1,7 @@
 from .context import (
     ContextStatus,
     PayloadContextError,
+    TemplateContextError,
     complete_onboarding,
     decline_onboarding,
     ensure_context,
@@ -55,6 +56,7 @@ __all__ = [
     "settle",
     "ContextStatus",
     "PayloadContextError",
+    "TemplateContextError",
     "complete_onboarding",
     "decline_onboarding",
     "ensure_context",

@@ -8,6 +8,8 @@ sys.path.insert(0, str(ROOT / "runtime"))
 
 from howdo import (  # noqa: E402
     PayloadContextError,
+    TemplateContextError,
+    fork_context,
     complete_onboarding,
     decline_onboarding,
     ensure_context,
@@ -16,7 +18,7 @@ from howdo import (  # noqa: E402
     resolve_context_path,
 )
 
-SHIPPED_TEMPLATE = ROOT / "CONTEXT.md"
+SHIPPED_TEMPLATE = ROOT / "CONTEXT.template.md"
 
 EVIDENCE = {
     "calibration_domain": "distributed queues; runs incident review",
@@ -31,17 +33,28 @@ def make_payload(root: Path) -> Path:
     payload = root / "skills" / "how-do"
     (payload / "runtime" / "howdo").mkdir(parents=True)
     (payload / "SKILL.md").write_text("# How Do\n", encoding="utf-8")
-    (payload / "CONTEXT.md").write_text(
+    (payload / "CONTEXT.template.md").write_text(
         SHIPPED_TEMPLATE.read_text(encoding="utf-8"), encoding="utf-8"
     )
     return payload
+
+
+def stray_instance(payload: Path) -> Path:
+    """A real (non-template) context mistakenly placed inside the payload."""
+    text = SHIPPED_TEMPLATE.read_text(encoding="utf-8")
+    text = text.replace("template: true\n", "")
+    text = text.replace("context_file: CONTEXT.template.md", "context_file: CONTEXT.md")
+    text = text.replace("context_id: template", "context_id: pending")
+    path = payload / "CONTEXT.md"
+    path.write_text(text, encoding="utf-8")
+    return path
 
 
 class PayloadBoundaryTests(unittest.TestCase):
     def test_payload_is_detected_from_the_skill_file_it_ships(self):
         with tempfile.TemporaryDirectory() as tmp:
             payload = make_payload(Path(tmp))
-            self.assertEqual(payload_root(payload / "CONTEXT.md"), payload)
+            self.assertEqual(payload_root(payload / "CONTEXT.template.md"), payload)
             self.assertEqual(payload_root(payload / "runtime" / "howdo"), payload)
 
     def test_store_outside_the_payload_is_not_flagged(self):
@@ -55,24 +68,23 @@ class PayloadBoundaryTests(unittest.TestCase):
     def test_completion_refuses_to_settle_inside_the_payload(self):
         with tempfile.TemporaryDirectory() as tmp:
             payload = make_payload(Path(tmp))
+            stray = stray_instance(payload)
             with self.assertRaises(PayloadContextError):
-                complete_onboarding(payload / "CONTEXT.md", **EVIDENCE)
-            # The refusal must leave the shipped template untouched.
-            self.assertEqual(
-                inspect_context(payload / "CONTEXT.md").state, "onboarding_required"
-            )
+                complete_onboarding(stray, **EVIDENCE)
+            # The refusal must leave the file untouched.
+            self.assertEqual(inspect_context(stray).state, "onboarding_required")
 
     def test_decline_refuses_to_settle_inside_the_payload(self):
         with tempfile.TemporaryDirectory() as tmp:
             payload = make_payload(Path(tmp))
             with self.assertRaises(PayloadContextError):
-                decline_onboarding(payload / "CONTEXT.md")
+                decline_onboarding(stray_instance(payload))
 
     def test_payload_settlement_requires_an_explicit_override(self):
         with tempfile.TemporaryDirectory() as tmp:
             payload = make_payload(Path(tmp))
             settled = complete_onboarding(
-                payload / "CONTEXT.md", allow_payload=True, **EVIDENCE
+                stray_instance(payload), allow_payload=True, **EVIDENCE
             )
             self.assertEqual(inspect_context(settled).state, "ready")
 
@@ -107,7 +119,7 @@ class EnsureContextTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             payload = make_payload(Path(tmp))
             status = ensure_context(
-                template=payload / "CONTEXT.md", env={}, home=Path(tmp) / "home"
+                template=payload / "CONTEXT.template.md", env={}, home=Path(tmp) / "home"
             )
             self.assertEqual(status.state, "onboarding_required")
             self.assertTrue(status.path.exists())
@@ -117,15 +129,15 @@ class EnsureContextTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             payload = make_payload(Path(tmp))
             home = Path(tmp) / "home"
-            first = ensure_context(template=payload / "CONTEXT.md", env={}, home=home)
+            first = ensure_context(template=payload / "CONTEXT.template.md", env={}, home=home)
             complete_onboarding(first.path, **EVIDENCE)
             settled_id = inspect_context(first.path).metadata["context_id"]
 
             # Payload is replaced wholesale, exactly as an update would do.
-            (payload / "CONTEXT.md").write_text(
+            (payload / "CONTEXT.template.md").write_text(
                 SHIPPED_TEMPLATE.read_text(encoding="utf-8"), encoding="utf-8"
             )
-            second = ensure_context(template=payload / "CONTEXT.md", env={}, home=home)
+            second = ensure_context(template=payload / "CONTEXT.template.md", env={}, home=home)
 
             self.assertEqual(second.state, "ready")
             self.assertEqual(second.metadata["context_id"], settled_id)
@@ -134,10 +146,33 @@ class EnsureContextTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             payload = make_payload(Path(tmp))
             status = ensure_context(
-                template=payload / "CONTEXT.md", env={}, home=Path(tmp) / "home"
+                template=payload / "CONTEXT.template.md", env={}, home=Path(tmp) / "home"
             )
             complete_onboarding(status.path, **EVIDENCE)
             self.assertEqual(inspect_context(status.path).state, "ready")
+
+
+class TemplateTypeTests(unittest.TestCase):
+    def test_instantiation_strips_the_template_marker_and_opens_a_lineage(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            payload = make_payload(Path(tmp))
+            status = ensure_context(
+                template=payload / "CONTEXT.template.md", env={}, home=Path(tmp) / "home"
+            )
+            text = status.path.read_text(encoding="utf-8")
+            self.assertNotIn("template: true", text)
+            self.assertEqual(status.metadata["context_file"], "CONTEXT.md")
+            self.assertEqual(status.metadata["context_id"], "pending")
+            # The template itself is unchanged and still a template.
+            self.assertEqual(
+                inspect_context(payload / "CONTEXT.template.md").state, "template"
+            )
+
+    def test_template_cannot_be_forked_because_it_has_no_lineage(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            payload = make_payload(Path(tmp))
+            with self.assertRaises(TemplateContextError):
+                fork_context(payload / "CONTEXT.template.md", Path(tmp) / "CONTEXT.code.md")
 
 
 if __name__ == "__main__":

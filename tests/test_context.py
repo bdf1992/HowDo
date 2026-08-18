@@ -58,9 +58,23 @@ def settle(path: Path) -> None:
 
 
 class ContextContractTests(unittest.TestCase):
-    def test_shipped_context_is_deliberately_uninitialized(self):
-        status = inspect_context(ROOT / "CONTEXT.md")
-        self.assertEqual(status.state, "onboarding_required")
+    def test_shipped_file_is_a_template_not_a_context(self):
+        status = inspect_context(ROOT / "CONTEXT.template.md")
+        self.assertEqual(status.state, "template", status.reason)
+
+    def test_template_is_never_ready_and_never_settleable(self):
+        from howdo import TemplateContextError
+        with self.assertRaises(TemplateContextError):
+            complete_onboarding(
+                ROOT / "CONTEXT.template.md",
+                calibration_domain="d",
+                representation_observation="r",
+                landed_example="l",
+                rejected_example="x",
+                allow_payload=True,
+            )
+        with self.assertRaises(TemplateContextError):
+            decline_onboarding(ROOT / "CONTEXT.template.md", allow_payload=True)
 
     def test_missing_context_requires_creation(self):
         with tempfile.TemporaryDirectory() as td:
@@ -87,8 +101,10 @@ class ContextContractTests(unittest.TestCase):
     def test_shipped_template_cannot_be_faked_by_metadata_only(self):
         with tempfile.TemporaryDirectory() as td:
             path = Path(td) / "CONTEXT.md"
-            shipped = (ROOT / "CONTEXT.md").read_text(encoding="utf-8")
-            fake = shipped.replace("context_id: pending", "context_id: context_fake").replace(
+            shipped = (ROOT / "CONTEXT.template.md").read_text(encoding="utf-8")
+            fake = shipped.replace("template: true\n", "").replace(
+                "context_file: CONTEXT.template.md", "context_file: CONTEXT.md"
+            ).replace("context_id: template", "context_id: context_fake").replace(
                 "onboarding: required", "onboarding: complete"
             )
             path.write_text(fake, encoding="utf-8")

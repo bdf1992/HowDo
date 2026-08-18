@@ -16,6 +16,7 @@ import uuid
 
 ContextState = Literal[
     "missing",
+    "template",
     "onboarding_required",
     "ready",
     "declined",
@@ -41,6 +42,8 @@ _REQUIRED_SECTIONS = (
 _PLACEHOLDERS = {"", "pending", "none", "none yet", "- pending", "- none yet"}
 _PLACEHOLDER_PREFIXES = ("pending", "none yet")
 
+_TEMPLATE_KEY = "template"
+_TEMPLATE_TRUE = {"true", "yes", "1"}
 _STORE_ENV = "HOWDO_CONTEXT"
 _STORE_DIRNAME = ".howdo"
 _CONTEXT_BASENAME = "CONTEXT.md"
@@ -48,6 +51,15 @@ _CONTEXT_BASENAME = "CONTEXT.md"
 # under it is replaced wholesale on reinstall or update.
 _PAYLOAD_MARKER = "SKILL.md"
 _PAYLOAD_SEARCH_DEPTH = 6
+
+
+class TemplateContextError(ValueError):
+    """A settlement was attempted on the shipped template.
+
+    A template is an artifact of the payload, not a lineage. It has no
+    ``context_id`` to settle into and is replaced by the next update. Instantiate
+    a store with :func:`ensure_context` and settle that instead.
+    """
 
 
 class PayloadContextError(ValueError):
@@ -120,6 +132,22 @@ def _set_frontmatter(text: str, updates: Mapping[str, str]) -> str:
     return "\n".join(["---", *rewritten, *body]) + ("\n" if text.endswith("\n") else "")
 
 
+def _drop_frontmatter_keys(text: str, keys: set[str]) -> str:
+    """Remove flat frontmatter keys; used to strip the template marker."""
+    lines = text.splitlines()
+    if not lines or lines[0].strip() != "---":
+        raise ValueError("context requires flat YAML frontmatter")
+    try:
+        end = next(i for i, line in enumerate(lines[1:], start=1) if line.strip() == "---")
+    except StopIteration as exc:
+        raise ValueError("context frontmatter is not closed") from exc
+    front = [
+        line for line in lines[1:end]
+        if ":" not in line or line.split(":", 1)[0].strip() not in keys
+    ]
+    return "\n".join(["---", *front, *lines[end:]]) + ("\n" if text.endswith("\n") else "")
+
+
 def _section_body(text: str, heading: str) -> str | None:
     pattern = re.compile(
         rf"(?ms)^##\s+{re.escape(heading)}\s*$\n(.*?)(?=^##\s+|\Z)"
@@ -153,6 +181,10 @@ def _replace_section(text: str, heading: str, body: str) -> str:
         suffix = "" if text.endswith("\n") else "\n"
         return f"{text}{suffix}\n## {heading}\n\n{body.strip()}\n"
     return text[: match.start(2)] + body.strip() + "\n\n" + text[match.end(2) :].lstrip("\n")
+
+
+def _is_template(metadata: Mapping[str, str]) -> bool:
+    return str(metadata.get(_TEMPLATE_KEY, "")).strip().lower() in _TEMPLATE_TRUE
 
 
 def payload_root(path: str | Path) -> Path | None:
@@ -225,13 +257,34 @@ def ensure_context(
         raise FileNotFoundError(source)
 
     text = source.read_text(encoding="utf-8")
-    if not _frontmatter(text):
+    metadata = _frontmatter(text)
+    if not metadata:
         raise ValueError("template requires flat YAML frontmatter")
 
-    text = _set_frontmatter(text, {"context_file": destination.name})
+    # The instance is a different type from the template it came from: the
+    # marker is stripped and a fresh, unsettled lineage is opened.
+    text = _drop_frontmatter_keys(text, {_TEMPLATE_KEY})
+    text = _set_frontmatter(
+        text,
+        {
+            "context_id": "pending",
+            "context_file": destination.name,
+            "onboarding": "required",
+            "parent_context_id": "none",
+        },
+    )
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_text(text, encoding="utf-8")
     return inspect_context(destination)
+
+
+def _refuse_template_settlement(path: Path) -> None:
+    status = inspect_context(path)
+    if status.state == "template":
+        raise TemplateContextError(
+            f"{path} is the shipped template; instantiate a store with "
+            f"ensure_context() and settle that instead"
+        )
 
 
 def _refuse_payload_settlement(path: Path, *, allow_payload: bool) -> None:
@@ -271,6 +324,11 @@ def inspect_context(path: str | Path) -> ContextStatus:
 
     if metadata.get("skill") != "how-do":
         return ContextStatus(p, "invalid", "context skill marker is not how-do", metadata)
+
+    if _is_template(metadata):
+        # A template is a different type from a context: no lineage, no fork
+        # check, never ready, never settled.
+        return ContextStatus(p, "template", "shipped template; instantiate a store from it", metadata)
 
     declared = metadata.get("context_file")
     if declared != p.name:
@@ -336,6 +394,7 @@ def complete_onboarding(
     p = Path(path)
     if not p.exists():
         raise FileNotFoundError(p)
+    _refuse_template_settlement(p)
     _refuse_payload_settlement(p, allow_payload=allow_payload)
 
     status = inspect_context(p)
@@ -386,6 +445,7 @@ def decline_onboarding(path: str | Path, *, allow_payload: bool = False) -> Path
     p = Path(path)
     if not p.exists():
         raise FileNotFoundError(p)
+    _refuse_template_settlement(p)
     _refuse_payload_settlement(p, allow_payload=allow_payload)
 
     status = inspect_context(p)
@@ -428,6 +488,10 @@ def fork_context(source: str | Path, destination: str | Path) -> Path:
     meta = _frontmatter(text)
     if not meta:
         raise ValueError("source context requires flat YAML frontmatter")
+    if _is_template(meta):
+        raise TemplateContextError(
+            f"{src} is a template, not a lineage; use ensure_context() to instantiate it"
+        )
     parent = meta.get("context_id", "unknown")
 
     text = _set_frontmatter(
