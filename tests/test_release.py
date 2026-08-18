@@ -59,6 +59,39 @@ class ReleaseContractTests(unittest.TestCase):
         self.assertIn("does not prove", skill)
 
 
+class InvocationIntentTests(unittest.TestCase):
+    """How Do is requested. A broad description makes it ambient by accident."""
+
+    def _description(self) -> str:
+        text = (ROOT / "SKILL.md").read_text(encoding="utf-8")
+        front = text[3 : text.index("\n---", 3)]
+        line = next(l for l in front.splitlines() if l.startswith("description:"))
+        return line.split(":", 1)[1].strip()
+
+    def test_description_asks_to_be_invoked(self):
+        description = self._description().lower()
+        self.assertIn("requested, not ambient", description)
+        self.assertIn("/how-do", description)
+
+    def test_description_does_not_advertise_bare_handles_as_triggers(self):
+        """Handles are moves inside a HowDo; as triggers they fire on everything."""
+        description = self._description().lower()
+        for bait in ('"help me"', '"say more"', '"do work"', '"what now"', '"why that"'):
+            self.assertNotIn(bait, description, f"{bait} makes the skill ambient")
+
+    def test_description_states_what_is_not_a_trigger(self):
+        description = self._description().lower()
+        self.assertIn("not by itself a request", description)
+
+    def test_description_stays_within_the_frontmatter_budget(self):
+        self.assertLessEqual(len(self._description()), 700)
+
+    def test_body_keeps_handles_separate_from_triggers(self):
+        skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("requested, not ambient", skill.lower())
+        self.assertIn("moves within a HowDo already underway", skill)
+
+
 class PayloadHygieneTests(unittest.TestCase):
     """What ships is the skill, not whatever the working tree accumulated."""
 
@@ -82,20 +115,6 @@ class PayloadHygieneTests(unittest.TestCase):
                 if path.name == "__pycache__" or path.suffix in {".pyc", ".pyo", ".pyd"}
             ]
             self.assertEqual(strays, [], f"install shipped build noise: {strays}")
-
-    def test_reinstall_prunes_noise_an_earlier_install_left(self):
-        sys.path.insert(0, str(ROOT))
-        import install  # noqa: E402
-
-        with tempfile.TemporaryDirectory() as tmp:
-            destination = Path(tmp) / "how-do"
-            install.copy_payload(destination, dry_run=False)
-            stale = destination / "runtime" / "howdo" / "__pycache__"
-            stale.mkdir(parents=True, exist_ok=True)
-            (stale / "context.cpython-311.pyc").write_bytes(b"stale")
-
-            install.copy_payload(destination, dry_run=False)
-            self.assertFalse(stale.exists(), "reinstall left an earlier install's bytecode")
 
 
 if __name__ == "__main__":

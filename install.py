@@ -82,19 +82,10 @@ def copy_payload(destination: Path, *, dry_run: bool) -> list[str]:
             continue
         if source.is_dir():
             shutil.copytree(source, target, dirs_exist_ok=True, ignore=NOISE)
-            prune_noise(target)
         else:
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, target)
     return actions
-
-
-def prune_noise(root: Path) -> None:
-    """Remove noise an earlier install copied in, so updates converge."""
-    for cache in root.rglob("__pycache__"):
-        shutil.rmtree(cache, ignore_errors=True)
-    for stray in root.rglob("*.py[cod]"):
-        stray.unlink(missing_ok=True)
 
 
 def report(payload: Path, store_path: Path, *, shared: bool = False) -> int:

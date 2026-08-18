@@ -253,17 +253,18 @@ class PlatformStoreTest(unittest.TestCase):
             resolved = default_store_path(env={}, home=Path(tmp), platform="linux")
             self.assertEqual(resolved, Path(tmp) / ".howdo" / "CONTEXT.md")
 
-    def test_existing_dotdir_store_wins_on_every_platform(self):
-        """Adding a platform default must not orphan a settled store."""
+    def test_resolution_ignores_what_is_already_on_disk(self):
+        """Same config, same path — resolution is not steered by stray files."""
         with tempfile.TemporaryDirectory() as tmp:
             home = Path(tmp) / "profile"
-            legacy = home / ".howdo" / "CONTEXT.md"
-            legacy.parent.mkdir(parents=True)
-            legacy.write_text("settled", encoding="utf-8")
+            stray = home / ".howdo" / "CONTEXT.md"
+            stray.parent.mkdir(parents=True)
+            stray.write_text("settled", encoding="utf-8")
+            roaming = Path(tmp) / "Roaming"
             resolved = default_store_path(
-                env={"APPDATA": str(Path(tmp) / "Roaming")}, home=home, platform="win32"
+                env={"APPDATA": str(roaming)}, home=home, platform="win32"
             )
-            self.assertEqual(resolved, legacy)
+            self.assertEqual(resolved, roaming / "howdo" / "CONTEXT.md")
 
     def test_env_override_still_outranks_the_platform_default(self):
         with tempfile.TemporaryDirectory() as tmp:

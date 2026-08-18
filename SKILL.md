@@ -1,6 +1,6 @@
 ---
 name: how-do
-description: Baseline discipline for understanding-before-acting. On first install or a renamed/forked context, run one short comparative onboarding before substantive work unless the user explicitly declines durable calibration. Then bind the request's actor (I / you / we / they), load only context admissible for that actor, establish a small working map, choose a path, state checks at consequential boundaries, execute only when the gate is open, observe the result, and update only what the residual disproved. Use for small word-pair requests ("how do", "what now", "why that", "say more", "do work", "help me"), for how-to questions, when continuing prior work, when about to act without a grounded procedure or success criterion, or when a repeated request should answer differently because state changed.
+description: Understanding-before-acting discipline — bind the actor, map the problem, state checks at consequential boundaries, act only when they hold, then observe and correct only what the result disproved. Requested, not ambient: use when the user invokes /how-do, names How Do or its loop (Map → Path → Check → Do → Look → Update), or asks in their own words to work this way — to slow down, ground a plan before acting, or inspect the reasoning behind a result. An ordinary how-to question, a request for help, or simply continuing prior work is not by itself a request for How Do; answer those directly.
 license: MIT
 metadata:
   author: bdo
@@ -17,6 +17,12 @@ The working understanding is a **paradigm**: inspectable state used to resolve t
 A request resolves against the paradigm. It does **not** automatically mutate it. Only an admissible residual may earn a write-back, and only to the layer the residual touched. An accepted settlement **rebases** the paradigm: preserve what still holds, replace the smallest disproved part, and issue the next revision.
 
 Baseline, not template: it should move you, not contain you.
+
+## When this runs
+
+How Do is **requested, not ambient**. It applies when someone asks for it — by name, by its loop, or by asking to slow down and ground the work — and the ask is generic enough that any domain qualifies. It is not the default posture for every how-to question, and loading it uninvited taxes work that did not ask for the ceremony.
+
+Two consequences. Handles below are moves *inside* an invoked HowDo, never triggers for one. And onboarding gates the first substantive HowDo, not the person's first sentence: by the time it runs, they have already opted into the discipline.
 
 ## The small loop
 
@@ -77,9 +83,7 @@ If `runtime/` or `CONTEXT.template.md` is absent — the skill was copied by han
 
 ### Per-user by default; generic by opt-in
 
-This context records how one person takes explanations, so `scope: user` is the default and the store sits outside the payload. A single generic context shared by every user of one install is a real configuration — a shared machine, a team image — but it is never inferred. It requires an explicit opt-in (`install.py --shared`), and it records `scope: shared` in its own frontmatter so any later reader can see that the file is generic rather than personal. Without that marker, a context inside the payload is refused as an accident.
-
-A `scope: shared` store still onboards, but it calibrates to whoever answered first. Treat its observations as weaker evidence than a personal store's, and do not attribute them to the current user.
+`scope: user` is the default: this context records how one person takes explanations. `scope: shared` marks a generic store for everyone using one install — opted into via `install.py --shared`, never inferred, and the only kind admitted inside the payload. A shared store calibrates to whoever onboarded first: treat its observations as weaker evidence, never as a claim about the current user.
 
 ### Fork / rename rule
 
@@ -206,7 +210,7 @@ The runtime is optional. It exists to make state, gates, evidence, and write-bac
 
 ## Handles
 
-A handle is admissible if it names a move over the paradigm and its residual is measurable. The seed set is illustrative, not fixed.
+A handle is admissible if it names a move over the paradigm and its residual is measurable. The seed set is illustrative, not fixed. These are moves within a HowDo already underway; a bare "help me" does not summon the discipline.
 
 | handle | move | result you can check |
 |---|---|---|
@@ -258,7 +262,7 @@ Empty rows are deliberate. Fill one only when a repeated move earns a measurable
 
 ## Refuses
 
-Acting on a path with no navigable map. Calling a consequential path understood without observable contracts. Treating model output as independent evidence of its own success. Mutating the paradigm merely because a request was made. Rewriting the whole paradigm when the residual named one layer. Establishing the receiver silently. Treating an unresolved or declined context as learned context, silently bypassing onboarding without an explicit user decline, or repeatedly re-asking after a persisted decline. Declaring a person a fixed learning-style type from presentation feedback. Promoting every trace directly into durable context. Settling durable context inside the replaceable skill payload without an explicit `scope: shared` opt-in, or letting an install overwrite a settled store. Treating a shared generic context as evidence about the current person. Overwriting a source context when creating a fork. Auto-merging distinct context lineages. Projecting user context or authority onto the wrong actor. Making the runtime more complex than the work it is protecting.
+Acting on a path with no navigable map. Calling a consequential path understood without observable contracts. Treating model output as independent evidence of its own success. Mutating the paradigm merely because a request was made. Rewriting the whole paradigm when the residual named one layer. Establishing the receiver silently. Treating an unresolved or declined context as learned context, silently bypassing onboarding without an explicit user decline, or repeatedly re-asking after a persisted decline. Declaring a person a fixed learning-style type from presentation feedback. Promoting every trace directly into durable context. Settling durable context inside the replaceable skill payload without an explicit `scope: shared` opt-in, or letting an install overwrite a settled store. Treating a shared context as evidence about the current person. Loading the discipline uninvited. Overwriting a source context when creating a fork. Auto-merging distinct context lineages. Projecting user context or authority onto the wrong actor. Making the runtime more complex than the work it is protecting.
 
 ## Self-check
 

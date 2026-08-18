@@ -256,16 +256,14 @@ def default_store_path(
 
     The store is per-person state, so it belongs where the platform already
     keeps per-person state: ``%APPDATA%\\howdo\\CONTEXT.md`` on Windows,
-    ``~/.howdo/CONTEXT.md`` elsewhere. ``HOWDO_CONTEXT`` overrides both, and an
-    existing ``~/.howdo/CONTEXT.md`` always wins so that adding a platform
-    default cannot orphan a store somebody already settled.
+    ``~/.howdo/CONTEXT.md`` elsewhere. ``HOWDO_CONTEXT`` overrides both.
+
+    This depends only on configuration, never on what is already on disk, so
+    one environment always resolves to one path. Anyone moving a settled store
+    points ``HOWDO_CONTEXT`` at it.
     """
     environ = os.environ if env is None else env
     base = Path(home).expanduser() if home is not None else Path.home()
-
-    legacy = base / _STORE_DIRNAME / _CONTEXT_BASENAME
-    if legacy.exists():
-        return legacy
 
     system = sys.platform if platform is None else platform
     if system.startswith("win"):
@@ -275,7 +273,7 @@ def default_store_path(
         )
         return roaming / _STORE_APPDATA_DIRNAME / _CONTEXT_BASENAME
 
-    return legacy
+    return base / _STORE_DIRNAME / _CONTEXT_BASENAME
 
 
 def resolve_context_path(

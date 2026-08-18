@@ -40,6 +40,8 @@ These are two **types**, not two copies. The template carries `template: true`, 
 
 The directory is named from `name:` in `SKILL.md`, not from the repo folder — a loader matching the frontmatter name will not find `HowDo/`. Reinstalling re-copies the payload, ships no build noise, and leaves a settled store alone.
 
+How Do is **requested, not ambient**: it loads when someone asks for it by name, by its loop, or by asking to slow down and ground the work — not on every how-to question.
+
 ### Where the store lives
 
 The store is per-person, so it goes where the platform keeps per-user state. Resolution order:
@@ -50,7 +52,7 @@ The store is per-person, so it goes where the platform keeps per-user state. Res
 | 2 | `$HOWDO_CONTEXT` | as given |
 | 3 | platform default | `%APPDATA%\howdo\CONTEXT.md` on Windows; `~/.howdo/CONTEXT.md` on macOS and Linux |
 
-An existing `~/.howdo/CONTEXT.md` always wins, so adding the Windows default cannot orphan a store somebody already settled. The basename stays `CONTEXT.md`, because a different basename is read as a fork.
+Resolution depends only on configuration, never on what is already on disk, so one environment always resolves to one path; anyone moving a settled store points `HOWDO_CONTEXT` at it. The basename stays `CONTEXT.md`, because a different basename is read as a fork.
 
 ### Per-user by default, generic by opt-in
 

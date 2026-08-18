@@ -38,8 +38,7 @@ The runtime is a small protocol kernel, not a complete trust system. v0.7 makes 
 | store deliberately pointed inside the payload | `install.py` refuses before copying anything unless `--shared` opts in |
 | unmarked context inside the payload settled | `PayloadContextError`; only a declared `scope: shared` store is admitted there |
 | `scope` key absent or blank | read as `user`; genericness is never inferred |
-| platform default added under a user who already settled `~/.howdo/CONTEXT.md` | the existing store still resolves; no lineage is orphaned |
-| build noise present in the working tree at install time | excluded from the payload, and pruned from a prior install |
+| build noise present in the working tree at install time | excluded from the payload |
 | install directory name drifts from the skill's declared `name:` | `--verify` fails |
 
 ## Skill-level agency attacks
