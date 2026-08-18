@@ -15,6 +15,12 @@ Versions are aligned across `SKILL.md`, `README.md`, `pyproject.toml`, and `CONT
 - `SKILL.md` now names the store path, the helper call, and the hand-install
   fallback, so step 0 is executable from the skill file alone.
 - Installs no longer copy `__pycache__`, bytecode, or other build noise.
+- **Detail moved to `references/`, loaded on demand.** The onboarding interview,
+  store resolution, fork and scope rules move to `references/onboarding.md`; the
+  vocabulary table to `references/vocabulary.md`. `SKILL.md` keeps the state
+  routing and the three guarantees those details back — onboarding gates the
+  first substantive HowDo, a decline is durable, completion is structural only —
+  so a reference that is never read cannot take a guarantee with it.
 - **Requested, not ambient.** The description no longer advertises `"help me"`,
   `"say more"`, `"do work"`, or bare how-to questions as triggers; it asks for
   an explicit invocation, the loop by name, or a request to work this way. The

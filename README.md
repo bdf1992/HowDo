@@ -125,7 +125,8 @@ Helpers:
 
 ## Layout
 
-- `SKILL.md` — v0.7.1 discipline, onboarding, agency modifier, persistence rules
+- `SKILL.md` — v0.7.1 discipline, loop, agency modifier, persistence rules
+- `references/` — detail loaded on demand: `onboarding.md` (interview, store, forks, scope), `vocabulary.md`
 - `CONTEXT.template.md` — the shipped template the durable store is instantiated from
 - `runtime/howdo/core.py` — zero-dependency operation protocol; `Request.actor` records the bound actor lens without inferring language
 - `runtime/howdo/context.py` — zero-dependency context lifetime helpers

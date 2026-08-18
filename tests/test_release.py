@@ -1,3 +1,4 @@
+import re
 import shutil
 import sys
 import tempfile
@@ -31,7 +32,10 @@ class ReleaseContractTests(unittest.TestCase):
 
     def test_first_run_contract_is_not_lazy(self):
         skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("Before the first substantive HowDo", skill)
+        # The gate is a guarantee, so it stays in SKILL.md even though the
+        # interview it triggers moved to a reference.
+        self.assertIn("before the first substantive howdo", skill.lower())
+        self.assertIn("never bypassed silently", skill.lower())
         self.assertNotIn("onboarding is not a gate on work", skill.lower())
         self.assertNotIn("onboard it lazily", skill.lower())
 
@@ -90,6 +94,41 @@ class InvocationIntentTests(unittest.TestCase):
         skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
         self.assertIn("requested, not ambient", skill.lower())
         self.assertIn("moves within a HowDo already underway", skill)
+
+
+class ReferenceSplitTests(unittest.TestCase):
+    """Detail loads on demand; the guarantees it backs stay in SKILL.md."""
+
+    def test_references_are_pointed_to_and_exist(self):
+        skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
+        for name in ("references/onboarding.md", "references/vocabulary.md"):
+            self.assertIn(name, skill, f"SKILL.md never tells anyone to read {name}")
+            self.assertTrue((ROOT / name).is_file(), f"{name} is missing")
+
+    def test_references_ship_with_the_payload(self):
+        sys.path.insert(0, str(ROOT))
+        import install  # noqa: E402
+
+        self.assertIn("references", install.PAYLOAD)
+        with tempfile.TemporaryDirectory() as tmp:
+            destination = Path(tmp) / "how-do"
+            install.copy_payload(destination, dry_run=False)
+            for name in ("onboarding.md", "vocabulary.md"):
+                self.assertTrue((destination / "references" / name).is_file())
+
+    def test_skill_keeps_the_guarantees_the_reference_details(self):
+        """A reference that is never read must not take a guarantee with it."""
+        skill = (ROOT / "SKILL.md").read_text(encoding="utf-8").lower()
+        self.assertIn("onboarding: declined", skill)
+        self.assertIn("do not ask again", skill)
+        self.assertIn("structural completeness only", skill)
+        self.assertIn("does not prove", skill)
+
+    def test_skill_has_no_dangling_section_pointers(self):
+        skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
+        headings = {line[3:].strip() for line in skill.splitlines() if line.startswith("## ")}
+        for pointer in re.findall(r"as in \*\*([^*]+)\*\*", skill):
+            self.assertIn(pointer, headings, f"SKILL.md points at a section it lost: {pointer}")
 
 
 class PayloadHygieneTests(unittest.TestCase):

@@ -46,7 +46,8 @@ DEFAULT_SKILLS_DIR = Path.home() / ".claude" / "skills"
 
 # The payload is what a host loads. Tests, packaging, and contributor docs are
 # repository concerns and are deliberately not shipped into the skill directory.
-PAYLOAD = ("SKILL.md", "CONTEXT.template.md", "QUICKSTART.md", "LICENSE", "runtime", "examples")
+PAYLOAD = ("SKILL.md", "CONTEXT.template.md", "QUICKSTART.md", "LICENSE",
+           "references", "runtime", "examples")
 
 # Build and tool droppings are not part of the skill. The README tells people to
 # run the tests, so without this an install ships whatever bytecode that left
