@@ -3,7 +3,7 @@ howdo_context: "2"
 context_id: pending
 context_file: CONTEXT.md
 skill: how-do
-skill_version: "0.6.1"
+skill_version: "0.7.0"
 onboarding: required
 parent_context_id: none
 ---

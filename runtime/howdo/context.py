@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, Mapping
+import os
 import re
 import uuid
 
@@ -39,6 +40,23 @@ _REQUIRED_SECTIONS = (
 )
 _PLACEHOLDERS = {"", "pending", "none", "none yet", "- pending", "- none yet"}
 _PLACEHOLDER_PREFIXES = ("pending", "none yet")
+
+_STORE_ENV = "HOWDO_CONTEXT"
+_STORE_DIRNAME = ".howdo"
+_CONTEXT_BASENAME = "CONTEXT.md"
+# A skill payload directory is identified by the skill file it ships. Anything
+# under it is replaced wholesale on reinstall or update.
+_PAYLOAD_MARKER = "SKILL.md"
+_PAYLOAD_SEARCH_DEPTH = 6
+
+
+class PayloadContextError(ValueError):
+    """A settlement was attempted on a context living inside a skill payload.
+
+    The payload is replaceable: install, update, and reinstall overwrite it. A
+    settled context written there is discarded without any error being raised,
+    so the write would produce a receipt the installation cannot keep.
+    """
 
 
 @dataclass(frozen=True)
@@ -137,6 +155,97 @@ def _replace_section(text: str, heading: str, body: str) -> str:
     return text[: match.start(2)] + body.strip() + "\n\n" + text[match.end(2) :].lstrip("\n")
 
 
+def payload_root(path: str | Path) -> Path | None:
+    """Return the skill payload directory containing ``path``, or ``None``.
+
+    A payload directory is one that ships ``SKILL.md``. The check walks upward
+    from the file so that ``<payload>/CONTEXT.md`` and any nested variant are
+    both detected. This is a location question, not a durability claim: whether
+    a store survives a reboot is the host's business, but whether a file sits in
+    the part of the install that gets replaced is decidable right here.
+    """
+    p = Path(path)
+    start = p if p.is_dir() else p.parent
+    for candidate in [start, *start.parents][:_PAYLOAD_SEARCH_DEPTH]:
+        if (candidate / _PAYLOAD_MARKER).is_file():
+            return candidate
+    return None
+
+
+def resolve_context_path(
+    explicit: str | Path | None = None,
+    *,
+    env: Mapping[str, str] | None = None,
+    home: str | Path | None = None,
+) -> Path:
+    """Resolve where this installation's durable context lives.
+
+    Precedence, highest first:
+
+    1. an explicitly selected file (never auto-merge several contexts);
+    2. ``HOWDO_CONTEXT``, so a host can place the store wherever it keeps
+       per-person state;
+    3. ``~/.howdo/CONTEXT.md``.
+
+    The basename stays ``CONTEXT.md`` for the canonical lineage because
+    :func:`inspect_context` treats a different basename as a fork. Separation
+    from the shipped template is by *path*, never by name.
+    """
+    if explicit is not None:
+        return Path(explicit).expanduser()
+
+    environ = os.environ if env is None else env
+    configured = environ.get(_STORE_ENV)
+    if configured:
+        return Path(configured).expanduser()
+
+    base = Path(home).expanduser() if home is not None else Path.home()
+    return base / _STORE_DIRNAME / _CONTEXT_BASENAME
+
+
+def ensure_context(
+    path: str | Path | None = None,
+    *,
+    template: str | Path,
+    env: Mapping[str, str] | None = None,
+    home: str | Path | None = None,
+) -> ContextStatus:
+    """Instantiate the store from the shipped template if it does not exist.
+
+    An existing store is never overwritten, so reinstalling or updating the
+    payload cannot clobber settled context. Returns the resulting status so a
+    host can route straight into onboarding, decline, or ordinary work.
+    """
+    destination = resolve_context_path(path, env=env, home=home)
+    if destination.exists():
+        return inspect_context(destination)
+
+    source = Path(template).expanduser()
+    if not source.exists():
+        raise FileNotFoundError(source)
+
+    text = source.read_text(encoding="utf-8")
+    if not _frontmatter(text):
+        raise ValueError("template requires flat YAML frontmatter")
+
+    text = _set_frontmatter(text, {"context_file": destination.name})
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(text, encoding="utf-8")
+    return inspect_context(destination)
+
+
+def _refuse_payload_settlement(path: Path, *, allow_payload: bool) -> None:
+    if allow_payload:
+        return
+    root = payload_root(path)
+    if root is None:
+        return
+    raise PayloadContextError(
+        f"{path} is inside the skill payload at {root}; settle the store "
+        f"returned by resolve_context_path() instead, or pass allow_payload=True"
+    )
+
+
 def inspect_context(path: str | Path) -> ContextStatus:
     """Return whether a durable context is absent, new, ready, declined, forked, or invalid.
 
@@ -201,12 +310,14 @@ def complete_onboarding(
     landed_example: str,
     rejected_example: str,
     interaction_observation: str | None = None,
+    allow_payload: bool = False,
 ) -> Path:
     """Settle the minimum structural receipt for comparative onboarding.
 
     This does not judge whether the user's feedback is *true*. It prevents a
     caller from making an untouched template ready by flipping two metadata
-    fields while leaving the comparative evidence blank.
+    fields while leaving the comparative evidence blank, and it refuses to
+    settle a context that lives inside the replaceable skill payload.
     """
     def clean(value: str) -> str:
         return re.sub(r"[\r\n]+", " ", value).strip()
@@ -225,6 +336,7 @@ def complete_onboarding(
     p = Path(path)
     if not p.exists():
         raise FileNotFoundError(p)
+    _refuse_payload_settlement(p, allow_payload=allow_payload)
 
     status = inspect_context(p)
     if status.state == "fork_required":
@@ -264,11 +376,17 @@ def complete_onboarding(
     return p
 
 
-def decline_onboarding(path: str | Path) -> Path:
-    """Persist an explicit calibration decline without creating learned context."""
+def decline_onboarding(path: str | Path, *, allow_payload: bool = False) -> Path:
+    """Persist an explicit calibration decline without creating learned context.
+
+    A decline is only worth persisting if it can be read back on the next
+    session, so it is refused inside the payload for the same reason completion
+    is: the write would succeed and then be discarded by the next update.
+    """
     p = Path(path)
     if not p.exists():
         raise FileNotFoundError(p)
+    _refuse_payload_settlement(p, allow_payload=allow_payload)
 
     status = inspect_context(p)
     if status.state == "fork_required":
@@ -319,7 +437,7 @@ def fork_context(source: str | Path, destination: str | Path) -> Path:
             "context_id": "pending",
             "context_file": dst.name,
             "skill": "how-do",
-            "skill_version": "\"0.6.1\"",
+            "skill_version": "\"0.7.0\"",
             "onboarding": "required",
             "parent_context_id": parent,
         },

@@ -1,10 +1,14 @@
 from .context import (
     ContextStatus,
+    PayloadContextError,
     complete_onboarding,
     decline_onboarding,
+    ensure_context,
     fork_context,
     inspect_context,
     new_context_id,
+    payload_root,
+    resolve_context_path,
 )
 
 from .core import (
@@ -50,9 +54,13 @@ __all__ = [
     "resolve",
     "settle",
     "ContextStatus",
+    "PayloadContextError",
     "complete_onboarding",
     "decline_onboarding",
+    "ensure_context",
     "fork_context",
     "inspect_context",
     "new_context_id",
+    "payload_root",
+    "resolve_context_path",
 ]

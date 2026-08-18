@@ -4,7 +4,7 @@ description: Baseline discipline for understanding-before-acting. On first insta
 license: MIT
 metadata:
   author: bdo
-  version: "0.6.1"
+  version: "0.7.0"
   category: discipline
 ---
 
@@ -67,7 +67,7 @@ Onboarding is a calibration, not a psychometric test. Stop as soon as one useful
 - Never auto-merge context files. If several exist, use the explicitly selected one; otherwise use canonical `CONTEXT.md`.
 - A skill version bump alone does not erase a settled context. Migrate structure if needed while preserving learned observations.
 
-The reference runtime exposes `inspect_context()`, `complete_onboarding()`, `decline_onboarding()`, and `fork_context()` so hosts can enforce the structural lifetime without trying to automate the human judgment inside the interview.
+The reference runtime exposes `resolve_context_path()`, `ensure_context()`, `inspect_context()`, `complete_onboarding()`, `decline_onboarding()`, and `fork_context()` so hosts can enforce the structural lifetime without trying to automate the human judgment inside the interview.
 
 ## Agency modifier
 
@@ -115,7 +115,7 @@ Terms below map to established practice so a reader from outside can audit them.
 
 ## Procedure
 
-0. **Load or calibrate durable context.** Inspect the active context file. If it is fresh/forked/unresolved, run the short comparative onboarding before substantive work unless the user explicitly declines durable calibration. Persist a decline as `onboarding: declined`; on later sessions, do not ask again and proceed without learned durable context.
+0. **Resolve the store, then load or calibrate durable context.** Durable context lives outside the skill payload: the payload is replaced by every install or update, so a context settled inside it is discarded with no error raised. Resolve the store path first — explicit selection, then host configuration, then a user-scoped default — instantiate it from the shipped template when absent, and never settle the template copy in place. Then inspect the active context file. If it is fresh/forked/unresolved, run the short comparative onboarding before substantive work unless the user explicitly declines durable calibration. Persist a decline as `onboarding: declined`; on later sessions, do not ask again and proceed without learned durable context.
 1. **Bind the actor; establish the receiver — visibly.** Resolve `I / you / we / they / named actor` first. Use that actor lens to constrain capability, authority, and evidence. Separately project a small local rendering contract from any ready durable context plus the current request. State the useful read in one line and let the person correct it.
 2. **Resolve the request against a paradigm.** Load only saved domain-how/context admissible for the bound actor. Otherwise establish the smallest useful map, then a path through it. Do not require a grand ontology. For every step that mutates state or crosses a boundary, state a precondition and an observable postcondition. Observation-only steps may stay lighter. Name invariants that must survive the operation; minimum invariant: the active paradigm stays inspectable in one look.
 3. **Gate.** Admit the operation only if the requested point can be located and the consequential contracts are grounded in real state. If not, fizzle: identify the missing distinction, evidence, permission, dependency, or contract. A fizzle is not a failed operation because the crossing never became admissible.
@@ -231,7 +231,7 @@ Empty rows are deliberate. Fill one only when a repeated move earns a measurable
 
 ## Refuses
 
-Acting on a path with no navigable map. Calling a consequential path understood without observable contracts. Treating model output as independent evidence of its own success. Mutating the paradigm merely because a request was made. Rewriting the whole paradigm when the residual named one layer. Establishing the receiver silently. Treating an unresolved or declined context as learned context, silently bypassing onboarding without an explicit user decline, or repeatedly re-asking after a persisted decline. Declaring a person a fixed learning-style type from presentation feedback. Promoting every trace directly into durable context. Overwriting a source context when creating a fork. Auto-merging distinct context lineages. Projecting user context or authority onto the wrong actor. Making the runtime more complex than the work it is protecting.
+Acting on a path with no navigable map. Calling a consequential path understood without observable contracts. Treating model output as independent evidence of its own success. Mutating the paradigm merely because a request was made. Rewriting the whole paradigm when the residual named one layer. Establishing the receiver silently. Treating an unresolved or declined context as learned context, silently bypassing onboarding without an explicit user decline, or repeatedly re-asking after a persisted decline. Declaring a person a fixed learning-style type from presentation feedback. Promoting every trace directly into durable context. Settling durable context inside the replaceable skill payload, or letting an install overwrite a settled store. Overwriting a source context when creating a fork. Auto-merging distinct context lineages. Projecting user context or authority onto the wrong actor. Making the runtime more complex than the work it is protecting.
 
 ## Self-check
 

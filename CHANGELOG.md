@@ -2,6 +2,13 @@
 
 Versions are aligned across `SKILL.md`, `README.md`, `pyproject.toml`, and `CONTEXT.md`; `tests/test_release.py` enforces it.
 
+## 0.7.0
+- Install separates the **replaceable payload** from the **durable store**: the payload is copied to `<skills-dir>/how-do/`, the context is instantiated at `$HOWDO_CONTEXT` or `~/.howdo/CONTEXT.md`, and reinstall never clobbers a settled store.
+- `resolve_context_path()` and `ensure_context()` added; `ensure_context()` never overwrites an existing store.
+- `complete_onboarding()` and `decline_onboarding()` refuse a target inside a skill payload (`PayloadContextError`) unless `allow_payload=True`. A receipt the install cannot keep is no longer written silently.
+- `payload_root()` exposes the check: a directory shipping `SKILL.md` is payload.
+- `install.py` installs, verifies, and names the directory from `name:` in the frontmatter rather than from the repo folder.
+
 ## 0.6.1
 - `onboarding: declined` is a persisted state; `decline_onboarding()` added; a decline is not re-asked and is not learned context.
 - `complete_onboarding()` refuses an already-ready context (no `context_id` churn) and preserves the id when reopening a declined context.

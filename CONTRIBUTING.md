@@ -28,7 +28,7 @@ The goalposts. Move one only with a residual from real use, never because a prob
 4. **Versions stay aligned.** `SKILL.md`, `README.md`, `pyproject.toml`, `CONTEXT.md`, and `CHANGELOG.md` move together. `tests/test_release.py` will tell you if they don't.
 5. **Handles are earned, not added.** A new small-word handle is admissible only if it names a move over the paradigm and its residual is measurable, and it should arrive with the trace that earned it. The six in `SKILL.md` are a seed set, not a menu, and not the whole set.
 6. **The actor is a modifier, not a fork.** `I / you / we / they` changes whose capability, authority, and evidence apply. It does not add a workflow, a loop, or a kernel branch.
-7. **Contexts are personal.** Never commit a settled `CONTEXT.md` or any fork of one. The tracked `CONTEXT.md` is the template and must inspect as `onboarding_required`; a test guards this. `.gitignore` excludes `CONTEXT.*.md`. Respect a persisted `onboarding: declined`.
+7. **Contexts are personal, and live outside the payload.** The store is resolved by `resolve_context_path()` and instantiated by `ensure_context()`; the settlement helpers refuse a target inside a skill payload without an explicit `allow_payload=True`. Never commit a settled `CONTEXT.md` or any fork of one. The tracked `CONTEXT.md` is the template and must inspect as `onboarding_required`; a test guards this. `.gitignore` excludes `CONTEXT.*.md`. Respect a persisted `onboarding: declined`.
 8. **No new subsystems without use.** Persistence backends, parsers, orchestration, hosting, plugin systems: proposals need a real HowDo trace that could not be served without them.
 
 ## Running the suite

@@ -14,12 +14,12 @@ class ReleaseContractTests(unittest.TestCase):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
         context = (ROOT / "CONTEXT.md").read_text(encoding="utf-8")
-        self.assertIn('version: "0.6.1"', skill)
-        self.assertIn("How Do v0.6.1", readme)
-        self.assertIn('version = "0.6.1"', pyproject)
-        self.assertIn('skill_version: "0.6.1"', context)
+        self.assertIn('version: "0.7.0"', skill)
+        self.assertIn("How Do v0.7.0", readme)
+        self.assertIn('version = "0.7.0"', pyproject)
+        self.assertIn('skill_version: "0.7.0"', context)
         changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
-        self.assertIn("## 0.6.1", changelog)
+        self.assertIn("## 0.7.0", changelog)
 
     def test_tracked_context_is_the_template_not_a_settled_context(self):
         # A settled or declined CONTEXT.md is personal and must never be committed.
