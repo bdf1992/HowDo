@@ -1,4 +1,4 @@
-# Adversarial notes — v0.6.1
+# Adversarial notes — v0.7.0
 
 The runtime is a small protocol kernel, not a complete trust system. v0.6 makes the durable-context lifecycle structurally checkable while keeping the agency modifier above the execution kernel.
 
@@ -29,6 +29,13 @@ The runtime is a small protocol kernel, not a complete trust system. v0.6 makes 
 | helper forks malformed older context missing onboarding/parent keys | required keys are inserted and new fork requires onboarding |
 | fork destination already exists | refused; source and destination are preserved |
 | completion helper receives placeholder evidence | refused |
+| settlement attempted on the shipped template | `TemplateContextError`; a template has no lineage to settle |
+| template forked as if it were a lineage | refused; instantiate with `ensure_context()` |
+| template marker carried into the instantiated store | stripped; the store opens at `context_id: pending` |
+| settlement attempted on a context inside the skill payload | `PayloadContextError`; template left untouched |
+| install or update run over a settled store | `ensure_context()` never overwrites an existing store |
+| store deliberately pointed inside the payload | `install.py` refuses before copying anything |
+| install directory name drifts from the skill's declared `name:` | `--verify` fails |
 
 ## Skill-level agency attacks
 
@@ -46,6 +53,7 @@ These are semantic invariants rather than Python NLP rules:
 - A caller-supplied comparator can still lie.
 - Gate evidence provenance is recorded, not authenticated or freshness-enforced.
 - Python closures can capture state outside the narrow observer argument; isolation belongs to the host.
+- **Store lifetime is the host's, not the module's.** `payload_root()` decides a *location* question — is this file in the part of the install that gets replaced — which is decidable in one session. Whether a store outside the payload survives a reboot, a container reset, or an ephemeral home directory is not observable from inside the process that writes it: a successful write to a discarded filesystem is byte-identical to a durable one. A host whose entire filesystem is scratch will pass every check here and still lose the context. That is declared, not enforced.
 - Context completion proves a **structural receipt**, not the truth of a learning claim. LongHow + user settlement remain the semantic boundary.
 - Rename/new-basename forks are detectable from the file itself. A byte-for-byte copy of an entire settled installation under the same filenames is not distinguishable without an external installation identity/custody mechanism; v0.6 does not pretend otherwise.
 - The agency modifier is intentionally not implemented as a brittle pronoun parser. The skill binds the actor from language/context; the execution kernel remains domain-neutral.

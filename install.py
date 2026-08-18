@@ -1,0 +1,149 @@
+#!/usr/bin/env python3
+"""Install How Do as a skill directory, keeping the durable context out of it.
+
+Two things live in different places on purpose:
+
+    template  <skills-dir>/how-do/CONTEXT.template.md   shipped artifact; replaced on update
+    store     ~/.howdo/CONTEXT.md                       per-person lineage; never touched
+
+The directory name comes from ``name:`` in ``SKILL.md`` rather than from the
+repository folder, because a loader that matches on the frontmatter name will
+not find a directory called ``HowDo``.
+
+Usage:
+    python install.py                 install, then report store state
+    python install.py --target DIR    install into a different skills directory
+    python install.py --context PATH  use a specific durable context file
+    python install.py --verify        check an existing install; change nothing
+    python install.py --dry-run       print what would happen
+"""
+
+from __future__ import annotations
+
+import argparse
+import re
+import shutil
+import sys
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parent
+sys.path.insert(0, str(REPO / "runtime"))
+
+from howdo.context import (  # noqa: E402
+    ensure_context,
+    inspect_context,
+    payload_root,
+    resolve_context_path,
+)
+
+DEFAULT_SKILLS_DIR = Path.home() / ".claude" / "skills"
+
+# The payload is what a host loads. Tests, packaging, and contributor docs are
+# repository concerns and are deliberately not shipped into the skill directory.
+PAYLOAD = ("SKILL.md", "CONTEXT.template.md", "QUICKSTART.md", "LICENSE", "runtime", "examples")
+
+
+def skill_name(skill_md: Path) -> str:
+    """Read ``name:`` from the skill frontmatter; the install dir must match it."""
+    text = skill_md.read_text(encoding="utf-8")
+    if not text.startswith("---"):
+        raise ValueError(f"{skill_md} has no frontmatter")
+    end = text.find("\n---", 3)
+    front = text[3 : end if end != -1 else len(text)]
+    match = re.search(r"(?m)^name:\s*(\S+)\s*$", front)
+    if not match:
+        raise ValueError(f"{skill_md} frontmatter has no name")
+    return match.group(1).strip().strip("\"'")
+
+
+def copy_payload(destination: Path, *, dry_run: bool) -> list[str]:
+    actions = []
+    for item in PAYLOAD:
+        source = REPO / item
+        if not source.exists():
+            raise FileNotFoundError(source)
+        target = destination / item
+        actions.append(f"copy {item} -> {target}")
+        if dry_run:
+            continue
+        if source.is_dir():
+            shutil.copytree(source, target, dirs_exist_ok=True)
+        else:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, target)
+    return actions
+
+
+def report(payload: Path, store_path: Path) -> int:
+    """Print the state of an install. Returns a process exit code."""
+    print(f"payload  {payload}")
+    print(f"store    {store_path}")
+
+    problems = 0
+
+    if not (payload / "SKILL.md").is_file():
+        print("  FAIL  no SKILL.md in payload; nothing is installed")
+        return 1
+
+    expected = skill_name(payload / "SKILL.md")
+    if payload.name != expected:
+        print(f"  FAIL  directory is {payload.name!r} but SKILL.md declares {expected!r}")
+        problems += 1
+
+    if payload_root(store_path) is not None:
+        print("  FAIL  store is inside the payload; an update would discard it")
+        problems += 1
+
+    status = inspect_context(store_path)
+    print(f"  state {status.state} — {status.reason}")
+    if status.state in {"invalid", "fork_required"}:
+        problems += 1
+    elif status.state == "onboarding_required":
+        print("  next  run the comparative onboarding before the first substantive HowDo")
+    elif status.state == "declined":
+        print("  next  calibration was declined; do not ask again, do not use as learned context")
+    elif status.state == "ready":
+        print("  next  nothing; load this context and work")
+
+    print("ok" if problems == 0 else f"{problems} problem(s)")
+    return 0 if problems == 0 else 1
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--target", type=Path, default=DEFAULT_SKILLS_DIR,
+                        help=f"skills directory (default: {DEFAULT_SKILLS_DIR})")
+    parser.add_argument("--context", type=Path, default=None,
+                        help="durable context file (default: $HOWDO_CONTEXT or ~/.howdo/CONTEXT.md)")
+    parser.add_argument("--verify", action="store_true", help="check an install without changing it")
+    parser.add_argument("--dry-run", action="store_true", help="print planned actions only")
+    args = parser.parse_args(argv)
+
+    name = skill_name(REPO / "SKILL.md")
+    payload = args.target / name
+    store_path = resolve_context_path(args.context)
+
+    if args.verify:
+        return report(payload, store_path)
+
+    if payload_root(store_path) is not None:
+        print(f"refusing: chosen context {store_path} is inside a skill payload", file=sys.stderr)
+        print("pick a path outside the install, or set HOWDO_CONTEXT", file=sys.stderr)
+        return 1
+
+    for action in copy_payload(payload, dry_run=args.dry_run):
+        print(action)
+
+    if args.dry_run:
+        existing = "exists; would be left untouched" if store_path.exists() else "would be created"
+        print(f"store {store_path} ({existing})")
+        return 0
+
+    # ensure_context never overwrites, so reinstalling cannot clobber settled context.
+    status = ensure_context(store_path, template=payload / "CONTEXT.template.md")
+    print()
+    return report(payload, status.path)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

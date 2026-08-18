@@ -1,4 +1,4 @@
-# How Do v0.6.1 + Runtime Toolkit
+# How Do v0.7.0 + Runtime Toolkit
 
 **How Do** is a small discipline for understanding-before-acting.
 
@@ -19,6 +19,28 @@ How[actor] : Map -> Path -> Check -> Do -> Look -> Update
 ```
 
 `I / you / we / they` changes whose capabilities, authority, environment, and evidence constrain the HowDo. It does **not** create four new workflows.
+
+## Install
+
+```bash
+git clone https://github.com/bdf1992/HowDo.git
+cd HowDo
+python install.py            # payload -> ~/.claude/skills/how-do, store -> ~/.howdo/CONTEXT.md
+python install.py --verify   # check an existing install, change nothing
+```
+
+Two locations, two lifetimes:
+
+```
+CONTEXT.template.md   in the payload   shipped artifact, versioned, replaced on update
+CONTEXT.md            in the store     per-person lineage, settled by onboarding
+```
+
+These are two **types**, not two copies. The template carries `template: true`, has `context_id: template`, is skipped by the fork check, and can never become `ready`. `ensure_context()` strips the marker and opens a fresh lineage in the store. `complete_onboarding()`, `decline_onboarding()`, and `fork_context()` all refuse a template outright — a template has no lineage to settle into.
+
+The directory is named from `name:` in `SKILL.md`, not from the repo folder — a loader matching the frontmatter name will not find `HowDo/`. The store path is `--context`, else `$HOWDO_CONTEXT`, else `~/.howdo/CONTEXT.md`; its basename stays `CONTEXT.md`, because a different basename is read as a fork. Reinstalling re-copies the payload and leaves a settled store alone.
+
+`complete_onboarding()` and `decline_onboarding()` refuse a target inside the payload. A settlement written there would be discarded by the next update without raising anything — a receipt the installation cannot keep.
 
 ## First install
 
@@ -77,7 +99,7 @@ Helpers:
 
 ## Layout
 
-- `SKILL.md` — v0.6.1 discipline, onboarding, agency modifier, persistence rules
+- `SKILL.md` — v0.7.0 discipline, onboarding, agency modifier, persistence rules
 - `CONTEXT.md` — required durable context template
 - `runtime/howdo/core.py` — zero-dependency operation protocol; `Request.actor` records the bound actor lens without inferring language
 - `runtime/howdo/context.py` — zero-dependency context lifetime helpers
@@ -92,7 +114,7 @@ python -m unittest discover -s tests -v
 python examples/jira_workflow.py
 ```
 
-The bundle and Python package share release version `0.6.1` so package identity does not drift from the skill release.
+The bundle and Python package share release version `0.7.0` so package identity does not drift from the skill release.
 
 ## Repository
 

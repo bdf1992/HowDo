@@ -7,7 +7,9 @@ dist/
 .venv/
 
 # Durable per-person contexts never belong in shared VCS.
-# CONTEXT.md is the shipped template and stays tracked (guarded by a test).
+# Only the shipped template is tracked; a test guards that CONTEXT.md is absent.
+CONTEXT.md
 CONTEXT.*.md
+!CONTEXT.template.md
 *.context.md
 .howdo/

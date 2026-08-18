@@ -13,18 +13,19 @@ class ReleaseContractTests(unittest.TestCase):
         skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
-        context = (ROOT / "CONTEXT.md").read_text(encoding="utf-8")
-        self.assertIn('version: "0.6.1"', skill)
-        self.assertIn("How Do v0.6.1", readme)
-        self.assertIn('version = "0.6.1"', pyproject)
-        self.assertIn('skill_version: "0.6.1"', context)
+        context = (ROOT / "CONTEXT.template.md").read_text(encoding="utf-8")
+        self.assertIn('version: "0.7.0"', skill)
+        self.assertIn("How Do v0.7.0", readme)
+        self.assertIn('version = "0.7.0"', pyproject)
+        self.assertIn('skill_version: "0.7.0"', context)
         changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
-        self.assertIn("## 0.6.1", changelog)
+        self.assertIn("## 0.7.0", changelog)
 
     def test_tracked_context_is_the_template_not_a_settled_context(self):
-        # A settled or declined CONTEXT.md is personal and must never be committed.
-        status = inspect_context(ROOT / "CONTEXT.md")
-        self.assertEqual(status.state, "onboarding_required", status.reason)
+        # Personal contexts are never committed; only the template is tracked.
+        status = inspect_context(ROOT / "CONTEXT.template.md")
+        self.assertEqual(status.state, "template", status.reason)
+        self.assertFalse((ROOT / "CONTEXT.md").exists(), "a personal store is tracked")
 
     def test_first_run_contract_is_not_lazy(self):
         skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
@@ -39,7 +40,7 @@ class ReleaseContractTests(unittest.TestCase):
             self.assertIn(form, skill)
 
     def test_context_separates_rendering_from_actor_capability(self):
-        context = (ROOT / "CONTEXT.md").read_text(encoding="utf-8")
+        context = (ROOT / "CONTEXT.template.md").read_text(encoding="utf-8")
         self.assertIn("primarily informs **rendering and interaction**", context)
         self.assertIn("does not grant facts, capability, or authority", context)
 

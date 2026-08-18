@@ -1,8 +1,8 @@
-# How Do v0.6.1 — quickstart
+# How Do v0.7.0 — quickstart
 
 ## First run
 
-If `CONTEXT.md` is unresolved, calibrate before the first substantive HowDo unless the user explicitly declines durable calibration. Persist a decline as `onboarding: declined`; later sessions do not ask again and do not use learned durable context.
+`CONTEXT.template.md` ships with the skill; your `CONTEXT.md` is instantiated from it into the store (`$HOWDO_CONTEXT`, else `~/.howdo/`). Settle the store, never the template. If your `CONTEXT.md` is unresolved, calibrate before the first substantive HowDo unless the user explicitly declines durable calibration. Persist a decline as `onboarding: declined`; later sessions do not ask again and do not use learned durable context.
 
 Ask for one domain they know well. Explain one familiar idea in a few equivalent forms: relational/diagram, narrative, formal/schema, executable/procedural. Ask what landed, what did not, and why. Run one liked-vs-disliked contrast. Record one bounded observation plus concrete positive and negative examples. Do not assign a fixed learning-style label.
 

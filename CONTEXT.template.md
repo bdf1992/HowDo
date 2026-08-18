@@ -1,14 +1,21 @@
 ---
 howdo_context: "2"
-context_id: pending
-context_file: CONTEXT.md
+template: true
+context_id: template
+context_file: CONTEXT.template.md
 skill: how-do
-skill_version: "0.6.1"
+skill_version: "0.7.0"
 onboarding: required
 parent_context_id: none
 ---
 
-# How Do Context
+# How Do Context — shipped template
+
+This file is a **template**, not a context. It has no lineage, cannot be settled,
+and is replaced whenever the payload is updated. `ensure_context()` instantiates
+it into the durable store, which is where onboarding actually settles.
+
+The text below describes the instance this template produces.
 
 This is the durable, forkable context for **how this How Do installation should be perceived, built, rendered, and interacted with**.
 
