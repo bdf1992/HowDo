@@ -1,6 +1,21 @@
 # Changelog
 
-Versions are aligned across `SKILL.md`, `README.md`, `pyproject.toml`, and `CONTEXT.md`; `tests/test_release.py` enforces it.
+Versions are aligned across `SKILL.md`, `README.md`, `pyproject.toml`, and `CONTEXT.template.md`; `tests/test_release.py` enforces it.
+
+## 0.7.1
+
+- Instantiation strips the template's self-description, not just `template: true`.
+  A store no longer carries prose telling its reader it cannot be settled.
+- Store resolves to per-user application data by platform: `%APPDATA%\howdo\CONTEXT.md`
+  on Windows, `~/.howdo/CONTEXT.md` elsewhere. An existing `~/.howdo/CONTEXT.md`
+  always wins, so no settled store is orphaned. New: `default_store_path()`.
+- Context scope is explicit. `scope: user` is the default; `install.py --shared`
+  opts into one generic install-wide store, which marks itself `scope: shared`
+  and is the only kind allowed to live inside the payload. New: `is_shared()`.
+- `SKILL.md` now names the store path, the helper call, and the hand-install
+  fallback, so step 0 is executable from the skill file alone.
+- Installs no longer copy `__pycache__`, bytecode, or other build noise, and a
+  reinstall prunes what an earlier one left behind.
 
 ## 0.7.0
 - **Template and context are separate types.** The shipped file is `CONTEXT.template.md`, marked `template: true`, with `inspect_context()` state `template`. It has no lineage, skips the fork check, is never `ready`, and is refused by `complete_onboarding()`, `decline_onboarding()`, and `fork_context()` (`TemplateContextError`). `ensure_context()` strips the marker when opening a store.

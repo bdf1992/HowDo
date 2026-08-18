@@ -1,6 +1,6 @@
-# Adversarial notes — v0.7.0
+# Adversarial notes — v0.7.1
 
-The runtime is a small protocol kernel, not a complete trust system. v0.6 makes the durable-context lifecycle structurally checkable while keeping the agency modifier above the execution kernel.
+The runtime is a small protocol kernel, not a complete trust system. v0.7 makes the durable-context lifecycle structurally checkable while keeping the agency modifier above the execution kernel.
 
 ## Enforced operation invariants
 
@@ -32,9 +32,14 @@ The runtime is a small protocol kernel, not a complete trust system. v0.6 makes 
 | settlement attempted on the shipped template | `TemplateContextError`; a template has no lineage to settle |
 | template forked as if it were a lineage | refused; instantiate with `ensure_context()` |
 | template marker carried into the instantiated store | stripped; the store opens at `context_id: pending` |
+| template's self-description carried into the instantiated store | stripped; no store claims in prose that it cannot be settled |
 | settlement attempted on a context inside the skill payload | `PayloadContextError`; template left untouched |
 | install or update run over a settled store | `ensure_context()` never overwrites an existing store |
-| store deliberately pointed inside the payload | `install.py` refuses before copying anything |
+| store deliberately pointed inside the payload | `install.py` refuses before copying anything unless `--shared` opts in |
+| unmarked context inside the payload settled | `PayloadContextError`; only a declared `scope: shared` store is admitted there |
+| `scope` key absent or blank | read as `user`; genericness is never inferred |
+| platform default added under a user who already settled `~/.howdo/CONTEXT.md` | the existing store still resolves; no lineage is orphaned |
+| build noise present in the working tree at install time | excluded from the payload, and pruned from a prior install |
 | install directory name drifts from the skill's declared `name:` | `--verify` fails |
 
 ## Skill-level agency attacks

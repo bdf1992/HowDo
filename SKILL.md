@@ -4,7 +4,7 @@ description: Baseline discipline for understanding-before-acting. On first insta
 license: MIT
 metadata:
   author: bdo
-  version: "0.7.0"
+  version: "0.7.1"
   category: discipline
 ---
 
@@ -35,7 +35,7 @@ Guide with this loop. The deeper vocabulary below exists for inspection, runtime
 
 ## Durable context and first-run onboarding
 
-Every installation ships **`CONTEXT.template.md`** in its payload and instantiates a durable **`CONTEXT.md`** in a store outside it. The template is an artifact — versioned, replaced by updates, marked `template: true`, never settled and never forked. The instance is a lineage. Do not conflate them. It is reusable orientation for how this How Do should be perceived, built, rendered, and interacted with. It is **not** the context of one task, a raw session log, or a personality dossier.
+Every installation ships **`CONTEXT.template.md`** in its payload and instantiates a durable **`CONTEXT.md`** in a store outside it. The template is an artifact — versioned, replaced by updates, marked `template: true`, never settled and never forked. The instance is a lineage. Do not conflate them. Instantiation strips both the marker and the template's self-description, so a store never carries prose claiming it cannot be settled. It is reusable orientation for how this How Do should be perceived, built, rendered, and interacted with. It is **not** the context of one task, a raw session log, or a personality dossier.
 
 A fresh installation ships with `onboarding: required`. **Before the first substantive HowDo, run one short comparative onboarding.** If the user explicitly declines calibration, persist `onboarding: declined`, continue context-free, and do not ask again on later sessions unless the user reopens calibration. A declined context is not learned context.
 
@@ -54,6 +54,32 @@ Onboarding is a calibration, not a psychometric test. Stop as soon as one useful
 5. **Write observations, not identities.** Record claims such as “for relational systems, diagram→example→terminology landed better than prose-first,” with applicability, evidence, confidence, and limits. Preserve at least one concrete positive and negative example.
 6. **Settle structurally.** The context is ready only when the calibration domain, representation observation, landed example, and rejected example each contain at least one non-placeholder evidence bullet. Then assign a `context_id`, set `context_file` to the actual basename, and mark `onboarding: complete`. This is structural completeness only; it does not prove that the evidence is truthful or good.
 7. **Give the agency note once.** Explain briefly that `I / you / we / they` changes whose capabilities and context are used; it does not require another learner questionnaire.
+
+### Store location
+
+The durable store is per-person, so it lives where the platform keeps per-user state. Resolve it in this order:
+
+1. a path the user selected explicitly for this session;
+2. `$HOWDO_CONTEXT`, if set;
+3. the platform default — `%APPDATA%\howdo\CONTEXT.md` on Windows, `~/.howdo/CONTEXT.md` on macOS and Linux. An existing `~/.howdo/CONTEXT.md` always wins, so a store settled before this rule existed is never orphaned.
+
+The basename stays `CONTEXT.md`; a different basename is read as a fork.
+
+If the payload ships `runtime/`, the helpers answer all of this directly:
+
+```bash
+python -c "import sys; sys.path.insert(0, 'runtime'); \
+from howdo.context import ensure_context, inspect_context; \
+s = ensure_context(template='CONTEXT.template.md'); print(s.path, s.state)"
+```
+
+If `runtime/` or `CONTEXT.template.md` is absent — the skill was copied by hand rather than installed — do not guess a store into the payload. Create the resolved path with the frontmatter keys `howdo_context`, `context_id: pending`, `context_file: CONTEXT.md`, `scope: user`, `skill: how-do`, `skill_version`, `onboarding: required`, `parent_context_id: none`, and the six evidence sections named in **Comparative onboarding**, then onboard it.
+
+### Per-user by default; generic by opt-in
+
+This context records how one person takes explanations, so `scope: user` is the default and the store sits outside the payload. A single generic context shared by every user of one install is a real configuration — a shared machine, a team image — but it is never inferred. It requires an explicit opt-in (`install.py --shared`), and it records `scope: shared` in its own frontmatter so any later reader can see that the file is generic rather than personal. Without that marker, a context inside the payload is refused as an accident.
+
+A `scope: shared` store still onboards, but it calibrates to whoever answered first. Treat its observations as weaker evidence than a personal store's, and do not attribute them to the current user.
 
 ### Fork / rename rule
 
@@ -116,7 +142,7 @@ Terms below map to established practice so a reader from outside can audit them.
 
 ## Procedure
 
-0. **Resolve the store, then load or calibrate durable context.** Durable context lives outside the skill payload: the payload is replaced by every install or update, so a context settled inside it is discarded with no error raised. Resolve the store path first — explicit selection, then host configuration, then a user-scoped default — instantiate it from the shipped template when absent, and never settle the template copy in place. Then inspect the active context file. If it is fresh/forked/unresolved, run the short comparative onboarding before substantive work unless the user explicitly declines durable calibration. Persist a decline as `onboarding: declined`; on later sessions, do not ask again and proceed without learned durable context.
+0. **Resolve the store, then load or calibrate durable context.** Durable context lives outside the skill payload: the payload is replaced by every install or update, so a context settled inside it is discarded with no error raised. Resolve the store path first, by the precedence in **Store location** below, instantiate it from the shipped template when absent, and never settle the template copy in place. Then inspect the active context file. If it is fresh/forked/unresolved, run the short comparative onboarding before substantive work unless the user explicitly declines durable calibration. Persist a decline as `onboarding: declined`; on later sessions, do not ask again and proceed without learned durable context.
 1. **Bind the actor; establish the receiver — visibly.** Resolve `I / you / we / they / named actor` first. Use that actor lens to constrain capability, authority, and evidence. Separately project a small local rendering contract from any ready durable context plus the current request. State the useful read in one line and let the person correct it.
 2. **Resolve the request against a paradigm.** Load only saved domain-how/context admissible for the bound actor. Otherwise establish the smallest useful map, then a path through it. Do not require a grand ontology. For every step that mutates state or crosses a boundary, state a precondition and an observable postcondition. Observation-only steps may stay lighter. Name invariants that must survive the operation; minimum invariant: the active paradigm stays inspectable in one look.
 3. **Gate.** Admit the operation only if the requested point can be located and the consequential contracts are grounded in real state. If not, fizzle: identify the missing distinction, evidence, permission, dependency, or contract. A fizzle is not a failed operation because the crossing never became admissible.
@@ -136,7 +162,7 @@ Results are outcomes, not outputs: a how is grounded when its postconditions nam
 
 A paradigm that lives only in one turn cannot support changed-state behavior. Keep persistence separated by lifetime:
 
-- **`CONTEXT.md` / context fork** — per-person and per-install; keep it out of shared version control by default (gitignore or a user-scoped path), because it records how one person takes explanations. Durable settled orientation for how this installation should present and interact: calibration domains, representation observations, liked/disliked structures, interaction observations, and LongHow settlements. It has its own context lineage and onboarding state.
+- **`CONTEXT.md` / context fork** — per-person and per-install, resolved as in **Store location**; keep it out of shared version control by default (gitignore or a user-scoped path), because it records how one person takes explanations. Durable settled orientation for how this installation should present and interact: calibration domains, representation observations, liked/disliked structures, interaction observations, and LongHow settlements. It has its own context lineage and onboarding state.
 - **Rendering contract** — local projection for the current request. It may use the durable context but can differ whenever the task demands it. Do not force a learned preference where it harms the work.
 - **Domain-how** — one file per recurring concern: map, path, consequential contracts, invariants, one worked example, and revision.
 - **HowDo trace / operation record** — the bound actor, resolved revision, rendering used, gate result, observed evidence, residual, and settlement. This is history and evidence, not automatically part of durable context.
@@ -232,7 +258,7 @@ Empty rows are deliberate. Fill one only when a repeated move earns a measurable
 
 ## Refuses
 
-Acting on a path with no navigable map. Calling a consequential path understood without observable contracts. Treating model output as independent evidence of its own success. Mutating the paradigm merely because a request was made. Rewriting the whole paradigm when the residual named one layer. Establishing the receiver silently. Treating an unresolved or declined context as learned context, silently bypassing onboarding without an explicit user decline, or repeatedly re-asking after a persisted decline. Declaring a person a fixed learning-style type from presentation feedback. Promoting every trace directly into durable context. Settling durable context inside the replaceable skill payload, or letting an install overwrite a settled store. Overwriting a source context when creating a fork. Auto-merging distinct context lineages. Projecting user context or authority onto the wrong actor. Making the runtime more complex than the work it is protecting.
+Acting on a path with no navigable map. Calling a consequential path understood without observable contracts. Treating model output as independent evidence of its own success. Mutating the paradigm merely because a request was made. Rewriting the whole paradigm when the residual named one layer. Establishing the receiver silently. Treating an unresolved or declined context as learned context, silently bypassing onboarding without an explicit user decline, or repeatedly re-asking after a persisted decline. Declaring a person a fixed learning-style type from presentation feedback. Promoting every trace directly into durable context. Settling durable context inside the replaceable skill payload without an explicit `scope: shared` opt-in, or letting an install overwrite a settled store. Treating a shared generic context as evidence about the current person. Overwriting a source context when creating a fork. Auto-merging distinct context lineages. Projecting user context or authority onto the wrong actor. Making the runtime more complex than the work it is protecting.
 
 ## Self-check
 

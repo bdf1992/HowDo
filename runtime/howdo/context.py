@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Literal, Mapping
 import os
 import re
+import sys
 import uuid
 
 
@@ -42,10 +43,29 @@ _REQUIRED_SECTIONS = (
 _PLACEHOLDERS = {"", "pending", "none", "none yet", "- pending", "- none yet"}
 _PLACEHOLDER_PREFIXES = ("pending", "none yet")
 
+SKILL_VERSION = "0.7.1"
+
 _TEMPLATE_KEY = "template"
 _TEMPLATE_TRUE = {"true", "yes", "1"}
+# Prose that documents the template *as a template*. It is meaningless — and
+# actively misleading — once the file has become a lineage, so instantiation
+# removes it rather than copying it into the store.
+_TEMPLATE_BLOCK = re.compile(
+    r"(?ms)^[ \t]*<!--[ \t]*template-only:start[ \t]*-->.*?"
+    r"^[ \t]*<!--[ \t]*template-only:end[ \t]*-->[ \t]*\n?"
+)
+# A store is per-user by default. "shared" marks a deliberately generic store
+# that every user of one install reads, which is the only reason a context is
+# allowed to live inside the replaceable payload.
+_SCOPE_KEY = "scope"
+_SCOPE_USER = "user"
+_SCOPE_SHARED = "shared"
 _STORE_ENV = "HOWDO_CONTEXT"
 _STORE_DIRNAME = ".howdo"
+# Windows keeps per-user application state under %APPDATA%; a dotdir in the
+# profile root works but is not where a Windows user looks for it.
+_STORE_APPDATA_ENV = "APPDATA"
+_STORE_APPDATA_DIRNAME = "howdo"
 _CONTEXT_BASENAME = "CONTEXT.md"
 # A skill payload directory is identified by the skill file it ships. Anything
 # under it is replaced wholesale on reinstall or update.
@@ -148,6 +168,19 @@ def _drop_frontmatter_keys(text: str, keys: set[str]) -> str:
     return "\n".join(["---", *front, *lines[end:]]) + ("\n" if text.endswith("\n") else "")
 
 
+def _strip_template_block(text: str) -> str:
+    """Remove the template-only preamble when instantiating a store.
+
+    The shipped template has to explain that it is a template. The instance it
+    produces must not repeat that claim: a settled store whose body still says
+    "do not settle this file" contradicts its own frontmatter and tells the next
+    reader to ignore the lineage it just opened.
+    """
+    stripped = _TEMPLATE_BLOCK.sub("", text, count=1)
+    # Removing a delimited block leaves the blank lines that surrounded it.
+    return re.sub(r"\n{3,}", "\n\n", stripped)
+
+
 def _section_body(text: str, heading: str) -> str | None:
     pattern = re.compile(
         rf"(?ms)^##\s+{re.escape(heading)}\s*$\n(.*?)(?=^##\s+|\Z)"
@@ -187,6 +220,15 @@ def _is_template(metadata: Mapping[str, str]) -> bool:
     return str(metadata.get(_TEMPLATE_KEY, "")).strip().lower() in _TEMPLATE_TRUE
 
 
+def is_shared(metadata: Mapping[str, str]) -> bool:
+    """True when a context declares itself the generic store for an install.
+
+    Absence means ``user``: a context that predates the key, or was written
+    without one, is per-person. Genericness is only ever opted into.
+    """
+    return str(metadata.get(_SCOPE_KEY, _SCOPE_USER)).strip().lower() == _SCOPE_SHARED
+
+
 def payload_root(path: str | Path) -> Path | None:
     """Return the skill payload directory containing ``path``, or ``None``.
 
@@ -204,11 +246,44 @@ def payload_root(path: str | Path) -> Path | None:
     return None
 
 
+def default_store_path(
+    *,
+    env: Mapping[str, str] | None = None,
+    home: str | Path | None = None,
+    platform: str | None = None,
+) -> Path:
+    """Return the per-user store location this platform expects.
+
+    The store is per-person state, so it belongs where the platform already
+    keeps per-person state: ``%APPDATA%\\howdo\\CONTEXT.md`` on Windows,
+    ``~/.howdo/CONTEXT.md`` elsewhere. ``HOWDO_CONTEXT`` overrides both, and an
+    existing ``~/.howdo/CONTEXT.md`` always wins so that adding a platform
+    default cannot orphan a store somebody already settled.
+    """
+    environ = os.environ if env is None else env
+    base = Path(home).expanduser() if home is not None else Path.home()
+
+    legacy = base / _STORE_DIRNAME / _CONTEXT_BASENAME
+    if legacy.exists():
+        return legacy
+
+    system = sys.platform if platform is None else platform
+    if system.startswith("win"):
+        appdata = environ.get(_STORE_APPDATA_ENV)
+        roaming = (
+            Path(appdata).expanduser() if appdata else base / "AppData" / "Roaming"
+        )
+        return roaming / _STORE_APPDATA_DIRNAME / _CONTEXT_BASENAME
+
+    return legacy
+
+
 def resolve_context_path(
     explicit: str | Path | None = None,
     *,
     env: Mapping[str, str] | None = None,
     home: str | Path | None = None,
+    platform: str | None = None,
 ) -> Path:
     """Resolve where this installation's durable context lives.
 
@@ -217,7 +292,7 @@ def resolve_context_path(
     1. an explicitly selected file (never auto-merge several contexts);
     2. ``HOWDO_CONTEXT``, so a host can place the store wherever it keeps
        per-person state;
-    3. ``~/.howdo/CONTEXT.md``.
+    3. the platform default from :func:`default_store_path`.
 
     The basename stays ``CONTEXT.md`` for the canonical lineage because
     :func:`inspect_context` treats a different basename as a fork. Separation
@@ -231,8 +306,7 @@ def resolve_context_path(
     if configured:
         return Path(configured).expanduser()
 
-    base = Path(home).expanduser() if home is not None else Path.home()
-    return base / _STORE_DIRNAME / _CONTEXT_BASENAME
+    return default_store_path(env=environ, home=home, platform=platform)
 
 
 def ensure_context(
@@ -241,6 +315,8 @@ def ensure_context(
     template: str | Path,
     env: Mapping[str, str] | None = None,
     home: str | Path | None = None,
+    platform: str | None = None,
+    scope: str = _SCOPE_USER,
 ) -> ContextStatus:
     """Instantiate the store from the shipped template if it does not exist.
 
@@ -248,7 +324,7 @@ def ensure_context(
     payload cannot clobber settled context. Returns the resulting status so a
     host can route straight into onboarding, decline, or ordinary work.
     """
-    destination = resolve_context_path(path, env=env, home=home)
+    destination = resolve_context_path(path, env=env, home=home, platform=platform)
     if destination.exists():
         return inspect_context(destination)
 
@@ -262,13 +338,17 @@ def ensure_context(
         raise ValueError("template requires flat YAML frontmatter")
 
     # The instance is a different type from the template it came from: the
-    # marker is stripped and a fresh, unsettled lineage is opened.
+    # marker and the template-only prose are stripped, and a fresh, unsettled
+    # lineage is opened. Carrying the prose over would leave every store — even
+    # a settled one — telling its reader that it cannot be settled.
     text = _drop_frontmatter_keys(text, {_TEMPLATE_KEY})
+    text = _strip_template_block(text)
     text = _set_frontmatter(
         text,
         {
             "context_id": "pending",
             "context_file": destination.name,
+            "scope": scope,
             "onboarding": "required",
             "parent_context_id": "none",
         },
@@ -293,9 +373,15 @@ def _refuse_payload_settlement(path: Path, *, allow_payload: bool) -> None:
     root = payload_root(path)
     if root is None:
         return
+    # A store that declares scope: shared was placed here deliberately, by
+    # someone who accepted that a wholesale reinstall discards it. That is an
+    # opted-into trade, not the accident this refusal exists to catch.
+    if is_shared(_frontmatter(path.read_text(encoding="utf-8"))):
+        return
     raise PayloadContextError(
         f"{path} is inside the skill payload at {root}; settle the store "
-        f"returned by resolve_context_path() instead, or pass allow_payload=True"
+        f"returned by resolve_context_path() instead, mark it scope: shared to "
+        f"opt into a generic install-wide context, or pass allow_payload=True"
     )
 
 
@@ -501,7 +587,7 @@ def fork_context(source: str | Path, destination: str | Path) -> Path:
             "context_id": "pending",
             "context_file": dst.name,
             "skill": "how-do",
-            "skill_version": "\"0.7.0\"",
+            "skill_version": f'"{SKILL_VERSION}"',
             "onboarding": "required",
             "parent_context_id": parent,
         },

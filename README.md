@@ -1,4 +1,4 @@
-# How Do v0.7.0 + Runtime Toolkit
+# How Do v0.7.1 + Runtime Toolkit
 
 **How Do** is a small discipline for understanding-before-acting.
 
@@ -12,7 +12,7 @@ The reference runtime remains:
 resolve -> admit -> operate -> observe -> settle
 ```
 
-v0.6 closes the durable-context lifecycle and adds one small modifier:
+v0.7 closes the durable-context lifecycle and adds one small modifier:
 
 ```text
 How[actor] : Map -> Path -> Check -> Do -> Look -> Update
@@ -25,7 +25,7 @@ How[actor] : Map -> Path -> Check -> Do -> Look -> Update
 ```bash
 git clone https://github.com/bdf1992/HowDo.git
 cd HowDo
-python install.py            # payload -> ~/.claude/skills/how-do, store -> ~/.howdo/CONTEXT.md
+python install.py            # payload -> ~/.claude/skills/how-do, store -> per-user app data
 python install.py --verify   # check an existing install, change nothing
 ```
 
@@ -36,11 +36,33 @@ CONTEXT.template.md   in the payload   shipped artifact, versioned, replaced on 
 CONTEXT.md            in the store     per-person lineage, settled by onboarding
 ```
 
-These are two **types**, not two copies. The template carries `template: true`, has `context_id: template`, is skipped by the fork check, and can never become `ready`. `ensure_context()` strips the marker and opens a fresh lineage in the store. `complete_onboarding()`, `decline_onboarding()`, and `fork_context()` all refuse a template outright — a template has no lineage to settle into.
+These are two **types**, not two copies. The template carries `template: true`, has `context_id: template`, is skipped by the fork check, and can never become `ready`. `ensure_context()` strips both the marker and the template's self-description, then opens a fresh lineage in the store — so no store ever carries prose saying it cannot be settled. `complete_onboarding()`, `decline_onboarding()`, and `fork_context()` all refuse a template outright: a template has no lineage to settle into.
 
-The directory is named from `name:` in `SKILL.md`, not from the repo folder — a loader matching the frontmatter name will not find `HowDo/`. The store path is `--context`, else `$HOWDO_CONTEXT`, else `~/.howdo/CONTEXT.md`; its basename stays `CONTEXT.md`, because a different basename is read as a fork. Reinstalling re-copies the payload and leaves a settled store alone.
+The directory is named from `name:` in `SKILL.md`, not from the repo folder — a loader matching the frontmatter name will not find `HowDo/`. Reinstalling re-copies the payload, ships no build noise, and leaves a settled store alone.
 
-`complete_onboarding()` and `decline_onboarding()` refuse a target inside the payload. A settlement written there would be discarded by the next update without raising anything — a receipt the installation cannot keep.
+### Where the store lives
+
+The store is per-person, so it goes where the platform keeps per-user state. Resolution order:
+
+| # | source | value |
+|---|---|---|
+| 1 | `--context PATH` | as given |
+| 2 | `$HOWDO_CONTEXT` | as given |
+| 3 | platform default | `%APPDATA%\howdo\CONTEXT.md` on Windows; `~/.howdo/CONTEXT.md` on macOS and Linux |
+
+An existing `~/.howdo/CONTEXT.md` always wins, so adding the Windows default cannot orphan a store somebody already settled. The basename stays `CONTEXT.md`, because a different basename is read as a fork.
+
+### Per-user by default, generic by opt-in
+
+This context records how one person takes explanations, so a per-user store is the default and `complete_onboarding()` / `decline_onboarding()` refuse a target inside the payload: the next update would discard the settlement without raising anything — a receipt the installation cannot keep.
+
+A single generic context for everyone using one install is a legitimate setup, and it is opt-in only:
+
+```bash
+python install.py --shared   # store -> <payload>/CONTEXT.md, marked scope: shared
+```
+
+The file records `scope: shared` in its own frontmatter, so every later reader can tell a generic context from a personal one. That marker is what lifts the payload refusal — an unmarked context inside the payload is still refused as an accident. A shared store survives `install.py` re-runs, but it is lost if the skill directory is deleted or replaced wholesale, and it calibrates to whoever onboarded first: treat it as weaker evidence and never as a claim about the current user.
 
 ## First install
 
@@ -91,16 +113,18 @@ A different basename is a new lineage. The source is preserved, the fork records
 
 Helpers:
 
-- `inspect_context(path)` -> `missing | onboarding_required | ready | declined | fork_required | invalid`
+- `resolve_context_path(...)` / `default_store_path(...)` -> where the store is, per platform
+- `inspect_context(path)` -> `missing | template | onboarding_required | ready | declined | fork_required | invalid`
 - `complete_onboarding(...)` -> writes the minimum comparative receipt and settles the file
 - `decline_onboarding(path)` -> persists a no-calibration state without creating learned context
 - `fork_context(source, destination)` -> non-destructive normalized fork
+- `is_shared(metadata)` -> whether a context declares itself the generic store for an install
 - `new_context_id()` -> opaque ID
 
 ## Layout
 
-- `SKILL.md` — v0.7.0 discipline, onboarding, agency modifier, persistence rules
-- `CONTEXT.md` — required durable context template
+- `SKILL.md` — v0.7.1 discipline, onboarding, agency modifier, persistence rules
+- `CONTEXT.template.md` — the shipped template the durable store is instantiated from
 - `runtime/howdo/core.py` — zero-dependency operation protocol; `Request.actor` records the bound actor lens without inferring language
 - `runtime/howdo/context.py` — zero-dependency context lifetime helpers
 - `examples/jira_workflow.py` — ordinary workflow example
@@ -114,7 +138,7 @@ python -m unittest discover -s tests -v
 python examples/jira_workflow.py
 ```
 
-The bundle and Python package share release version `0.7.0` so package identity does not drift from the skill release.
+The bundle and Python package share release version `0.7.1` so package identity does not drift from the skill release.
 
 ## Repository
 

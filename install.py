@@ -4,7 +4,11 @@
 Two things live in different places on purpose:
 
     template  <skills-dir>/how-do/CONTEXT.template.md   shipped artifact; replaced on update
-    store     ~/.howdo/CONTEXT.md                       per-person lineage; never touched
+    store     per-user application data                 per-person lineage; never touched
+
+The store defaults to where the platform keeps per-user state --
+``%APPDATA%/howdo/CONTEXT.md`` on Windows, ``~/.howdo/CONTEXT.md`` elsewhere --
+and ``HOWDO_CONTEXT`` or ``--context`` overrides it.
 
 The directory name comes from ``name:`` in ``SKILL.md`` rather than from the
 repository folder, because a loader that matches on the frontmatter name will
@@ -14,6 +18,7 @@ Usage:
     python install.py                 install, then report store state
     python install.py --target DIR    install into a different skills directory
     python install.py --context PATH  use a specific durable context file
+    python install.py --shared        opt in to one generic store inside the payload
     python install.py --verify        check an existing install; change nothing
     python install.py --dry-run       print what would happen
 """
@@ -30,6 +35,7 @@ REPO = Path(__file__).resolve().parent
 sys.path.insert(0, str(REPO / "runtime"))
 
 from howdo.context import (  # noqa: E402
+    default_store_path,
     ensure_context,
     inspect_context,
     payload_root,
@@ -41,6 +47,14 @@ DEFAULT_SKILLS_DIR = Path.home() / ".claude" / "skills"
 # The payload is what a host loads. Tests, packaging, and contributor docs are
 # repository concerns and are deliberately not shipped into the skill directory.
 PAYLOAD = ("SKILL.md", "CONTEXT.template.md", "QUICKSTART.md", "LICENSE", "runtime", "examples")
+
+# Build and tool droppings are not part of the skill. The README tells people to
+# run the tests, so without this an install ships whatever bytecode that left
+# behind -- stale, platform-specific, and never loaded by the host.
+NOISE = shutil.ignore_patterns(
+    "__pycache__", "*.py[cod]", "*.egg-info", ".pytest_cache",
+    ".mypy_cache", ".ruff_cache", ".DS_Store",
+)
 
 
 def skill_name(skill_md: Path) -> str:
@@ -67,14 +81,23 @@ def copy_payload(destination: Path, *, dry_run: bool) -> list[str]:
         if dry_run:
             continue
         if source.is_dir():
-            shutil.copytree(source, target, dirs_exist_ok=True)
+            shutil.copytree(source, target, dirs_exist_ok=True, ignore=NOISE)
+            prune_noise(target)
         else:
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, target)
     return actions
 
 
-def report(payload: Path, store_path: Path) -> int:
+def prune_noise(root: Path) -> None:
+    """Remove noise an earlier install copied in, so updates converge."""
+    for cache in root.rglob("__pycache__"):
+        shutil.rmtree(cache, ignore_errors=True)
+    for stray in root.rglob("*.py[cod]"):
+        stray.unlink(missing_ok=True)
+
+
+def report(payload: Path, store_path: Path, *, shared: bool = False) -> int:
     """Print the state of an install. Returns a process exit code."""
     print(f"payload  {payload}")
     print(f"store    {store_path}")
@@ -90,9 +113,14 @@ def report(payload: Path, store_path: Path) -> int:
         print(f"  FAIL  directory is {payload.name!r} but SKILL.md declares {expected!r}")
         problems += 1
 
-    if payload_root(store_path) is not None:
+    inside_payload = payload_root(store_path) is not None
+    if inside_payload and not shared:
         print("  FAIL  store is inside the payload; an update would discard it")
         problems += 1
+    elif inside_payload:
+        print("  NOTE  shared store: one generic context for every user of this install")
+        print("        it survives `install.py` re-runs, but is lost if the skill")
+        print("        directory is deleted or replaced wholesale")
 
     status = inspect_context(store_path)
     print(f"  state {status.state} — {status.reason}")
@@ -114,21 +142,32 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--target", type=Path, default=DEFAULT_SKILLS_DIR,
                         help=f"skills directory (default: {DEFAULT_SKILLS_DIR})")
     parser.add_argument("--context", type=Path, default=None,
-                        help="durable context file (default: $HOWDO_CONTEXT or ~/.howdo/CONTEXT.md)")
+                        help=f"durable context file (default: $HOWDO_CONTEXT, else {default_store_path()})")
+    parser.add_argument("--shared", action="store_true",
+                        help="opt in to one generic store inside the payload, shared by every "
+                             "user of this install (default: a per-user store outside it)")
     parser.add_argument("--verify", action="store_true", help="check an install without changing it")
     parser.add_argument("--dry-run", action="store_true", help="print planned actions only")
     args = parser.parse_args(argv)
 
     name = skill_name(REPO / "SKILL.md")
     payload = args.target / name
-    store_path = resolve_context_path(args.context)
+
+    # The skill is per-person by design: it records how one reader takes
+    # explanations, so the default store is per-user and lives outside the
+    # replaceable payload. A generic, install-wide context is a real use (a
+    # shared machine, a team image), but it is never the silent default.
+    if args.shared and args.context is None:
+        store_path = payload / "CONTEXT.md"
+    else:
+        store_path = resolve_context_path(args.context)
 
     if args.verify:
-        return report(payload, store_path)
+        return report(payload, store_path, shared=args.shared)
 
-    if payload_root(store_path) is not None:
+    if payload_root(store_path) is not None and not args.shared:
         print(f"refusing: chosen context {store_path} is inside a skill payload", file=sys.stderr)
-        print("pick a path outside the install, or set HOWDO_CONTEXT", file=sys.stderr)
+        print("pick a path outside the install, set HOWDO_CONTEXT, or pass --shared", file=sys.stderr)
         return 1
 
     for action in copy_payload(payload, dry_run=args.dry_run):
@@ -140,9 +179,13 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     # ensure_context never overwrites, so reinstalling cannot clobber settled context.
-    status = ensure_context(store_path, template=payload / "CONTEXT.template.md")
+    status = ensure_context(
+        store_path,
+        template=payload / "CONTEXT.template.md",
+        scope="shared" if args.shared else "user",
+    )
     print()
-    return report(payload, status.path)
+    return report(payload, status.path, shared=args.shared)
 
 
 if __name__ == "__main__":

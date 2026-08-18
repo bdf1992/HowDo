@@ -8,6 +8,8 @@ sys.path.insert(0, str(ROOT / "runtime"))
 
 from howdo import (  # noqa: E402
     PayloadContextError,
+    default_store_path,
+    is_shared,
     TemplateContextError,
     fork_context,
     complete_onboarding,
@@ -173,6 +175,149 @@ class TemplateTypeTests(unittest.TestCase):
             payload = make_payload(Path(tmp))
             with self.assertRaises(TemplateContextError):
                 fork_context(payload / "CONTEXT.template.md", Path(tmp) / "CONTEXT.code.md")
+
+
+class TemplateProseTest(unittest.TestCase):
+    """The template must describe itself; the store it produces must not."""
+
+    def test_shipped_template_still_declares_itself(self):
+        text = SHIPPED_TEMPLATE.read_text(encoding="utf-8")
+        self.assertIn("template-only:start", text)
+        self.assertIn("template-only:end", text)
+        self.assertIn("not a context", text)
+
+    def test_instance_drops_the_template_only_block(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            status = ensure_context(
+                template=SHIPPED_TEMPLATE, env={}, home=Path(tmp) / "home"
+            )
+            text = status.path.read_text(encoding="utf-8")
+            self.assertNotIn("template-only", text)
+            self.assertNotIn("shipped template", text.lower())
+            # The instance must never repeat the template's claim about itself:
+            # a store whose body says it cannot be settled contradicts the
+            # frontmatter that just asked for onboarding.
+            self.assertNotIn("cannot be settled", text)
+            self.assertNotIn("Do not settle this file", text)
+            self.assertTrue(text.split("---", 2)[2].lstrip().startswith("# How Do Context"))
+
+    def test_instance_keeps_every_required_section(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            status = ensure_context(
+                template=SHIPPED_TEMPLATE, env={}, home=Path(tmp) / "home"
+            )
+            text = status.path.read_text(encoding="utf-8")
+            for heading in (
+                "Calibration domains",
+                "Representation observations",
+                "Structures that landed",
+                "Structures that did not land",
+                "Interaction observations",
+                "LongHow settlements",
+            ):
+                self.assertIn(f"## {heading}", text)
+            self.assertEqual(status.state, "onboarding_required")
+
+    def test_settled_instance_carries_no_template_prose(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            status = ensure_context(
+                template=SHIPPED_TEMPLATE, env={}, home=Path(tmp) / "home"
+            )
+            complete_onboarding(status.path, **EVIDENCE)
+            text = status.path.read_text(encoding="utf-8")
+            self.assertEqual(inspect_context(status.path).state, "ready")
+            self.assertNotIn("template", text.lower().split("## calibration")[0])
+
+
+class PlatformStoreTest(unittest.TestCase):
+    """The store belongs where the platform already keeps per-user state."""
+
+    def test_windows_default_is_appdata(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            roaming = Path(tmp) / "Roaming"
+            resolved = default_store_path(
+                env={"APPDATA": str(roaming)}, home=Path(tmp) / "profile", platform="win32"
+            )
+            self.assertEqual(resolved, roaming / "howdo" / "CONTEXT.md")
+
+    def test_windows_falls_back_to_profile_when_appdata_unset(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp) / "profile"
+            resolved = default_store_path(env={}, home=home, platform="win32")
+            self.assertEqual(
+                resolved, home / "AppData" / "Roaming" / "howdo" / "CONTEXT.md"
+            )
+
+    def test_posix_default_is_unchanged(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            resolved = default_store_path(env={}, home=Path(tmp), platform="linux")
+            self.assertEqual(resolved, Path(tmp) / ".howdo" / "CONTEXT.md")
+
+    def test_existing_dotdir_store_wins_on_every_platform(self):
+        """Adding a platform default must not orphan a settled store."""
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp) / "profile"
+            legacy = home / ".howdo" / "CONTEXT.md"
+            legacy.parent.mkdir(parents=True)
+            legacy.write_text("settled", encoding="utf-8")
+            resolved = default_store_path(
+                env={"APPDATA": str(Path(tmp) / "Roaming")}, home=home, platform="win32"
+            )
+            self.assertEqual(resolved, legacy)
+
+    def test_env_override_still_outranks_the_platform_default(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            chosen = Path(tmp) / "elsewhere" / "CONTEXT.md"
+            resolved = resolve_context_path(
+                env={"HOWDO_CONTEXT": str(chosen), "APPDATA": str(Path(tmp) / "Roaming")},
+                home=Path(tmp),
+                platform="win32",
+            )
+            self.assertEqual(resolved, chosen)
+
+
+class SharedScopeTest(unittest.TestCase):
+    """Generic, install-wide context is available but never the default."""
+
+    def _payload(self, tmp: Path) -> Path:
+        payload = tmp / "skills" / "how-do"
+        payload.mkdir(parents=True)
+        (payload / "SKILL.md").write_text("---\nname: how-do\n---\n", encoding="utf-8")
+        return payload
+
+    def test_default_scope_is_user(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            status = ensure_context(
+                template=SHIPPED_TEMPLATE, env={}, home=Path(tmp) / "home"
+            )
+            self.assertFalse(is_shared(status.metadata))
+            self.assertEqual(status.metadata.get("scope"), "user")
+
+    def test_unmarked_payload_context_is_still_refused(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            payload = self._payload(Path(tmp))
+            status = ensure_context(payload / "CONTEXT.md", template=SHIPPED_TEMPLATE)
+            self.assertIsNotNone(payload_root(status.path))
+            with self.assertRaises(PayloadContextError):
+                complete_onboarding(status.path, **EVIDENCE)
+            with self.assertRaises(PayloadContextError):
+                decline_onboarding(status.path)
+
+    def test_shared_payload_context_may_settle(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            payload = self._payload(Path(tmp))
+            status = ensure_context(
+                payload / "CONTEXT.md", template=SHIPPED_TEMPLATE, scope="shared"
+            )
+            self.assertTrue(is_shared(status.metadata))
+            complete_onboarding(status.path, **EVIDENCE)
+            self.assertEqual(inspect_context(status.path).state, "ready")
+
+    def test_scope_absence_reads_as_user(self):
+        """A store written before the key existed is per-person, not generic."""
+        self.assertFalse(is_shared({}))
+        self.assertFalse(is_shared({"scope": ""}))
+        self.assertTrue(is_shared({"scope": "SHARED"}))
 
 
 if __name__ == "__main__":

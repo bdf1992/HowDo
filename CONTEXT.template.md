@@ -4,22 +4,31 @@ template: true
 context_id: template
 context_file: CONTEXT.template.md
 skill: how-do
-skill_version: "0.7.0"
+skill_version: "0.7.1"
 onboarding: required
 parent_context_id: none
 ---
 
-# How Do Context — shipped template
+<!-- template-only:start -->
+# Shipped template — not a context
 
-This file is a **template**, not a context. It has no lineage, cannot be settled,
-and is replaced whenever the payload is updated. `ensure_context()` instantiates
-it into the durable store, which is where onboarding actually settles.
+This block exists only in the shipped template. `ensure_context()` removes it
+when it instantiates the durable store, so nothing below this line describes a
+template: it *is* the instance a person settles.
 
-The text below describes the instance this template produces.
+Do not settle this file. It carries `template: true`, has no lineage to settle
+into, is skipped by the fork check, and is replaced by the next payload update.
+`complete_onboarding()`, `decline_onboarding()`, and `fork_context()` all refuse
+it outright.
+<!-- template-only:end -->
+
+# How Do Context
 
 This is the durable, forkable context for **how this How Do installation should be perceived, built, rendered, and interacted with**.
 
 It is not the trace of one task and it is not a personality dossier. A HowDo produces a trace. LongHow may later propose durable lessons from repeated traces. Only settled lessons belong here.
+
+This file is per-person and per-install. Keep it out of shared version control by default, because it records how one person takes explanations.
 
 ## Onboarding state
 
