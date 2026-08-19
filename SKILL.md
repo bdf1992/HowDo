@@ -4,7 +4,7 @@ description: Understanding-before-acting discipline — bind the actor, map the 
 license: MIT
 metadata:
   author: bdo
-  version: "0.7.1"
+  version: "0.8.0"
   category: discipline
 ---
 

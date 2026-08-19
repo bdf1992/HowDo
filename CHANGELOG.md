@@ -2,7 +2,16 @@
 
 Versions are aligned across `SKILL.md`, `README.md`, `pyproject.toml`, and `CONTEXT.template.md`; `tests/test_release.py` enforces it.
 
-## 0.7.1
+## 0.8.0
+
+Minor, not patch: this adds a value to the public `ContextState` enum, three
+public helpers, and a frontmatter key. All additive — a store settled under
+0.7.0 has no `scope` key, reads as `scope: user`, and settles unchanged.
+
+- **CI exists.** `.github/workflows/tests.yml` runs the suite and the example on
+  Python 3.10–3.13, and runs `install.py` end to end on Linux, macOS, and
+  Windows, including a reinstall over a settled store. `CONTRIBUTING.md` claimed
+  CI ran on push and pull request; until now that was not true.
 
 - Instantiation strips the template's self-description, not just `template: true`.
   A store no longer carries prose telling its reader it cannot be settled.

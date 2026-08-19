@@ -1,6 +1,6 @@
-# Adversarial notes — v0.7.1
+# Adversarial notes — v0.8.0
 
-The runtime is a small protocol kernel, not a complete trust system. v0.7 makes the durable-context lifecycle structurally checkable while keeping the agency modifier above the execution kernel.
+The runtime is a small protocol kernel, not a complete trust system. v0.8 makes the durable-context lifecycle structurally checkable while keeping the agency modifier above the execution kernel.
 
 ## Enforced operation invariants
 
@@ -62,12 +62,12 @@ These are semantic invariants rather than Python NLP rules:
 - Python closures can capture state outside the narrow observer argument; isolation belongs to the host.
 - **Store lifetime is the host's, not the module's.** `payload_root()` decides a *location* question — is this file in the part of the install that gets replaced — which is decidable in one session. Whether a store outside the payload survives a reboot, a container reset, or an ephemeral home directory is not observable from inside the process that writes it: a successful write to a discarded filesystem is byte-identical to a durable one. A host whose entire filesystem is scratch will pass every check here and still lose the context. That is declared, not enforced.
 - Context completion proves a **structural receipt**, not the truth of a learning claim. LongHow + user settlement remain the semantic boundary.
-- Rename/new-basename forks are detectable from the file itself. A byte-for-byte copy of an entire settled installation under the same filenames is not distinguishable without an external installation identity/custody mechanism; v0.6 does not pretend otherwise.
+- Rename/new-basename forks are detectable from the file itself. A byte-for-byte copy of an entire settled installation under the same filenames is not distinguishable without an external installation identity/custody mechanism; this release does not pretend otherwise.
 - The agency modifier is intentionally not implemented as a brittle pronoun parser. The skill binds the actor from language/context; the execution kernel remains domain-neutral.
 
 These boundaries keep the reference system small enough to audit. Closing them requires host identity, isolation, authenticated evidence, or policy infrastructure rather than more prose in the kernel.
 
-## v0.6.1 lifecycle attacks
+## Lifecycle attacks
 
 - **declined persists** — `decline_onboarding()` produces `declined`; later inspection does not return `onboarding_required`.
 - **ready cannot be re-completed** — `complete_onboarding()` refuses a ready context so `context_id` cannot churn.

@@ -17,12 +17,12 @@ class ReleaseContractTests(unittest.TestCase):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
         context = (ROOT / "CONTEXT.template.md").read_text(encoding="utf-8")
-        self.assertIn('version: "0.7.1"', skill)
-        self.assertIn("How Do v0.7.1", readme)
-        self.assertIn('version = "0.7.1"', pyproject)
-        self.assertIn('skill_version: "0.7.1"', context)
+        self.assertIn('version: "0.8.0"', skill)
+        self.assertIn("How Do v0.8.0", readme)
+        self.assertIn('version = "0.8.0"', pyproject)
+        self.assertIn('skill_version: "0.8.0"', context)
         changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
-        self.assertIn("## 0.7.1", changelog)
+        self.assertIn("## 0.8.0", changelog)
 
     def test_tracked_context_is_the_template_not_a_settled_context(self):
         # Personal contexts are never committed; only the template is tracked.
@@ -102,6 +102,40 @@ class InvocationIntentTests(unittest.TestCase):
         skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
         self.assertIn("requested, not ambient", skill.lower())
         self.assertIn("moves within a HowDo already underway", skill)
+
+
+class ContinuousIntegrationTests(unittest.TestCase):
+    """CONTRIBUTING claimed CI ran on push and PR while no workflow existed."""
+
+    WORKFLOW = ROOT / ".github" / "workflows" / "tests.yml"
+
+    def test_the_workflow_exists(self):
+        self.assertTrue(self.WORKFLOW.is_file(), "CONTRIBUTING promises CI; nothing runs it")
+
+    def test_it_runs_the_documented_commands(self):
+        text = self.WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("unittest discover -s tests", text)
+        self.assertIn("examples/jira_workflow.py", text)
+        self.assertIn("install.py --verify", text)
+
+    def test_it_covers_every_python_the_package_claims(self):
+        """A matrix narrower than requires-python is a claim nothing checks."""
+        pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+        floor = re.search(r'requires-python\s*=\s*"[><=]*(\d+)\.(\d+)"', pyproject)
+        self.assertIsNotNone(floor, "pyproject has no requires-python floor")
+        text = self.WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn(f'"{floor.group(1)}.{floor.group(2)}"', text)
+
+    def test_it_installs_on_every_platform_the_store_branches_on(self):
+        """default_store_path() branches on Windows, so Windows must be tested."""
+        text = self.WORKFLOW.read_text(encoding="utf-8")
+        for runner in ("ubuntu-latest", "macos-latest", "windows-latest"):
+            self.assertIn(runner, text)
+
+    def test_contributing_does_not_promise_more_than_the_workflow_runs(self):
+        contributing = (ROOT / "CONTRIBUTING.md").read_text(encoding="utf-8")
+        self.assertIn("tests.yml", contributing)
+        self.assertIn("push and pull request", contributing)
 
 
 class ReferenceSplitTests(unittest.TestCase):

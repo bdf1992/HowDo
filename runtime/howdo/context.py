@@ -44,7 +44,7 @@ _REQUIRED_SECTIONS = (
 _PLACEHOLDERS = {"", "pending", "none", "none yet", "- pending", "- none yet"}
 _PLACEHOLDER_PREFIXES = ("pending", "none yet")
 
-SKILL_VERSION = "0.7.1"
+SKILL_VERSION = "0.8.0"
 
 _TEMPLATE_KEY = "template"
 _TEMPLATE_TRUE = {"true", "yes", "1"}

@@ -25,10 +25,10 @@ The goalposts. Move one only with a residual from real use, never because a prob
 1. **No weakened invariant.** The rows under "Enforced" in `ADVERSARIAL.md` are the contract. A PR that makes any of them false is closed unless it replaces the guarantee with a stronger one and says so.
 2. **One layer per PR.** Kernel, context module, or skill text; a residual points at one place. Cross-layer changes are split, or explained the way `settle(allow_multi_layer=True)` is: explicitly and with a reason.
 3. **Tests target invariants.** Every kernel or context change adds or edits a test whose failure would mean the promise broke. Coverage of lines is not the point; coverage of promises is.
-4. **Versions stay aligned.** `SKILL.md`, `README.md`, `pyproject.toml`, `CONTEXT.md`, and `CHANGELOG.md` move together. `tests/test_release.py` will tell you if they don't.
+4. **Versions stay aligned.** `SKILL.md`, `README.md`, `pyproject.toml`, `CONTEXT.template.md`, `runtime/howdo/context.py`, and `CHANGELOG.md` move together. `tests/test_release.py` will tell you if they don't.
 5. **Handles are earned, not added.** A new small-word handle is admissible only if it names a move over the paradigm and its residual is measurable, and it should arrive with the trace that earned it. The six in `SKILL.md` are a seed set, not a menu, and not the whole set.
 6. **The actor is a modifier, not a fork.** `I / you / we / they` changes whose capability, authority, and evidence apply. It does not add a workflow, a loop, or a kernel branch.
-7. **Contexts are personal, and live outside the payload.** The store is resolved by `resolve_context_path()` and instantiated by `ensure_context()`; the settlement helpers refuse a target inside a skill payload without an explicit `allow_payload=True`. Never commit a settled `CONTEXT.md` or any fork of one. The tracked file is `CONTEXT.template.md` and must inspect as `template`; a test guards that and that no `CONTEXT.md` is tracked. `.gitignore` excludes `CONTEXT.md` and `CONTEXT.*.md`, negating the template. Respect a persisted `onboarding: declined`.
+7. **Contexts are personal, and live outside the payload.** The store is resolved by `resolve_context_path()` and instantiated by `ensure_context()`; the settlement helpers refuse a target inside a skill payload unless it declares `scope: shared` or the caller passes `allow_payload=True`. Never commit a settled `CONTEXT.md` or any fork of one. The tracked file is `CONTEXT.template.md` and must inspect as `template`; a test guards that and that no `CONTEXT.md` is tracked. `.gitignore` excludes `CONTEXT.md` and `CONTEXT.*.md`, negating the template. Respect a persisted `onboarding: declined`, and treat `onboarding: deferred` as an open offer rather than a refusal.
 8. **No new subsystems without use.** Persistence backends, parsers, orchestration, hosting, plugin systems: proposals need a real HowDo trace that could not be served without them.
 
 ## Running the suite
@@ -38,7 +38,7 @@ python -m unittest discover -s tests -t . -v
 python examples/jira_workflow.py
 ```
 
-Zero dependencies; Python ≥ 3.10. CI runs both on push and pull request.
+Zero dependencies; Python ≥ 3.10. `.github/workflows/tests.yml` runs the suite and the example on 3.10–3.13, and runs the installer end to end on Linux, macOS, and Windows — on every push and pull request.
 
 ## Pull request shape
 
@@ -57,7 +57,7 @@ Commit messages follow the same idea: name the invariant or the residual, not th
 
 ## Versioning
 
-Patch (`0.6.x`): closes attacks, tightens wording, no new surface. Minor (`0.x.0`): a new capability that has earned its way in with a trace and tests, or a deliberate goalpost move recorded in `CHANGELOG.md` and enforced by a release test. There is no major version yet; the discipline hasn't been used enough to deserve one.
+Patch (`0.x.y`): closes attacks, tightens wording, no new surface. Minor (`0.x.0`): a new capability that has earned its way in with a trace and tests, or a deliberate goalpost move recorded in `CHANGELOG.md` and enforced by a release test. There is no major version yet; the discipline hasn't been used enough to deserve one.
 
 ## Where to start
 

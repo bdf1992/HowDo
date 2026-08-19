@@ -1,4 +1,4 @@
-# How Do v0.7.1 + Runtime Toolkit
+# How Do v0.8.0 + Runtime Toolkit
 
 **How Do** is a small discipline for understanding-before-acting.
 
@@ -128,7 +128,7 @@ Helpers:
 
 ## Layout
 
-- `SKILL.md` — v0.7.1 discipline, loop, agency modifier, persistence rules
+- `SKILL.md` — v0.8.0 discipline, loop, agency modifier, persistence rules
 - `references/` — detail loaded on demand: `onboarding.md` (interview, store, forks, scope), `vocabulary.md`
 - `CONTEXT.template.md` — the shipped template the durable store is instantiated from
 - `runtime/howdo/core.py` — zero-dependency operation protocol; `Request.actor` records the bound actor lens without inferring language
@@ -144,7 +144,7 @@ python -m unittest discover -s tests -v
 python examples/jira_workflow.py
 ```
 
-The bundle and Python package share release version `0.7.1` so package identity does not drift from the skill release.
+The bundle and Python package share release version `0.8.0` so package identity does not drift from the skill release.
 
 ## Repository
 
