@@ -4,6 +4,21 @@ Versions are aligned across `SKILL.md`, `README.md`, `pyproject.toml`, and `CONT
 
 ## 0.8.0
 
+- **`Look` is defined as running the test `Check` wrote.** The word is unchanged;
+  its definition now carries the weight. `Check` states the observable
+  postcondition — it writes the test. `Look` takes in the actual result and runs
+  that test against it; the difference, observed minus expected, is the residual.
+  The old wording ("inspect what actually happened, not merely what the model
+  said") was a testing instruction wearing an observing word, and a step that
+  only reads back what was reported has not run the test.
+- **The pedagogy is the loop, and onboarding tunes it.** `Map` is the domain and
+  its priors, `Path` sequences it, `Check` states what would count as understood,
+  `Do` teaches, `Look` tests against that, `Update` revises the smallest
+  disproved part. Onboarding does not invent a pedagogy; it establishes one
+  person's settings for that loop, and each setting now names the stage it tunes.
+  Those settings are learned from the person's preference for, and critique of,
+  how information was presented — judged by whether it built understanding, not
+  by whether they enjoyed it.
 - **Onboarding establishes a pedagogy, and the agent chooses the route.** The
   seven-step comparative interview is replaced by what must end up established
   — anchors, build direction, what counts as understood, how correction should
@@ -21,11 +36,12 @@ Versions are aligned across `SKILL.md`, `README.md`, `pyproject.toml`, and `CONT
   what felt good while confused. Observations carry the scope they are expected
   to transfer to, and in the novice domain the burden of noticing a shape has
   stopped working falls entirely on the agent.
-- Context section descriptions were preference-and-critique language
-  ("structures the person preferred", "notice a bad explanation") for something
-  the skill intends as pedagogy, which invited every reader to narrow it to
-  rendering. Reworded in place; headings and the stored schema are untouched,
-  so settled stores keep working.
+- Context section descriptions keep their preference-and-critique framing, which
+  was correct — that is the mechanism by which the loop's settings are learned.
+  What they were missing was the qualifier: preference and critique **judged by
+  whether the presentation built understanding**, not by whether it was enjoyed.
+  Made explicit in place; headings and the stored schema are untouched, so
+  settled stores keep working.
 
 Minor, not patch: this adds a value to the public `ContextState` enum, three
 public helpers, and a frontmatter key. All additive — a store settled under

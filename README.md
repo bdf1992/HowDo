@@ -70,10 +70,12 @@ The file records `scope: shared` in its own frontmatter, so every later reader c
 
 `CONTEXT.md` ships with `onboarding: required`. Before the first substantive HowDo, establish the pedagogy — how understanding gets built for this person — unless they decline or defer. What must end up established:
 
-- **anchors** — what they already know well enough that new material can attach to it;
-- **build direction** — does understanding arrive instance-first or principle-first;
-- **what counts as understood** — predicting, reproducing, watching it break, saying it back;
-- **how correction should land** — directly, by counterexample, by question.
+The pedagogy is the loop itself; onboarding establishes one person's settings for it, learned from their preference for and critique of how information was presented — judged by whether it built understanding, not by whether they enjoyed it.
+
+- **anchors** → tunes `Map` — what new material can attach to, and the domain whose expertise makes their critique trustworthy;
+- **build direction** → tunes `Path` — does understanding arrive instance-first or principle-first;
+- **what counts as understood** → tunes `Check`/`Look` — predicting, reproducing, watching it break, saying it back;
+- **how correction should land** → tunes `Update` — directly, by counterexample, by question.
 
 *How* you establish it is the agent's call: use the work the person brought, learn a dimension by doing it rather than asking, state an assumption and invite correction, or skip what the conversation already showed. It is a conversation between two people working out how to work together — never an intake form. The route is free; the receipt is not.
 

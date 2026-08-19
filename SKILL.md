@@ -32,9 +32,9 @@ For a person using AI, the whole discipline should fit in one look:
 
 - **Map** — what are we actually working with?
 - **Path** — how should the work proceed?
-- **Check** — what must be true before, and what observable result should be true after?
+- **Check** — what must be true before, and what observable result should be true after? Check writes the test.
 - **Do** — execute only when the consequential checks are grounded.
-- **Look** — inspect what actually happened, not merely what the model said.
+- **Look** — take in the actual result and test it against what you predicted at Check. The difference is the residual. Never the model's claim of success: you cannot test a thing by asking it whether it worked.
 - **Update** — rebase the understanding by changing the smallest part the evidence disproved.
 
 Guide with this loop. The deeper vocabulary exists for inspection, runtime support, and repeated work; it is in `references/vocabulary.md`.
@@ -61,7 +61,7 @@ Four guarantees hold whether or not the detail is loaded. Onboarding gates the f
 
 **Read `references/onboarding.md` whenever the state is anything but complete.** It carries what the pedagogy must establish, the fork and scope rules, the runtime helpers, and the fallback for a hand-copied install. A ready context needs none of it.
 
-How you establish it is yours to choose — learn a dimension by doing it rather than asking, state an assumption and invite correction, or skip what the conversation has already shown you. One constraint is not free: calibrate in a domain the person knows well, because the observation becomes an exemplar reused on topics they are *not* expert in, and a novice cannot tell "well built" from "I finally understood it". Keep it a conversation between two people working out how to work together; it is never an intake form, and the person should ideally not be able to tell an onboarding is happening. The route is free, the receipt is not.
+How you establish it is yours to choose — learn a dimension by doing it rather than asking, state an assumption and invite correction, or skip what the conversation has already shown you. What you are establishing are the per-person settings of this same loop: what they can attach new material to (**Map**), whether understanding arrives instance-first or principle-first (**Path**), what observable result convinces them they have it (**Check/Look**), and how a correction should land (**Update**). One constraint is not free: calibrate in a domain the person knows well, because the observation becomes an exemplar reused on topics they are *not* expert in, and a novice cannot tell "well built" from "I finally understood it". Keep it a conversation between two people working out how to work together; it is never an intake form, and the person should ideally not be able to tell an onboarding is happening. The route is free, the receipt is not.
 
 ## Agency modifier
 
@@ -93,7 +93,7 @@ The local terms — paradigm, map, path, precondition, invariant, gate, operatio
 2. **Resolve the request against a paradigm.** Load only saved domain-how/context admissible for the bound actor. Otherwise establish the smallest useful map, then a path through it. Do not require a grand ontology. For every step that mutates state or crosses a boundary, state a precondition and an observable postcondition. Observation-only steps may stay lighter. Name invariants that must survive the operation; minimum invariant: the active paradigm stays inspectable in one look.
 3. **Gate.** Admit the operation only if the requested point can be located and the consequential contracts are grounded in real state. If not, fizzle: identify the missing distinction, evidence, permission, dependency, or contract. A fizzle is not a failed operation because the crossing never became admissible.
 4. **Do.** Execute the admitted operation. Keep the operation attributable to the resolved paradigm revision and the checks that opened the gate.
-5. **Look.** Observe the resulting state independently of the model's claim of success whenever practical. Compare observable postconditions and invariants with the actual result.
+5. **Look.** Check wrote the test; Look runs it. Take in the resulting state independently of the model's claim of success whenever practical, and test it against the observable postconditions and invariants. What the test yields — observed minus expected — is the residual, and it is the input to step 6. A step that only looks at what was reported has not run the test.
 6. **Route the residual.** Correct exactly one upstream-most layer first:
    - precondition false → caller-side readiness, ordering, authority, or environment
    - postcondition false → supplier-side map, path, or implementation

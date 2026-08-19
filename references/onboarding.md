@@ -6,18 +6,27 @@ guarantees.
 
 ## Establishing the pedagogy
 
-Onboarding works out **how to teach this person** — not which visual style they
-enjoy. Rendering is downstream of that and mostly follows from it.
+The pedagogy is the loop itself: **Map** is the domain and its priors, **Path**
+sequences it, **Check** states what would count as understood, **Do** teaches,
+**Look** tests the result against that, and **Update** revises the smallest part
+the evidence disproved. Onboarding does not invent a pedagogy — it works out
+**this person's settings for that loop**.
+
+You learn those settings the way the skill learns anything else: present the
+information, and take their preference and their critique of it — their judgment
+of whether it actually built understanding, not whether they enjoyed it. That
+judgment is only available to someone who can already tell, which is why the
+anchor domain matters.
 
 You have latitude in how you get there. What follows is what must end up
 established, not a script to run.
 
 ### What you are trying to establish
 
-- **Anchors.** A domain this person knows well enough to tell a good explanation from a bad one. This is the instrument, and its expertise requirement is load-bearing — see below.
-- **Build direction.** Does understanding arrive instance-first (the case, then the principle it illustrates) or principle-first (the rule, then where it bites)? This is the most load-bearing thing you can learn, and it is independent of medium.
-- **What counts as understood.** For them: predicting the next result, reproducing the steps, watching the thing break, or saying it back in their own words. This tells you how to close a loop.
-- **How correction should land.** Directly, by counterexample, by question, or side-by-side with what they said. Getting this wrong makes every later residual expensive.
+- **Anchors — tunes `Map`.** A domain this person knows well enough to tell a good explanation from a bad one, and whose material new work can attach to. This is also the instrument, and its expertise requirement is load-bearing — see below.
+- **Build direction — tunes `Path`.** Does understanding arrive instance-first (the case, then the principle it illustrates) or principle-first (the rule, then where it bites)? This is the most load-bearing thing you can learn, and it is independent of medium.
+- **What counts as understood — tunes `Check` and `Look`.** For them: predicting the next result, reproducing the steps, watching the thing break, or saying it back in their own words. This is what `Check` should commit to and what `Look` should test for.
+- **How correction should land — tunes `Update`.** Directly, by counterexample, by question, or side-by-side with what they said. Getting this wrong makes every later residual expensive.
 
 Two are usually enough to start. Anchors and build direction carry the most
 weight; the other two often arrive on their own from ordinary work.

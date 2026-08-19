@@ -39,6 +39,20 @@ class ReleaseContractTests(unittest.TestCase):
         self.assertNotIn("onboarding is not a gate on work", skill.lower())
         self.assertNotIn("onboard it lazily", skill.lower())
 
+    def test_look_is_defined_as_running_the_test_check_wrote(self):
+        """The word stays; the definition has to carry the testing weight."""
+        skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("Check writes the test", skill)
+        self.assertIn("Check wrote the test; Look runs it", skill)
+        self.assertIn("test it against what you predicted", skill)
+        self.assertIn("cannot test a thing by asking it whether it worked", skill.lower())
+
+    def test_onboarding_settings_are_tied_to_loop_stages(self):
+        """The pedagogy is the loop; onboarding tunes it, so say which stage."""
+        reference = (ROOT / "references" / "onboarding.md").read_text(encoding="utf-8")
+        for stage in ("tunes `Map`", "tunes `Path`", "tunes `Check` and `Look`", "tunes `Update`"):
+            self.assertIn(stage, reference)
+
     def test_agency_modifier_keeps_one_loop(self):
         skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
         self.assertIn("How[actor] : Map → Path → Check → Do → Look → Update", skill)

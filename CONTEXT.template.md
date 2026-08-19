@@ -26,7 +26,9 @@ it outright.
 
 This is the durable, forkable context for **how this How Do installation should be perceived, built, rendered, and interacted with**.
 
-What it holds is a **pedagogy**: how understanding gets built for this person, not which visual style they enjoy. Four things matter most — what they already know well enough to build on, whether understanding arrives instance-first or principle-first, what convinces them they have got it, and how correction should land. Rendering follows from those.
+The pedagogy is the **Map → Path → Check → Do → Look → Update** loop itself. What this file holds are one person's settings for it: what they can attach new material to (Map), whether understanding arrives instance-first or principle-first (Path), what observable result convinces them they have it (Check/Look), and how a correction should land (Update).
+
+Those settings are learned from their **preference for, and critique of, how information was presented — judged by whether it built understanding**, not by whether they enjoyed it.
 
 It is not the trace of one task and it is not a personality dossier. A HowDo produces a trace. LongHow may later propose durable lessons from repeated traces. Only settled lessons belong here.
 
@@ -53,25 +55,25 @@ No extra onboarding questionnaire is required for this modifier. Learn its pract
 
 ## Calibration domains
 
-What this person already knows well enough to build on. These are your source of analogies and worked examples — anchors for new material, not a domain where they grade your prose.
+Domains or subjects the person knows well enough to judge quickly whether an explanation actually built understanding. That judgement is the instrument, and it is only available where they are already expert. These are also what new material can be anchored to.
 
 - pending
 
 ## Representation observations
 
-How understanding actually gets built for this person: instance-first or principle-first, what sequencing makes a thing stick, what has to be in place before the next step lands. Record behaviourally useful observations with applicability, evidence, confidence, and limits — never identities such as “visual learner.”
+What their preference and critique revealed about how information has to be presented for understanding to be built: instance-first or principle-first, what sequencing makes a thing stick, what has to be in place before the next step lands. Record behaviourally useful observations with applicability, evidence, confidence, and limits — never identities such as “visual learner.”
 
 - pending
 
 ## Structures that landed
 
-Concrete moments where something clicked, and the reason it did. The reason is worth more than the example.
+Concrete examples of explanation structures the person preferred, and what made them useful for understanding. The reason is worth more than the example.
 
 - pending
 
 ## Structures that did not land
 
-Concrete moments where an explanation cost more than it delivered, and why. One rejected structure with a reason beats three that merely worked.
+Concrete examples of explanation structures the person rejected or found costly, and why. One critique with a reason attached beats three structures that merely worked.
 
 - pending
 
