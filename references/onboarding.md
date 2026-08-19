@@ -38,12 +38,22 @@ Any of these is a legitimate route:
 - **Use the work they brought — but only if they are expert in it.** If their current task sits inside a domain they know well, it is both real work and a valid instrument, and costs them nothing. If they are a novice in it, it is not a valid instrument; find an anchor elsewhere.
 - **Learn it by doing it.** Explain something instance-first and see whether they engage or ask you to back up. You do not have to ask a question to learn the answer to one.
 - **Ask outright.** Some people know exactly how they learn and will tell you in a sentence. Take the gift.
-- **Guess and invite correction.** "I'll start with the concrete case and generalize after — say if you'd rather have the rule first." A stated assumption is faster than a question and produces the same evidence.
+- **Guess and invite correction.** "I'll start with the concrete case and generalize after — say if you'd rather have the rule first." A stated assumption is faster than a question — and it becomes evidence when you watch whether it held, not when they nod at it.
 - **Skip what is already visible.** If they opened with a precise technical question full of domain vocabulary, you already have their anchor. Do not ask for it.
 
-Take the dimensions in whatever order the conversation offers them. Stop as soon
-as you can name one thing that helps and one thing that gets in the way, each
-with a reason attached.
+Take the dimensions in whatever order the conversation offers them.
+
+Stop when you have **tested** a reading, not when you have formed one. Someone
+stating a preference hands you a hypothesis; predicting from it and watching
+whether the prediction holds is what turns it into evidence. Render something
+the way the reading says to, and look at what comes back. Testing what you
+learned is what makes it evident — an untested reading is a guess, and this one
+gets reused later in a domain where nobody can catch it being wrong.
+
+How you test is as free as how you learn: a deliberate contrast, the next thing
+you were going to explain anyway, or simply noticing whether the exchange after
+it went easier. What you need is one reading that survived contact, with the
+reason it survived.
 
 ### Why the anchor must be a domain they know
 
@@ -86,6 +96,10 @@ and one concrete thing that did not — each with the reason it did.
 Write observations, not identities. "Needed the failing case before the rule
 would stick, on protocol work" is usable by a later session. "Visual learner"
 is not.
+
+Record what tested it. An observation whose evidence is only that the person
+said so is weaker than one that predicted something and was right, and the two
+should not read the same to whoever picks this up next.
 
 Then assign a `context_id`, set `context_file` to the actual basename, and mark
 `onboarding: complete`. That is structural completeness only; it does not prove

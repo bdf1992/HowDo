@@ -108,6 +108,13 @@ class PedagogyIntentTests(unittest.TestCase):
         section = reference[reference.index("## Establishing the pedagogy"):reference.index("## Decline versus deferral")]
         self.assertNotIn("\n1. ", section, "the pedagogy section is a numbered script again")
 
+    def test_a_reading_must_be_tested_before_it_settles(self):
+        """A preference stated is a hypothesis. The test is what makes it evidence."""
+        reference = self._reference()
+        self.assertIn("Stop when you have **tested** a reading, not when you have formed one", reference)
+        self.assertIn("makes it evident", reference)
+        self.assertNotIn("Stop as soon as you can name", reference)
+
     def test_the_register_stays_conversational(self):
         reference = self._reference().lower()
         self.assertIn("not an intake form", reference)

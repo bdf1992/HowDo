@@ -4,6 +4,15 @@ Versions are aligned across `SKILL.md`, `README.md`, `pyproject.toml`, and `CONT
 
 ## 0.8.0
 
+- **A reading has to be tested before it settles.** Restructuring onboarding
+  into objectives dropped the contrast pass and stopped at "you can name one
+  thing that helps" — formation, not testing, which would let an agent settle a
+  hypothesis it never checked. The stopping rule now requires a reading that
+  survived contact: predict from it, render something that way, look at what
+  comes back. How you test stays free. Observations also record what tested
+  them, because "they said so" and "it predicted correctly" should not read the
+  same to whoever picks the file up next — especially since the exemplar is
+  reused where nobody can catch it being wrong.
 - **`Look` is defined as running the test `Check` wrote.** The word is unchanged;
   its definition now carries the weight. `Check` states the observable
   postcondition — it writes the test. `Look` takes in the actual result and runs
