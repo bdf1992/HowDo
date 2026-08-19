@@ -28,10 +28,10 @@ git clone https://github.com/bdf1992/HowDo.git
 cd HowDo
 python install.py            # payload -> ~/.claude/skills/how-do, store -> per-user app data
 python install.py --verify   # check an existing install, change nothing
+python install.py --target DIR   # install into a different skills directory
 ```
 
-The skill directory is named from `name:` in `SKILL.md`, not from the repo
-folder. Reinstalling re-copies the payload and leaves a settled store alone.
+Reinstalling re-copies the payload and leaves a settled context alone.
 
 ## Durable context
 
@@ -39,11 +39,11 @@ Two files, two lifetimes:
 
 | file | location | lifetime |
 |---|---|---|
-| `CONTEXT.template.md` | the payload | shipped artifact, versioned, replaced on update |
-| `CONTEXT.md` | the store | your lineage, settled by onboarding |
+| `CONTEXT.template.md` | the payload | ships with the skill; replaced on every update |
+| `CONTEXT.md` | the store | yours; written by onboarding, survives updates |
 
-The template is instantiated into the store on first use; you settle the store,
-never the template.
+Your `CONTEXT.md` is created from the template the first time you use the skill.
+You settle yours; the template stays untouched.
 
 The store is per-person, so it lives where the platform keeps per-user state:
 
@@ -53,9 +53,9 @@ The store is per-person, so it lives where the platform keeps per-user state:
 | 2 | `$HOWDO_CONTEXT` | as given |
 | 3 | platform default | `%APPDATA%\howdo\CONTEXT.md` on Windows; `~/.howdo/CONTEXT.md` on macOS and Linux |
 
-Moving a settled store means pointing `HOWDO_CONTEXT` at it. Keep the basename
-`CONTEXT.md` — a different basename is read as a fork, which opens a new lineage
-and asks for onboarding again.
+Moving a settled context means pointing `HOWDO_CONTEXT` at it. Keep the filename
+`CONTEXT.md`: any other name is read as a fork — a separate context that starts
+from its own onboarding.
 
 A single generic context for everyone using one install is opt-in:
 
