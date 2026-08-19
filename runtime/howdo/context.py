@@ -20,6 +20,7 @@ ContextState = Literal[
     "template",
     "onboarding_required",
     "ready",
+    "deferred",
     "declined",
     "fork_required",
     "invalid",
@@ -423,6 +424,18 @@ def inspect_context(path: str | Path) -> ContextStatus:
             metadata,
         )
 
+    if metadata.get("onboarding") == "deferred":
+        # Deferred is not declined. The person chose to work first, so the
+        # offer stays open; nothing here is learned context yet.
+        if metadata.get("context_id") in {None, "", "pending"}:
+            return ContextStatus(p, "invalid", "deferred context requires a stable context_id", metadata)
+        return ContextStatus(
+            p,
+            "deferred",
+            "calibration deferred; work without learned context and may re-offer later",
+            metadata,
+        )
+
     if metadata.get("onboarding") == "declined":
         if metadata.get("context_id") in {None, "", "pending"}:
             return ContextStatus(p, "invalid", "declined context requires a stable context_id", metadata)
@@ -508,7 +521,8 @@ def complete_onboarding(
         {
             "context_id": (
                 status.metadata.get("context_id")
-                if status.state == "declined" and status.metadata.get("context_id") not in {None, "", "pending"}
+                if status.state in {"declined", "deferred"}
+                and status.metadata.get("context_id") not in {None, "", "pending"}
                 else new_context_id()
             ),
             "context_file": p.name,
@@ -549,6 +563,46 @@ def decline_onboarding(path: str | Path, *, allow_payload: bool = False) -> Path
             "context_id": new_context_id(),
             "context_file": p.name,
             "onboarding": "declined",
+        },
+    )
+    p.write_text(text, encoding="utf-8")
+    return p
+
+
+def defer_onboarding(path: str | Path, *, allow_payload: bool = False) -> Path:
+    """Persist "not now" without spending the offer.
+
+    Distinct from :func:`decline_onboarding`. A decline is an answer and is
+    final: never ask again, never treat the file as learned context. A deferral
+    is only a postponement — the person chose to work first, so the offer stays
+    open for a later session. Neither state is learned context, and a deferral
+    that is never taken up simply stays deferred.
+    """
+    p = Path(path)
+    if not p.exists():
+        raise FileNotFoundError(p)
+    _refuse_template_settlement(p)
+    _refuse_payload_settlement(p, allow_payload=allow_payload)
+
+    status = inspect_context(p)
+    if status.state == "fork_required":
+        raise ValueError("fork must be normalized before onboarding can be deferred")
+    if status.state == "invalid":
+        raise ValueError(status.reason)
+    if status.state == "ready":
+        raise ValueError("ready context has nothing left to defer")
+    if status.state == "declined":
+        raise ValueError("declined context cannot be reopened by deferring; onboard it instead")
+    if status.state == "deferred":
+        return p
+
+    existing = status.metadata.get("context_id")
+    text = _set_frontmatter(
+        p.read_text(encoding="utf-8"),
+        {
+            "context_id": existing if existing not in {None, "", "pending"} else new_context_id(),
+            "context_file": p.name,
+            "onboarding": "deferred",
         },
     )
     p.write_text(text, encoding="utf-8")

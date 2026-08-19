@@ -15,6 +15,12 @@ Versions are aligned across `SKILL.md`, `README.md`, `pyproject.toml`, and `CONT
 - `SKILL.md` now names the store path, the helper call, and the hand-install
   fallback, so step 0 is executable from the skill file alone.
 - Installs no longer copy `__pycache__`, bytecode, or other build noise.
+- **`onboarding: deferred` is a first-class state.** Previously the only ways
+  out of onboarding were finishing it or declining it outright, so a user who
+  said "not now" had to be recorded as a refusal — permanently unlearned. A
+  deferral leaves the offer open for a later session, opens a lineage so it can
+  settle with the same `context_id`, and can still become a decline. A decline
+  cannot be reopened by deferring. New: `defer_onboarding()`.
 - **Detail moved to `references/`, loaded on demand.** The onboarding interview,
   store resolution, fork and scope rules move to `references/onboarding.md`; the
   vocabulary table to `references/vocabulary.md`. `SKILL.md` keeps the state

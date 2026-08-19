@@ -21,6 +21,17 @@ positive distinction and one useful negative distinction are grounded.
 6. **Settle structurally.** The context is ready only when the calibration domain, representation observation, landed example, and rejected example each contain at least one non-placeholder evidence bullet. Then assign a `context_id`, set `context_file` to the actual basename, and mark `onboarding: complete`. This is structural completeness only; it does not prove that the evidence is truthful or good.
 7. **Give the agency note once.** Explain briefly that `I / you / we / they` changes whose capabilities and context are used; it does not require another learner questionnaire.
 
+## Decline versus deferral
+
+Two different answers, two different states, and conflating them costs a calibration.
+
+- **Declined** (`onboarding: declined`) is an answer. The person does not want durable calibration. Never ask again on any later session unless they reopen it themselves, and never treat the file as learned context.
+- **Deferred** (`onboarding: deferred`) is a postponement. The person wants to get on with the work. Do that, without learned context, and leave the offer open — it may be raised again on a later session, at most once per session. A deferral that is never taken up simply stays deferred.
+
+`defer_onboarding()` persists the postponement and assigns a stable `context_id`, so the lineage exists and the same file can settle later with that identity intact. A deferred context onboards normally when the person is ready, and can still be declined outright. A decline cannot be reopened by deferring — onboard it instead.
+
+Never record "not now" as a refusal.
+
 ## Template versus instance
 
 The payload ships `CONTEXT.template.md`: an artifact, versioned, marked
@@ -84,5 +95,5 @@ and `context_file`.
 
 `resolve_context_path()`, `default_store_path()`, `ensure_context()`,
 `inspect_context()`, `complete_onboarding()`, `decline_onboarding()`,
-`fork_context()`, `is_shared()`. They enforce the structural lifetime without
+`fork_context()`, `defer_onboarding()`, `is_shared()`. They enforce the structural lifetime without
 trying to automate the human judgment inside the interview.

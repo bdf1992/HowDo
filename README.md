@@ -81,6 +81,8 @@ The runtime treats completion as a structural receipt only: `onboarding: complet
 
 A user can decline the calibration and continue the task. Persist `onboarding: declined`; later sessions do not ask again, and the context must not be used as learned rendering context.
 
+A user can also say *not now*. That is a deferral, not a decline: persist `onboarding: deferred`, do the work they asked for, and leave the offer open for a later session. A deferred context opens a lineage, so it can settle later with the same identity. Neither state is learned context.
+
 ## Context lifetime
 
 ```text
@@ -116,9 +118,10 @@ A different basename is a new lineage. The source is preserved, the fork records
 Helpers:
 
 - `resolve_context_path(...)` / `default_store_path(...)` -> where the store is, per platform
-- `inspect_context(path)` -> `missing | template | onboarding_required | ready | declined | fork_required | invalid`
+- `inspect_context(path)` -> `missing | template | onboarding_required | ready | deferred | declined | fork_required | invalid`
 - `complete_onboarding(...)` -> writes the minimum comparative receipt and settles the file
 - `decline_onboarding(path)` -> persists a no-calibration state without creating learned context
+- `defer_onboarding(path)` -> persists "not now" and leaves the offer open for a later session
 - `fork_context(source, destination)` -> non-destructive normalized fork
 - `is_shared(metadata)` -> whether a context declares itself the generic store for an install
 - `new_context_id()` -> opaque ID

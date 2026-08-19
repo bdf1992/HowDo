@@ -8,6 +8,7 @@ sys.path.insert(0, str(ROOT / "runtime"))
 
 from howdo import (  # noqa: E402
     PayloadContextError,
+    defer_onboarding,
     default_store_path,
     is_shared,
     TemplateContextError,
@@ -175,6 +176,69 @@ class TemplateTypeTests(unittest.TestCase):
             payload = make_payload(Path(tmp))
             with self.assertRaises(TemplateContextError):
                 fork_context(payload / "CONTEXT.template.md", Path(tmp) / "CONTEXT.code.md")
+
+
+class DeferralTest(unittest.TestCase):
+    """"Not now" is a postponement, not a refusal. Conflating them costs a calibration."""
+
+    def _fresh(self, tmp) -> Path:
+        return ensure_context(template=SHIPPED_TEMPLATE, env={}, home=Path(tmp) / "home").path
+
+    def test_defer_is_its_own_state(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            p = self._fresh(tmp)
+            defer_onboarding(p)
+            status = inspect_context(p)
+            self.assertEqual(status.state, "deferred")
+            self.assertNotEqual(status.state, "declined")
+
+    def test_deferral_opens_a_lineage_it_can_settle_into_later(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            p = self._fresh(tmp)
+            defer_onboarding(p)
+            deferred_id = inspect_context(p).metadata["context_id"]
+            self.assertNotIn(deferred_id, {None, "", "pending"})
+            complete_onboarding(p, **EVIDENCE)
+            self.assertEqual(inspect_context(p).state, "ready")
+            self.assertEqual(inspect_context(p).metadata["context_id"], deferred_id)
+
+    def test_deferring_twice_does_not_churn_the_lineage(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            p = self._fresh(tmp)
+            defer_onboarding(p)
+            first = inspect_context(p).metadata["context_id"]
+            defer_onboarding(p)
+            self.assertEqual(inspect_context(p).metadata["context_id"], first)
+
+    def test_a_deferral_can_still_become_a_decline(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            p = self._fresh(tmp)
+            defer_onboarding(p)
+            decline_onboarding(p)
+            self.assertEqual(inspect_context(p).state, "declined")
+
+    def test_a_decline_is_final_and_cannot_be_reopened_by_deferring(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            p = self._fresh(tmp)
+            decline_onboarding(p)
+            with self.assertRaises(ValueError):
+                defer_onboarding(p)
+
+    def test_ready_context_has_nothing_to_defer(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            p = self._fresh(tmp)
+            complete_onboarding(p, **EVIDENCE)
+            with self.assertRaises(ValueError):
+                defer_onboarding(p)
+
+    def test_deferral_is_refused_inside_the_payload_like_any_settlement(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            payload = Path(tmp) / "skills" / "how-do"
+            payload.mkdir(parents=True)
+            (payload / "SKILL.md").write_text("---\nname: how-do\n---\n", encoding="utf-8")
+            status = ensure_context(payload / "CONTEXT.md", template=SHIPPED_TEMPLATE)
+            with self.assertRaises(PayloadContextError):
+                defer_onboarding(status.path)
 
 
 class TemplateProseTest(unittest.TestCase):

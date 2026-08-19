@@ -29,6 +29,9 @@ The runtime is a small protocol kernel, not a complete trust system. v0.7 makes 
 | helper forks malformed older context missing onboarding/parent keys | required keys are inserted and new fork requires onboarding |
 | fork destination already exists | refused; source and destination are preserved |
 | completion helper receives placeholder evidence | refused |
+| "not now" recorded as a refusal | separate states: `deferred` leaves the offer open, `declined` closes it |
+| declined context reopened by deferring | refused; a decline is an answer, not a postponement |
+| deferred context onboarded later | settles into the lineage the deferral opened; `context_id` preserved |
 | settlement attempted on the shipped template | `TemplateContextError`; a template has no lineage to settle |
 | template forked as if it were a lineage | refused; instantiate with `ensure_context()` |
 | template marker carried into the instantiated store | stripped; the store opens at `context_id: pending` |

@@ -50,6 +50,14 @@ class ReleaseContractTests(unittest.TestCase):
         self.assertIn("primarily informs **rendering and interaction**", context)
         self.assertIn("does not grant facts, capability, or authority", context)
 
+    def test_deferral_is_documented_as_distinct_from_decline(self):
+        skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
+        reference = (ROOT / "references" / "onboarding.md").read_text(encoding="utf-8")
+        self.assertIn("onboarding: deferred", skill)
+        self.assertIn("offer stays open", skill.lower())
+        self.assertIn("deferral is not a decline", skill.lower())
+        self.assertIn("never record", reference.lower())
+
     def test_decline_semantics_are_durable(self):
         skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
         readme = (ROOT / "README.md").read_text(encoding="utf-8")

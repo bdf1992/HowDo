@@ -120,6 +120,8 @@ def report(payload: Path, store_path: Path, *, shared: bool = False) -> int:
         problems += 1
     elif status.state == "onboarding_required":
         print("  next  run the comparative onboarding before the first substantive HowDo")
+    elif status.state == "deferred":
+        print("  next  calibration was deferred; work without learned context, offer stays open")
     elif status.state == "declined":
         print("  next  calibration was declined; do not ask again, do not use as learned context")
     elif status.state == "ready":
