@@ -89,6 +89,37 @@ def copy_payload(destination: Path, *, dry_run: bool) -> list[str]:
     return actions
 
 
+# Addressed to the person at the keyboard, not to the agent. It explains a
+# pending conversation, so it prints on a fresh install only: `--verify` stays
+# terse, and a reinstall over a settled context has nothing to explain.
+# ASCII only. This prints to whatever console the user has, and a legacy
+# codepage would turn an install into a UnicodeEncodeError.
+CONFIGURATION_NOTE = """
+What happens next, and why:
+
+  This skill works better once it knows how you, in particular, come to
+  understand something. That cannot be read off your machine or your task,
+  so the first conversation works it out with you. Four things:
+
+    1. a subject you already know well, so you can judge for yourself
+       whether an explanation of it was any good
+    2. whether a concrete case lands better before the general rule, or
+       after it
+    3. what convinces you that you have actually got something: predicting
+       the next result, reproducing the steps, watching it break, or
+       saying it back in your own words
+    4. how you want to be corrected when you are wrong
+
+  It is meant to feel like a conversation rather than a form, it happens
+  once, and you can correct any of it later.
+
+  You can also say no. Say you are not interested and that is recorded;
+  you will not be asked again. Say not now and the offer stays open while
+  the work gets going. Everything else works either way; what you lose is
+  the tailoring.
+"""
+
+
 def report(payload: Path, store_path: Path, *, shared: bool = False) -> int:
     """Print the state of an install. Returns a process exit code."""
     print(f"payload  {payload}")
@@ -119,7 +150,7 @@ def report(payload: Path, store_path: Path, *, shared: bool = False) -> int:
     if status.state in {"invalid", "fork_required"}:
         problems += 1
     elif status.state == "onboarding_required":
-        print("  next  establish the pedagogy before the first substantive HowDo")
+        print("  next  a short setup conversation, before the first real task")
     elif status.state == "deferred":
         print("  next  calibration was deferred; work without learned context, offer stays open")
     elif status.state == "declined":
@@ -179,7 +210,10 @@ def main(argv: list[str] | None = None) -> int:
         scope="shared" if args.shared else "user",
     )
     print()
-    return report(payload, status.path, shared=args.shared)
+    code = report(payload, status.path, shared=args.shared)
+    if status.state == "onboarding_required":
+        print(CONFIGURATION_NOTE)
+    return code
 
 
 if __name__ == "__main__":

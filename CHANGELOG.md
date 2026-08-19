@@ -4,6 +4,18 @@ Versions are aligned across `SKILL.md`, `README.md`, `pyproject.toml`, and `CONT
 
 ## Unreleased
 
+- **The installer tells the person what is being configured.** A fresh install
+  printed `next  establish the pedagogy before the first substantive HowDo` — an
+  instruction addressed to an agent who is not reading it, shown to a person, in
+  a term nothing on their path had defined. Nothing told them what the first
+  conversation is for, why it cannot be guessed, or that it can be declined or
+  deferred. `install.py` now prints a `CONFIGURATION_NOTE` after the status
+  block on a fresh install only, carrying all four settings and both opt-outs in
+  plain ASCII; `--verify` stays terse and prints none of it, and a reinstall over
+  a settled context has nothing to explain. The `next` line no longer uses the
+  internal term. `QUICKSTART.md` now leads with what gets configured, mapped
+  stage by stage, before the store mechanics.
+
 - **The shell is fixed, its internals are personal, and both halves are stated
   wherever the term is introduced.** `SKILL.md` called a pedagogy "how
   understanding gets built for this person"; `references/onboarding.md` called it

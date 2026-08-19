@@ -284,6 +284,61 @@ class InvocationIntentTests(unittest.TestCase):
         self.assertIn("moves within a HowDo already underway", skill)
 
 
+class InstallerNoteTests(unittest.TestCase):
+    """A fresh install told the person what an agent should do, in words nothing defined."""
+
+    def _note(self) -> str:
+        sys.path.insert(0, str(ROOT))
+        import install  # noqa: PLC0415
+
+        return install.CONFIGURATION_NOTE
+
+    def test_it_carries_every_setting_and_both_opt_outs(self):
+        """Four settings and two answers. A partial note is a misleading one."""
+        note = _flatten(self._note())
+        settings = {
+            "anchor": "subject you already know well",
+            "build direction": "before the general rule",
+            "what counts as understood": "convinces you",
+            "how correction lands": "corrected when you are wrong",
+        }
+        for setting, phrase in settings.items():
+            with self.subTest(setting=setting):
+                self.assertIn(phrase, note, f"the note does not explain {setting}")
+        self.assertIn("not be asked again", note, "declining is not offered")
+        self.assertIn("offer stays open", note, "deferring is not offered")
+
+    def test_it_avoids_the_vocabulary_the_reader_has_no_definition_for(self):
+        """It is addressed to a person, on a path where nothing defined these."""
+        note = _flatten(self._note())
+        for term in (
+            "pedagogy",
+            "onboarding",
+            "paradigm",
+            "residual",
+            "exemplar",
+            "settlement",
+            "payload",
+            "howdo",
+            "context.md",
+        ):
+            with self.subTest(term=term):
+                self.assertNotIn(term, note, f"the note says '{term}' at the person")
+
+    def test_it_is_ascii(self):
+        """A contract, not a style preference.
+
+        The note prints to whatever console the user has. A legacy codepage
+        with no em dash turns an install into a UnicodeEncodeError.
+        """
+        note = self._note()
+        try:
+            note.encode("ascii")
+        except UnicodeEncodeError as exc:
+            self.fail(f"non-ASCII in the installer note: {note[exc.start:exc.end]!r}")
+        note.encode("cp437")
+
+
 class ContinuousIntegrationTests(unittest.TestCase):
     """CONTRIBUTING claimed CI ran on push and PR while no workflow existed."""
 
