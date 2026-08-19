@@ -2,6 +2,17 @@
 
 Versions are aligned across `SKILL.md`, `README.md`, `pyproject.toml`, and `CONTEXT.template.md`; `tests/test_release.py` enforces it.
 
+## Unreleased
+
+- **The default-store test pins the platform it asserts.** `default_store_path()`
+  documents and implements `%APPDATA%\howdo\CONTEXT.md` on Windows and
+  `~/.howdo/CONTEXT.md` elsewhere, but
+  `test_default_store_is_user_scoped_and_keeps_the_canonical_basename` passed no
+  `platform=` and asserted the POSIX branch unconditionally — so it agreed with
+  whatever host ran it, and stayed green on Linux-only CI while proving nothing
+  about Windows. All three branches are now asserted through `subTest` with
+  `platform` pinned per case.
+
 ## 0.8.0
 
 - **A reading has to be tested before it settles.** Restructuring onboarding
