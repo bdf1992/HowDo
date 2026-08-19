@@ -11,6 +11,16 @@ sys.path.insert(0, str(ROOT / "runtime"))
 from howdo.context import inspect_context  # noqa: E402
 
 
+def _flatten(text: str) -> str:
+    """Lowercase and collapse whitespace.
+
+    These are contracts about meaning, not layout. Asserting against raw text
+    makes a paragraph rewrap look like a broken promise.
+    """
+    return re.sub(r"\s+", " ", text).lower()
+
+
+
 class ReleaseContractTests(unittest.TestCase):
     def test_release_versions_are_aligned(self):
         skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
@@ -136,6 +146,109 @@ class PedagogyIntentTests(unittest.TestCase):
         self.assertIn("pedagogy", skill.lower())
         self.assertIn("yours to choose", skill.lower())
         self.assertIn("never an intake form", skill.lower())
+
+    def test_the_shell_is_fixed_and_its_internals_are_personal(self):
+        """Both halves, wherever the term is introduced.
+
+        Drop the first and onboarding reads as an agent inventing a pedagogy
+        per reader. Drop the second and it reads as an impersonal config step
+        with nothing a person could supply. Stating the join in one file, on
+        the line a reader reaches last, is what let both readings stand.
+        """
+        for name in ("SKILL.md", "CONTEXT.template.md", "references/onboarding.md"):
+            flat = _flatten((ROOT / name).read_text(encoding="utf-8"))
+            with self.subTest(document=name):
+                self.assertIn("fixed shell", flat, "the shell half is missing")
+                self.assertIn("internals are personal", flat, "the personal half is missing")
+                self.assertIn(
+                    "no source but the person", flat, "nothing says where the internals come from"
+                )
+
+    def test_onboarding_states_why_it_needs_a_person(self):
+        """A reason, not an assertion: settings with no other source."""
+        flat = _flatten(self._reference())
+        self.assertIn("which is why onboarding needs one", flat)
+        self.assertIn("cannot be inferred", flat)
+
+
+class VocabularyTests(unittest.TestCase):
+    """The glossary maps local terms to established practice. Gaps are where readers trip."""
+
+    LOAD_BEARING = (
+        "paradigm",
+        "map",
+        "path",
+        "residual",
+        "settlement",
+        "trace",
+        "handle",
+        "pedagogy",
+        "shell",
+        "internals",
+        "onboarding",
+        "exemplar",
+        "payload",
+        "store",
+    )
+
+    def _defined_terms(self) -> set[str]:
+        text = (ROOT / "references" / "vocabulary.md").read_text(encoding="utf-8")
+        terms = set()
+        for line in text.splitlines():
+            if not line.startswith("|"):
+                continue
+            cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+            if len(cells) >= 3 and cells[0] not in ("here", "---"):
+                terms.add(cells[0].lower())
+        return terms
+
+    def test_load_bearing_terms_are_defined(self):
+        defined = self._defined_terms()
+        for term in self.LOAD_BEARING:
+            with self.subTest(term=term):
+                self.assertIn(
+                    term, defined, f"the skill leans on '{term}' but the glossary omits it"
+                )
+
+
+class ReaderFacingOutputTests(unittest.TestCase):
+    """The local terms are equipment. Nothing forbade emitting them at the person."""
+
+    def _skill(self) -> str:
+        return (ROOT / "SKILL.md").read_text(encoding="utf-8")
+
+    def _rule(self) -> str:
+        for line in self._skill().splitlines():
+            if line.startswith("- **The vocabulary is working equipment"):
+                return _flatten(line)
+        self.fail("SKILL.md no longer states the reader-facing output rule")
+
+    def test_the_rule_withholds_rather_than_permits_skipping(self):
+        """'Does not need it' is permission to skip; this has to be an instruction."""
+        rule = self._rule()
+        self.assertIn("not what the person reads back", rule)
+        self.assertIn("do not say", rule)
+        vocabulary = _flatten((ROOT / "references" / "vocabulary.md").read_text(encoding="utf-8"))
+        self.assertIn("withholds these words", vocabulary)
+        self.assertNotIn("does not need it", vocabulary)
+
+    def test_the_rule_names_the_machinery_that_leaks_most_readily(self):
+        rule = self._rule()
+        for term in ("pedagogy", "paradigm", "residual", "exemplar", "settlement", "payload", "store"):
+            with self.subTest(term=term):
+                self.assertIn(term, rule, f"the rule does not name '{term}'")
+        self.assertIn("state names", rule)
+        self.assertIn("frontmatter keys", rule)
+        self.assertIn("store paths", rule)
+
+    def test_the_rule_carries_its_two_exceptions_and_reaches_onboarding(self):
+        """Structure may show through; wording may not. Two narrow exceptions."""
+        rule = self._rule()
+        self.assertIn("inspect mode", rule)
+        self.assertIn("working on how do itself", rule)
+        self.assertIn("never its wording", rule)
+        onboarding = _flatten((ROOT / "references" / "onboarding.md").read_text(encoding="utf-8"))
+        self.assertIn("never say the machinery at them", onboarding)
 
 
 class InvocationIntentTests(unittest.TestCase):

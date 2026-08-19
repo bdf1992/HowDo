@@ -4,6 +4,27 @@ Versions are aligned across `SKILL.md`, `README.md`, `pyproject.toml`, and `CONT
 
 ## Unreleased
 
+- **The shell is fixed, its internals are personal, and both halves are stated
+  wherever the term is introduced.** `SKILL.md` called a pedagogy "how
+  understanding gets built for this person"; `references/onboarding.md` called it
+  "the loop itself". Both are true, and the join was stated in one place, on the
+  line a reader reaches last — so onboarding read either as an agent inventing a
+  pedagogy per reader or as an impersonal config step with nothing a person could
+  supply. `SKILL.md`, `CONTEXT.template.md`, and `references/onboarding.md` now
+  each carry the loop as a fixed shell, its internals as personal, and the reason
+  a person is required: the settings have no other source.
+- **The vocabulary is working equipment, not output.** Nothing forbade emitting
+  the local terms, state names, frontmatter keys, or store paths at the person.
+  Guide mode was told it "does not need" the vocabulary — permission to skip,
+  rather than an instruction to withhold — and the one rule about what shows
+  through an answer governs structure, not wording. `SKILL.md` now states the
+  rule and names what leaks most readily, with two narrow exceptions (inspect
+  mode, and working on How Do itself); `references/onboarding.md` carries it
+  beside the anti-label bullet, where it bites hardest.
+- **The glossary defines the words a newcomer trips over first.**
+  `references/vocabulary.md` was silently missing `pedagogy`, `onboarding`,
+  `exemplar`, `payload`, and `store`, plus the new `shell` and `internals`.
+
 - **The default-store test pins the platform it asserts.** `default_store_path()`
   documents and implements `%APPDATA%\howdo\CONTEXT.md` on Windows and
   `~/.howdo/CONTEXT.md` elsewhere, but

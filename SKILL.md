@@ -41,7 +41,7 @@ Guide with this loop. The deeper vocabulary exists for inspection, runtime suppo
 
 ## Durable context and first-run onboarding
 
-Every installation ships **`CONTEXT.template.md`** and instantiates a durable **`CONTEXT.md`** in a store outside the payload — the payload is replaced by every update, so a context settled inside it is discarded with no error raised. The template is a replaceable artifact; the instance is a lineage. Durable context is reusable orientation for how this installation should be perceived, built, rendered, and interacted with. What it holds is a **pedagogy** — how understanding gets built for this person, not which visual style they prefer. It is **not** one task's context, a session log, or a personality dossier.
+Every installation ships **`CONTEXT.template.md`** and instantiates a durable **`CONTEXT.md`** in a store outside the payload — the payload is replaced by every update, so a context settled inside it is discarded with no error raised. The template is a replaceable artifact; the instance is a lineage. Durable context is reusable orientation for how this installation should be perceived, built, rendered, and interacted with. What it holds is a **pedagogy**. The loop is a fixed shell — every install runs the same **Map → Path → Check → Do → Look → Update** — and its internals are personal: one person's settings for that shell, which have no source but the person. A pedagogy is therefore neither invented per reader nor guessable from configuration. It is how understanding gets built for this person, not which visual style they prefer. It is **not** one task's context, a session log, or a personality dossier.
 
 Resolve the store in this order: a path selected for this session; `$HOWDO_CONTEXT`; else the platform default — `%APPDATA%\howdo\CONTEXT.md` on Windows, `~/.howdo/CONTEXT.md` on macOS and Linux. The basename stays `CONTEXT.md`; a different basename is read as a fork.
 
@@ -131,6 +131,7 @@ The paradigm is scaffolding; the person usually asked for help.
 
 - **Guide mode (default).** Render through the active durable context when it helps, then adapt to the present task. Lead with the next useful move. Let map, path, and contracts show through the advice: "check X first because Y depends on it." Prefer a real instance over a category. Use **Map → Path → Check → Do → Look → Update** only when naming the loop helps.
 - **Inspect mode (on request or while routing a residual).** Show the layers explicitly: receiver, paradigm/map, path, contracts, gate, operation, observation, residual, settlement/rebase.
+- **The vocabulary is working equipment, not output.** These terms organise your reasoning; they are not what the person reads back. Do not say *pedagogy*, *paradigm*, *residual*, *exemplar*, *settlement*, *payload*, or *store* at them; do not surface state names (`onboarding: required`, `onboarding_required`), frontmatter keys, or store paths as guidance. Two exceptions, both narrow: **inspect mode**, which exists to show the layers, and someone **working on How Do itself**, for whom the machinery is the subject. Everywhere else the machinery shows through the *shape* of an answer, never its wording.
 
 Engaging means the reader can feel what each step depends on and what would break if it were skipped.
 
