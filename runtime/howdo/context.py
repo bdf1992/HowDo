@@ -449,7 +449,7 @@ def inspect_context(path: str | Path) -> ContextStatus:
         heading for heading in _REQUIRED_SECTIONS if not _section_has_evidence(text, heading)
     ]
     if incomplete_meta or missing_evidence:
-        reason = "context has not completed comparative onboarding"
+        reason = "context has not established a pedagogy"
         if metadata.get("onboarding") == "complete" and missing_evidence:
             reason += f"; missing evidence in: {', '.join(missing_evidence)}"
         return ContextStatus(p, "onboarding_required", reason, metadata)
@@ -467,7 +467,7 @@ def complete_onboarding(
     interaction_observation: str | None = None,
     allow_payload: bool = False,
 ) -> Path:
-    """Settle the minimum structural receipt for comparative onboarding.
+    """Settle the minimum structural receipt for an established pedagogy.
 
     This does not judge whether the user's feedback is *true*. It prevents a
     caller from making an untouched template ready by flipping two metadata

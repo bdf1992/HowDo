@@ -47,8 +47,10 @@ class ReleaseContractTests(unittest.TestCase):
 
     def test_context_separates_rendering_from_actor_capability(self):
         context = (ROOT / "CONTEXT.template.md").read_text(encoding="utf-8")
-        self.assertIn("primarily informs **rendering and interaction**", context)
+        # The invariant is the separation, not the wording: durable context
+        # shapes how you teach and present, never what the actor can do.
         self.assertIn("does not grant facts, capability, or authority", context)
+        self.assertIn("primarily informs", context)
 
     def test_deferral_is_documented_as_distinct_from_decline(self):
         skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
@@ -69,6 +71,46 @@ class ReleaseContractTests(unittest.TestCase):
         skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
         self.assertIn("structural completeness only", skill)
         self.assertIn("does not prove", skill)
+
+
+class PedagogyIntentTests(unittest.TestCase):
+    """Onboarding establishes a pedagogy. Preference language invites a narrower read."""
+
+    def _reference(self) -> str:
+        return (ROOT / "references" / "onboarding.md").read_text(encoding="utf-8")
+
+    def test_the_target_is_pedagogy_not_presentation(self):
+        for text in (self._reference(), (ROOT / "CONTEXT.template.md").read_text(encoding="utf-8")):
+            self.assertIn("pedagogy", text.lower())
+        reference = self._reference().lower()
+        for dimension in ("anchor", "build direction", "counts as understood", "correction"):
+            self.assertIn(dimension, reference, f"pedagogy dimension missing: {dimension}")
+
+    def test_the_agent_is_given_latitude_over_route(self):
+        """Objectives with latitude, not a script. A numbered procedure is the old shape."""
+        reference = self._reference()
+        self.assertIn("How you get there is yours", reference)
+        self.assertIn("The route is free", reference)
+        section = reference[reference.index("## Establishing the pedagogy"):reference.index("## Decline versus deferral")]
+        self.assertNotIn("\n1. ", section, "the pedagogy section is a numbered script again")
+
+    def test_the_register_stays_conversational(self):
+        reference = self._reference().lower()
+        self.assertIn("not an intake form", reference)
+        self.assertIn("one question at a time", reference)
+        self.assertIn("i don't know", reference)
+
+    def test_identity_labels_are_still_refused(self):
+        """Pedagogy is about how understanding builds, never what type someone is."""
+        for text in (self._reference(), (ROOT / "CONTEXT.template.md").read_text(encoding="utf-8")):
+            self.assertIn("visual learner", text, "the anti-label guard went missing")
+        self.assertIn("observations, not identities", self._reference())
+
+    def test_skill_carries_the_latitude_so_a_reference_miss_does_not_lose_it(self):
+        skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("pedagogy", skill.lower())
+        self.assertIn("yours to choose", skill.lower())
+        self.assertIn("never an intake form", skill.lower())
 
 
 class InvocationIntentTests(unittest.TestCase):

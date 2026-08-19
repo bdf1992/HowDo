@@ -41,7 +41,7 @@ Guide with this loop. The deeper vocabulary exists for inspection, runtime suppo
 
 ## Durable context and first-run onboarding
 
-Every installation ships **`CONTEXT.template.md`** and instantiates a durable **`CONTEXT.md`** in a store outside the payload — the payload is replaced by every update, so a context settled inside it is discarded with no error raised. The template is a replaceable artifact; the instance is a lineage. Durable context is reusable orientation for how this installation should be perceived, rendered, and interacted with. It is **not** one task's context, a session log, or a personality dossier.
+Every installation ships **`CONTEXT.template.md`** and instantiates a durable **`CONTEXT.md`** in a store outside the payload — the payload is replaced by every update, so a context settled inside it is discarded with no error raised. The template is a replaceable artifact; the instance is a lineage. Durable context is reusable orientation for how this installation should be perceived, built, rendered, and interacted with. What it holds is a **pedagogy** — how understanding gets built for this person, not which visual style they prefer. It is **not** one task's context, a session log, or a personality dossier.
 
 Resolve the store in this order: a path selected for this session; `$HOWDO_CONTEXT`; else the platform default — `%APPDATA%\howdo\CONTEXT.md` on Windows, `~/.howdo/CONTEXT.md` on macOS and Linux. The basename stays `CONTEXT.md`; a different basename is read as a fork.
 
@@ -50,7 +50,7 @@ Then route on the state of that file:
 | state | do |
 |---|---|
 | no file | instantiate from the template, then onboard |
-| `onboarding: required`, or evidence sections still placeholders | onboard **before the first substantive HowDo** |
+| `onboarding: required`, or evidence sections still placeholders | establish the pedagogy **before the first substantive HowDo** |
 | `onboarding: deferred` | work now without learned context; the offer stays open for a later session |
 | `onboarding: declined` | do not ask again; do not use as learned context |
 | basename differs from `context_file` | a new fork — onboard that lineage, preserve the source |
@@ -59,7 +59,9 @@ Then route on the state of that file:
 
 Four guarantees hold whether or not the detail is loaded. Onboarding gates the first substantive HowDo and is never bypassed silently — only an explicit user decline or deferral skips it. A decline is durable: persist `onboarding: declined` and do not re-ask on later sessions. A deferral is not a decline: persist `onboarding: deferred`, work without learned context, and the offer may be made again later — at most once per session, never as nagging. And `onboarding: complete` is structural completeness only — it checks that evidence is present, and does not prove that the evidence is truthful or good.
 
-**Read `references/onboarding.md` whenever the state is anything but complete.** It carries the comparative interview, the fork and scope rules, the runtime helpers, and the fallback for a hand-copied install. A ready context needs none of it.
+**Read `references/onboarding.md` whenever the state is anything but complete.** It carries what the pedagogy must establish, the fork and scope rules, the runtime helpers, and the fallback for a hand-copied install. A ready context needs none of it.
+
+How you establish it is yours to choose — learn a dimension by doing it rather than asking, state an assumption and invite correction, or skip what the conversation has already shown you. One constraint is not free: calibrate in a domain the person knows well, because the observation becomes an exemplar reused on topics they are *not* expert in, and a novice cannot tell "well built" from "I finally understood it". Keep it a conversation between two people working out how to work together; it is never an intake form, and the person should ideally not be able to tell an onboarding is happening. The route is free, the receipt is not.
 
 ## Agency modifier
 
@@ -86,7 +88,7 @@ The local terms — paradigm, map, path, precondition, invariant, gate, operatio
 
 ## Procedure
 
-0. **Resolve the store, then load or calibrate durable context.** Durable context lives outside the skill payload: the payload is replaced by every install or update, so a context settled inside it is discarded with no error raised. Resolve the store and route on its state as in **Durable context and first-run onboarding**, instantiate it from the shipped template when absent, and never settle the template copy in place. If the context is fresh, forked, or unresolved, read `references/onboarding.md` and run the comparative onboarding before substantive work unless the user declines or defers. Persist a decline as `onboarding: declined` and never ask again; persist a deferral as `onboarding: deferred` and leave the offer open. Both proceed without learned durable context.
+0. **Resolve the store, then load or calibrate durable context.** Durable context lives outside the skill payload: the payload is replaced by every install or update, so a context settled inside it is discarded with no error raised. Resolve the store and route on its state as in **Durable context and first-run onboarding**, instantiate it from the shipped template when absent, and never settle the template copy in place. If the context is fresh, forked, or unresolved, read `references/onboarding.md` and establish the pedagogy before substantive work unless the user declines or defers. Persist a decline as `onboarding: declined` and never ask again; persist a deferral as `onboarding: deferred` and leave the offer open. Both proceed without learned durable context.
 1. **Bind the actor; establish the receiver — visibly.** Resolve `I / you / we / they / named actor` first. Use that actor lens to constrain capability, authority, and evidence. Separately project a small local rendering contract from any ready durable context plus the current request. State the useful read in one line and let the person correct it.
 2. **Resolve the request against a paradigm.** Load only saved domain-how/context admissible for the bound actor. Otherwise establish the smallest useful map, then a path through it. Do not require a grand ontology. For every step that mutates state or crosses a boundary, state a precondition and an observable postcondition. Observation-only steps may stay lighter. Name invariants that must survive the operation; minimum invariant: the active paradigm stays inspectable in one look.
 3. **Gate.** Admit the operation only if the requested point can be located and the consequential contracts are grounded in real state. If not, fizzle: identify the missing distinction, evidence, permission, dependency, or contract. A fizzle is not a failed operation because the crossing never became admissible.
@@ -112,7 +114,7 @@ A paradigm that lives only in one turn cannot support changed-state behavior. Ke
 - **HowDo trace / operation record** — the bound actor, resolved revision, rendering used, gate result, observed evidence, residual, and settlement. This is history and evidence, not automatically part of durable context.
 - **LongHow** — compares multiple HowDo traces (or unusually strong explicit feedback) and proposes the smallest reusable context lesson. The person settles persistent edits.
 - **When to save domain-how.** On explicit ask, or after a how survives at least one do/look cycle. Never promote an untested exemplar simply because it sounded plausible.
-- **When to update durable context.** Initial comparative onboarding may settle direct user feedback. Afterward, do not rewrite `CONTEXT.md` from every session. Route presentation residuals into traces; LongHow promotes only recurring or explicitly ratified lessons, with provenance and limits.
+- **When to update durable context.** Establishing the pedagogy may settle direct user feedback. Afterward, do not rewrite `CONTEXT.md` from every session. Route presentation residuals into traces; LongHow promotes only recurring or explicitly ratified lessons, with provenance and limits.
 - **When to load.** Load active durable context and relevant saved domain-how before establishing anything fresh. Resolve from saved state and say only what materially changes the current interaction.
 - **When to update a paradigm.** At settlement, only the layer supported by the residual. Accepted settlement rebases that layer into the next revision; it does not rebuild the whole paradigm.
 - **When nothing domain-specific is saved.** Search for the common pattern or offer exemplars. Mark exemplar-derived hows as untested until observed work grounds them.
@@ -192,7 +194,8 @@ Empty rows are deliberate. Fill one only when a repeated move earns a measurable
 - **Rendering contract growing.** Cap at 3–4 knobs. If it needs more, it has become a persona; cut it back.
 - **Residual points at two layers.** Fix the upstream one first and re-run before changing downstream layers.
 - **Map terminology disagreement.** Prefer the smallest word that preserves the distinction needed for the current operation; taxonomy must not block useful work.
-- **Fresh install with no learner evidence.** Run comparative onboarding before substantive work unless the user declines or defers; persist either so the ask is not repeated blindly. Neither is ready or learned.
+- **Fresh install with no learner evidence.** Establish the pedagogy before substantive work unless the user declines or defers; persist either so the ask is not repeated blindly. Neither is ready or learned.
+- **Onboarding starting to feel like a form.** It has gone wrong. Drop the remaining questions, take what the work itself shows you, and settle a smaller receipt.
 - **“Not now” rather than “no”.** That is a deferral, not a decline. Persist `onboarding: deferred`, do the work they actually asked for, and leave the offer open for a later session. Never record a postponement as a refusal — it silently costs the calibration.
 - **Copied context with a new basename.** Treat it as a fork and onboard the new lineage; preserve the source.
 - **Durable preference conflicts with current task.** The current task wins. Record the mismatch as evidence; do not force the old rendering.

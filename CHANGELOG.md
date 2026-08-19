@@ -4,6 +4,29 @@ Versions are aligned across `SKILL.md`, `README.md`, `pyproject.toml`, and `CONT
 
 ## 0.8.0
 
+- **Onboarding establishes a pedagogy, and the agent chooses the route.** The
+  seven-step comparative interview is replaced by what must end up established
+  — anchors, build direction, what counts as understood, how correction should
+  land — plus explicit latitude over how to get there: use the work the person
+  brought, learn a dimension by doing it rather than asking, state an
+  assumption and invite correction, or skip what the conversation already
+  showed. The register is a conversation, never an intake form; ideally the
+  person cannot tell an onboarding is happening. The structural receipt is
+  unchanged — the route is free, the receipt is not.
+- **The anchor domain's expertise requirement is now explained, not just stated.**
+  What onboarding learns is saved as an exemplar — a reusable shape — whose
+  purpose is to be applied to topics the person is *not* expert in. That is why
+  it must be calibrated somewhere they are: a novice cannot separate "that was
+  well built" from "I finally understood it", and calibrating there generalises
+  what felt good while confused. Observations carry the scope they are expected
+  to transfer to, and in the novice domain the burden of noticing a shape has
+  stopped working falls entirely on the agent.
+- Context section descriptions were preference-and-critique language
+  ("structures the person preferred", "notice a bad explanation") for something
+  the skill intends as pedagogy, which invited every reader to narrow it to
+  rendering. Reworded in place; headings and the stored schema are untouched,
+  so settled stores keep working.
+
 Minor, not patch: this adds a value to the public `ContextState` enum, three
 public helpers, and a frontmatter key. All additive — a store settled under
 0.7.0 has no `scope` key, reads as `scope: user`, and settles unchanged.

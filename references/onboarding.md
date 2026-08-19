@@ -4,22 +4,92 @@ Read this when the active context is anything but `onboarding: complete`. A read
 context needs none of it — `SKILL.md` already carries the routing and the
 guarantees.
 
-## Comparative onboarding
+## Establishing the pedagogy
 
-Onboarding is a calibration, not a psychometric test. Stop as soon as one useful
-positive distinction and one useful negative distinction are grounded.
+Onboarding works out **how to teach this person** — not which visual style they
+enjoy. Rendering is downstream of that and mostly follows from it.
 
-1. **Establish a calibration domain.** Ask for one or two domains or subjects the person knows well enough to catch a weak explanation quickly. Ask what kind of work or judgment they perform there.
-2. **Same idea, different renderings.** Choose one small concept inside a calibration domain and explain the same underlying content in 3–4 materially different forms, kept similar in length and factual content:
-   - relational / diagram-first;
-   - narrative / sequence-and-consequence;
-   - formal / definitions-table-schema;
-   - executable / code-checklist-worked procedure.
-3. **Get comparative feedback.** Ask which landed, which did not, and what structural difference mattered. Reasons matter more than labels.
-4. **Run one contrast pass.** Produce one short explanation emphasizing the liked traits and one emphasizing the disliked traits. Ask whether the contrast is real. Probe ordering/density only if still ambiguous.
-5. **Write observations, not identities.** Record claims such as “for relational systems, diagram→example→terminology landed better than prose-first,” with applicability, evidence, confidence, and limits. Preserve at least one concrete positive and negative example.
-6. **Settle structurally.** The context is ready only when the calibration domain, representation observation, landed example, and rejected example each contain at least one non-placeholder evidence bullet. Then assign a `context_id`, set `context_file` to the actual basename, and mark `onboarding: complete`. This is structural completeness only; it does not prove that the evidence is truthful or good.
-7. **Give the agency note once.** Explain briefly that `I / you / we / they` changes whose capabilities and context are used; it does not require another learner questionnaire.
+You have latitude in how you get there. What follows is what must end up
+established, not a script to run.
+
+### What you are trying to establish
+
+- **Anchors.** A domain this person knows well enough to tell a good explanation from a bad one. This is the instrument, and its expertise requirement is load-bearing — see below.
+- **Build direction.** Does understanding arrive instance-first (the case, then the principle it illustrates) or principle-first (the rule, then where it bites)? This is the most load-bearing thing you can learn, and it is independent of medium.
+- **What counts as understood.** For them: predicting the next result, reproducing the steps, watching the thing break, or saying it back in their own words. This tells you how to close a loop.
+- **How correction should land.** Directly, by counterexample, by question, or side-by-side with what they said. Getting this wrong makes every later residual expensive.
+
+Two are usually enough to start. Anchors and build direction carry the most
+weight; the other two often arrive on their own from ordinary work.
+
+### How you get there is yours
+
+Any of these is a legitimate route:
+
+- **Use the work they brought — but only if they are expert in it.** If their current task sits inside a domain they know well, it is both real work and a valid instrument, and costs them nothing. If they are a novice in it, it is not a valid instrument; find an anchor elsewhere.
+- **Learn it by doing it.** Explain something instance-first and see whether they engage or ask you to back up. You do not have to ask a question to learn the answer to one.
+- **Ask outright.** Some people know exactly how they learn and will tell you in a sentence. Take the gift.
+- **Guess and invite correction.** "I'll start with the concrete case and generalize after — say if you'd rather have the rule first." A stated assumption is faster than a question and produces the same evidence.
+- **Skip what is already visible.** If they opened with a precise technical question full of domain vocabulary, you already have their anchor. Do not ask for it.
+
+Take the dimensions in whatever order the conversation offers them. Stop as soon
+as you can name one thing that helps and one thing that gets in the way, each
+with a reason attached.
+
+### Why the anchor must be a domain they know
+
+What you learn here does not stay here. The observation is saved as an
+**exemplar** — a reusable *shape* — and its whole purpose is to be applied later
+to topics the person is **not** expert in. That is the payoff: you work out how
+understanding gets built for them somewhere they can check your work, then carry
+the shape into places where they cannot.
+
+Which is exactly why the calibration domain has to be one they know well. In a
+domain where they are a novice, they cannot separate *"that was well built"*
+from *"I finally understood it"*. Those feel identical from the inside and mean
+completely different things. Calibrate there and you learn what felt good while
+confused, then generalise it to every future topic.
+
+Two consequences worth holding on to:
+
+- **Record what the observation is expected to transfer to.** An observation carries applicability — "on systems with hidden dependencies, the failure case had to come before the rule" — not just a preference. Applying it outside that scope is a guess, and should be held as one.
+- **In the novice domain, the burden is entirely yours.** They cannot tell you the shape stopped working; they will only look lost, or go quiet, or stop asking. Watch for that and treat it as a residual against the exemplar, not as a fact about them.
+
+### Keep it a conversation
+
+This is two people working out how to work together. It is not an intake form,
+an assessment, or a personality quiz, and it must never feel like one.
+
+- No visible steps, phases, or numbered questions. Ideally the person cannot tell an onboarding is happening at all.
+- One question at a time, at most. Batched questions read as a form.
+- Never use learning-style vocabulary at them. Do not ask whether they are a visual learner; do not tell them what kind of learner they are.
+- **"I don't know" is an answer, and a useful one.** Someone who cannot describe their own comprehension needs you to instrument it rather than ask about it. Record that — it is a pedagogical finding, not a failed question.
+- Say once that this is a starting guess they can correct any time. Provisionality stated out loud is both honest and good teaching.
+- If they are impatient, they are telling you something. Defer and get to work.
+
+### What must end up written
+
+The route is free; the receipt is not. Settle only when each required evidence
+section holds at least one real bullet: the anchor domain, an observation about
+how understanding gets built for this person, one concrete thing that helped,
+and one concrete thing that did not — each with the reason it did.
+
+Write observations, not identities. "Needed the failing case before the rule
+would stick, on protocol work" is usable by a later session. "Visual learner"
+is not.
+
+Then assign a `context_id`, set `context_file` to the actual basename, and mark
+`onboarding: complete`. That is structural completeness only; it does not prove
+the evidence is truthful or good.
+
+Mention once that `I / you / we / they` changes whose capabilities and context
+are used. It does not need another round of questions.
+
+### A first hypothesis, not a verdict
+
+`HowDo → trace → LongHow → settlement` exists because the interview is the
+weakest evidence source in the system. Traces from real work beat anything
+established at the door. Get enough to start, then let the work correct you.
 
 ## Decline versus deferral
 

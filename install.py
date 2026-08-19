@@ -119,7 +119,7 @@ def report(payload: Path, store_path: Path, *, shared: bool = False) -> int:
     if status.state in {"invalid", "fork_required"}:
         problems += 1
     elif status.state == "onboarding_required":
-        print("  next  run the comparative onboarding before the first substantive HowDo")
+        print("  next  establish the pedagogy before the first substantive HowDo")
     elif status.state == "deferred":
         print("  next  calibration was deferred; work without learned context, offer stays open")
     elif status.state == "declined":

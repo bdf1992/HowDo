@@ -68,14 +68,14 @@ The file records `scope: shared` in its own frontmatter, so every later reader c
 
 ## First install
 
-`CONTEXT.md` ships with `onboarding: required`. Before the first substantive HowDo, run one short comparative calibration unless the user explicitly declines durable calibration:
+`CONTEXT.md` ships with `onboarding: required`. Before the first substantive HowDo, establish the pedagogy — how understanding gets built for this person — unless they decline or defer. What must end up established:
 
-1. ask for a domain the person knows well enough to critique;
-2. render one familiar concept in 3–4 equivalent structures;
-3. ask what landed, what did not, and why;
-4. run one positive/negative contrast;
-5. record one bounded representation observation plus concrete positive and negative examples;
-6. settle the context.
+- **anchors** — what they already know well enough that new material can attach to it;
+- **build direction** — does understanding arrive instance-first or principle-first;
+- **what counts as understood** — predicting, reproducing, watching it break, saying it back;
+- **how correction should land** — directly, by counterexample, by question.
+
+*How* you establish it is the agent's call: use the work the person brought, learn a dimension by doing it rather than asking, state an assumption and invite correction, or skip what the conversation already showed. It is a conversation between two people working out how to work together — never an intake form. The route is free; the receipt is not.
 
 The runtime treats completion as a structural receipt only: `onboarding: complete` requires at least one non-placeholder bullet in each required evidence section. It does not validate the truth or quality of the feedback.
 
