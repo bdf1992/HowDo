@@ -77,9 +77,13 @@ class ReleaseContractTests(unittest.TestCase):
     def test_decline_semantics_are_durable(self):
         skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        reference = (ROOT / "references" / "onboarding.md").read_text(encoding="utf-8")
         self.assertIn("onboarding: declined", skill)
         self.assertIn("do not ask again", skill.lower())
-        self.assertIn("decline_onboarding", readme)
+        # The README names the persisted state a user can see; the runtime
+        # helper that writes it is documented where the helpers live.
+        self.assertIn("onboarding: declined", readme)
+        self.assertIn("decline_onboarding", reference)
 
     def test_completion_claim_is_structural_not_truth_claim(self):
         skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
