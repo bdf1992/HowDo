@@ -1,6 +1,6 @@
 [project]
 name = "howdo-runtime"
-version = "0.7.0"
+version = "0.8.0"
 description = "Tiny reference runtime for the How Do discipline"
 requires-python = ">=3.10"
 

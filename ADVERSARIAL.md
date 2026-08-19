@@ -1,6 +1,6 @@
-# Adversarial notes — v0.7.0
+# Adversarial notes — v0.8.0
 
-The runtime is a small protocol kernel, not a complete trust system. v0.6 makes the durable-context lifecycle structurally checkable while keeping the agency modifier above the execution kernel.
+The runtime is a small protocol kernel, not a complete trust system. v0.8 makes the durable-context lifecycle structurally checkable while keeping the agency modifier above the execution kernel.
 
 ## Enforced operation invariants
 
@@ -29,12 +29,19 @@ The runtime is a small protocol kernel, not a complete trust system. v0.6 makes 
 | helper forks malformed older context missing onboarding/parent keys | required keys are inserted and new fork requires onboarding |
 | fork destination already exists | refused; source and destination are preserved |
 | completion helper receives placeholder evidence | refused |
+| "not now" recorded as a refusal | separate states: `deferred` leaves the offer open, `declined` closes it |
+| declined context reopened by deferring | refused; a decline is an answer, not a postponement |
+| deferred context onboarded later | settles into the lineage the deferral opened; `context_id` preserved |
 | settlement attempted on the shipped template | `TemplateContextError`; a template has no lineage to settle |
 | template forked as if it were a lineage | refused; instantiate with `ensure_context()` |
 | template marker carried into the instantiated store | stripped; the store opens at `context_id: pending` |
+| template's self-description carried into the instantiated store | stripped; no store claims in prose that it cannot be settled |
 | settlement attempted on a context inside the skill payload | `PayloadContextError`; template left untouched |
 | install or update run over a settled store | `ensure_context()` never overwrites an existing store |
-| store deliberately pointed inside the payload | `install.py` refuses before copying anything |
+| store deliberately pointed inside the payload | `install.py` refuses before copying anything unless `--shared` opts in |
+| unmarked context inside the payload settled | `PayloadContextError`; only a declared `scope: shared` store is admitted there |
+| `scope` key absent or blank | read as `user`; genericness is never inferred |
+| build noise present in the working tree at install time | excluded from the payload |
 | install directory name drifts from the skill's declared `name:` | `--verify` fails |
 
 ## Skill-level agency attacks
@@ -55,12 +62,12 @@ These are semantic invariants rather than Python NLP rules:
 - Python closures can capture state outside the narrow observer argument; isolation belongs to the host.
 - **Store lifetime is the host's, not the module's.** `payload_root()` decides a *location* question — is this file in the part of the install that gets replaced — which is decidable in one session. Whether a store outside the payload survives a reboot, a container reset, or an ephemeral home directory is not observable from inside the process that writes it: a successful write to a discarded filesystem is byte-identical to a durable one. A host whose entire filesystem is scratch will pass every check here and still lose the context. That is declared, not enforced.
 - Context completion proves a **structural receipt**, not the truth of a learning claim. LongHow + user settlement remain the semantic boundary.
-- Rename/new-basename forks are detectable from the file itself. A byte-for-byte copy of an entire settled installation under the same filenames is not distinguishable without an external installation identity/custody mechanism; v0.6 does not pretend otherwise.
+- Rename/new-basename forks are detectable from the file itself. A byte-for-byte copy of an entire settled installation under the same filenames is not distinguishable without an external installation identity/custody mechanism; this release does not pretend otherwise.
 - The agency modifier is intentionally not implemented as a brittle pronoun parser. The skill binds the actor from language/context; the execution kernel remains domain-neutral.
 
 These boundaries keep the reference system small enough to audit. Closing them requires host identity, isolation, authenticated evidence, or policy infrastructure rather than more prose in the kernel.
 
-## v0.6.1 lifecycle attacks
+## Lifecycle attacks
 
 - **declined persists** — `decline_onboarding()` produces `declined`; later inspection does not return `onboarding_required`.
 - **ready cannot be re-completed** — `complete_onboarding()` refuses a ready context so `context_id` cannot churn.

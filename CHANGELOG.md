@@ -1,6 +1,94 @@
 # Changelog
 
-Versions are aligned across `SKILL.md`, `README.md`, `pyproject.toml`, and `CONTEXT.md`; `tests/test_release.py` enforces it.
+Versions are aligned across `SKILL.md`, `README.md`, `pyproject.toml`, and `CONTEXT.template.md`; `tests/test_release.py` enforces it.
+
+## 0.8.0
+
+- **A reading has to be tested before it settles.** Restructuring onboarding
+  into objectives dropped the contrast pass and stopped at "you can name one
+  thing that helps" — formation, not testing, which would let an agent settle a
+  hypothesis it never checked. The stopping rule now requires a reading that
+  survived contact: predict from it, render something that way, look at what
+  comes back. How you test stays free. Observations also record what tested
+  them, because "they said so" and "it predicted correctly" should not read the
+  same to whoever picks the file up next — especially since the exemplar is
+  reused where nobody can catch it being wrong.
+- **`Look` is defined as running the test `Check` wrote.** The word is unchanged;
+  its definition now carries the weight. `Check` states the observable
+  postcondition — it writes the test. `Look` takes in the actual result and runs
+  that test against it; the difference, observed minus expected, is the residual.
+  The old wording ("inspect what actually happened, not merely what the model
+  said") was a testing instruction wearing an observing word, and a step that
+  only reads back what was reported has not run the test.
+- **The pedagogy is the loop, and onboarding tunes it.** `Map` is the domain and
+  its priors, `Path` sequences it, `Check` states what would count as understood,
+  `Do` teaches, `Look` tests against that, `Update` revises the smallest
+  disproved part. Onboarding does not invent a pedagogy; it establishes one
+  person's settings for that loop, and each setting now names the stage it tunes.
+  Those settings are learned from the person's preference for, and critique of,
+  how information was presented — judged by whether it built understanding, not
+  by whether they enjoyed it.
+- **Onboarding establishes a pedagogy, and the agent chooses the route.** The
+  seven-step comparative interview is replaced by what must end up established
+  — anchors, build direction, what counts as understood, how correction should
+  land — plus explicit latitude over how to get there: use the work the person
+  brought, learn a dimension by doing it rather than asking, state an
+  assumption and invite correction, or skip what the conversation already
+  showed. The register is a conversation, never an intake form; ideally the
+  person cannot tell an onboarding is happening. The structural receipt is
+  unchanged — the route is free, the receipt is not.
+- **The anchor domain's expertise requirement is now explained, not just stated.**
+  What onboarding learns is saved as an exemplar — a reusable shape — whose
+  purpose is to be applied to topics the person is *not* expert in. That is why
+  it must be calibrated somewhere they are: a novice cannot separate "that was
+  well built" from "I finally understood it", and calibrating there generalises
+  what felt good while confused. Observations carry the scope they are expected
+  to transfer to, and in the novice domain the burden of noticing a shape has
+  stopped working falls entirely on the agent.
+- Context section descriptions keep their preference-and-critique framing, which
+  was correct — that is the mechanism by which the loop's settings are learned.
+  What they were missing was the qualifier: preference and critique **judged by
+  whether the presentation built understanding**, not by whether it was enjoyed.
+  Made explicit in place; headings and the stored schema are untouched, so
+  settled stores keep working.
+
+Minor, not patch: this adds a value to the public `ContextState` enum, three
+public helpers, and a frontmatter key. All additive — a store settled under
+0.7.0 has no `scope` key, reads as `scope: user`, and settles unchanged.
+
+- **CI exists.** `.github/workflows/tests.yml` runs the suite and the example on
+  Python 3.10–3.13, and runs `install.py` end to end on Linux, macOS, and
+  Windows, including a reinstall over a settled store. `CONTRIBUTING.md` claimed
+  CI ran on push and pull request; until now that was not true.
+
+- Instantiation strips the template's self-description, not just `template: true`.
+  A store no longer carries prose telling its reader it cannot be settled.
+- Store resolves to per-user application data by platform: `%APPDATA%\howdo\CONTEXT.md`
+  on Windows, `~/.howdo/CONTEXT.md` elsewhere. Resolution depends only on
+  configuration, never on disk state. New: `default_store_path()`.
+- Context scope is explicit. `scope: user` is the default; `install.py --shared`
+  opts into one generic install-wide store, which marks itself `scope: shared`
+  and is the only kind allowed to live inside the payload. New: `is_shared()`.
+- `SKILL.md` now names the store path, the helper call, and the hand-install
+  fallback, so step 0 is executable from the skill file alone.
+- Installs no longer copy `__pycache__`, bytecode, or other build noise.
+- **`onboarding: deferred` is a first-class state.** Previously the only ways
+  out of onboarding were finishing it or declining it outright, so a user who
+  said "not now" had to be recorded as a refusal — permanently unlearned. A
+  deferral leaves the offer open for a later session, opens a lineage so it can
+  settle with the same `context_id`, and can still become a decline. A decline
+  cannot be reopened by deferring. New: `defer_onboarding()`.
+- **Detail moved to `references/`, loaded on demand.** The onboarding interview,
+  store resolution, fork and scope rules move to `references/onboarding.md`; the
+  vocabulary table to `references/vocabulary.md`. `SKILL.md` keeps the state
+  routing and the three guarantees those details back — onboarding gates the
+  first substantive HowDo, a decline is durable, completion is structural only —
+  so a reference that is never read cannot take a guarantee with it.
+- **Requested, not ambient.** The description no longer advertises `"help me"`,
+  `"say more"`, `"do work"`, or bare how-to questions as triggers; it asks for
+  an explicit invocation, the loop by name, or a request to work this way. The
+  handles remain moves inside a HowDo already underway. Description compressed
+  from 814 to 611 characters.
 
 ## 0.7.0
 - **Template and context are separate types.** The shipped file is `CONTEXT.template.md`, marked `template: true`, with `inspect_context()` state `template`. It has no lineage, skips the fork check, is never `ready`, and is refused by `complete_onboarding()`, `decline_onboarding()`, and `fork_context()` (`TemplateContextError`). `ensure_context()` strips the marker when opening a store.

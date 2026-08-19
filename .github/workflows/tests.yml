@@ -1,0 +1,66 @@
+name: tests
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  suite:
+    # The runtime is zero-dependency and claims Python >= 3.10, so the matrix is
+    # the claim: if a version here fails, the claim in pyproject.toml is wrong.
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.10", "3.11", "3.12", "3.13"]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Suite
+        run: python -m unittest discover -s tests -t . -v
+      - name: Example
+        run: python examples/jira_workflow.py
+
+  install:
+    # The suite exercises the library; this exercises what a person actually
+    # runs. A green suite over a broken installer is the failure this catches.
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install, then verify the install
+        shell: bash
+        run: |
+          python install.py --dry-run
+          python install.py
+          python install.py --verify
+      - name: Reinstalling must not clobber a settled store
+        shell: bash
+        run: |
+          python - <<'EOF'
+          import sys; sys.path.insert(0, "runtime")
+          from howdo.context import complete_onboarding, inspect_context, resolve_context_path
+          p = resolve_context_path(None)
+          complete_onboarding(
+              p,
+              calibration_domain="ci smoke",
+              representation_observation="diagram before terminology landed",
+              landed_example="a worked trace",
+              rejected_example="a bare definition table",
+          )
+          print("settled:", inspect_context(p).state, p)
+          EOF
+          python install.py
+          python install.py --verify

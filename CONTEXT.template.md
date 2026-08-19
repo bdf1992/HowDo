@@ -4,32 +4,45 @@ template: true
 context_id: template
 context_file: CONTEXT.template.md
 skill: how-do
-skill_version: "0.7.0"
+skill_version: "0.8.0"
 onboarding: required
 parent_context_id: none
 ---
 
-# How Do Context — shipped template
+<!-- template-only:start -->
+# Shipped template — not a context
 
-This file is a **template**, not a context. It has no lineage, cannot be settled,
-and is replaced whenever the payload is updated. `ensure_context()` instantiates
-it into the durable store, which is where onboarding actually settles.
+This block exists only in the shipped template. `ensure_context()` removes it
+when it instantiates the durable store, so nothing below this line describes a
+template: it *is* the instance a person settles.
 
-The text below describes the instance this template produces.
+Do not settle this file. It carries `template: true`, has no lineage to settle
+into, is skipped by the fork check, and is replaced by the next payload update.
+`complete_onboarding()`, `decline_onboarding()`, and `fork_context()` all refuse
+it outright.
+<!-- template-only:end -->
+
+# How Do Context
 
 This is the durable, forkable context for **how this How Do installation should be perceived, built, rendered, and interacted with**.
 
+The pedagogy is the **Map → Path → Check → Do → Look → Update** loop itself. What this file holds are one person's settings for it: what they can attach new material to (Map), whether understanding arrives instance-first or principle-first (Path), what observable result convinces them they have it (Check/Look), and how a correction should land (Update).
+
+Those settings are learned from their **preference for, and critique of, how information was presented — judged by whether it built understanding**, not by whether they enjoyed it.
+
 It is not the trace of one task and it is not a personality dossier. A HowDo produces a trace. LongHow may later propose durable lessons from repeated traces. Only settled lessons belong here.
+
+This file is per-person and per-install. Keep it out of shared version control by default, because it records how one person builds understanding.
 
 ## Onboarding state
 
-**Required before the first substantive HowDo unless explicitly declined.** Run the short comparative onboarding in `SKILL.md`, then settle this file with observed positive and negative examples. If the user declines, persist `onboarding: declined`; future sessions do not ask again and must not treat this file as learned context.
+**Required before the first substantive HowDo unless explicitly declined or deferred.** Establish the pedagogy as described in `references/onboarding.md` — how you do that is yours to choose — then settle this file with what you actually observed, positive and negative. If the user declines, persist `onboarding: declined`; future sessions do not ask again and must not treat this file as learned context.
 
 `onboarding: complete` is only structurally accepted when each required evidence section contains at least one non-placeholder bullet. This check proves shape, not truth or quality.
 
 ## Agency projection
 
-This file primarily informs **rendering and interaction**. It does not grant facts, capability, or authority to the actor named in a request.
+This file primarily informs **teaching, rendering, and interaction**. It does not grant facts, capability, or authority to the actor named in a request.
 
 `How do I / you / we / they` is an **agency modifier** on the same HowDo:
 
@@ -42,31 +55,31 @@ No extra onboarding questionnaire is required for this modifier. Learn its pract
 
 ## Calibration domains
 
-Domains or subjects the person knows well enough to notice a bad explanation quickly.
+Domains or subjects the person knows well enough to judge quickly whether an explanation actually built understanding. That judgement is the instrument, and it is only available where they are already expert. These are also what new material can be anchored to.
 
 - pending
 
 ## Representation observations
 
-Record behaviorally useful observations, not identities such as “visual learner.” Each observation should say what helped, when it applies, evidence, confidence, and limits.
+What their preference and critique revealed about how information has to be presented for understanding to be built: instance-first or principle-first, what sequencing makes a thing stick, what has to be in place before the next step lands. Record behaviourally useful observations with applicability, evidence, confidence, and limits — never identities such as “visual learner.”
 
 - pending
 
 ## Structures that landed
 
-Concrete examples of explanation structures the person preferred and what made them useful.
+Concrete examples of explanation structures the person preferred, and what made them useful for understanding. The reason is worth more than the example.
 
 - pending
 
 ## Structures that did not land
 
-Concrete examples of explanation structures the person rejected or found costly and why.
+Concrete examples of explanation structures the person rejected or found costly, and why. One critique with a reason attached beats three structures that merely worked.
 
 - pending
 
 ## Interaction observations
 
-How the person prefers to inspect, correct, compare, branch, or deepen a HowDo.
+How this person wants to be corrected, how they show they have understood, and how they prefer to inspect, compare, branch, or deepen a HowDo.
 
 - pending
 
