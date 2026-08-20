@@ -26,7 +26,7 @@ it outright.
 
 This is the durable, forkable context for **how this How Do installation should be perceived, built, rendered, and interacted with**.
 
-The pedagogy is the **Map → Path → Check → Do → Look → Update** loop itself. What this file holds are one person's settings for it: what they can attach new material to (Map), whether understanding arrives instance-first or principle-first (Path), what observable result convinces them they have it (Check/Look), and how a correction should land (Update).
+The pedagogy is the **Map → Path → Check → Do → Look → Update** loop itself: a fixed shell, identical in every install. Its internals are personal and have no source but the person, which is why this file cannot be generated. What it holds are one person's settings for that shell: what they can attach new material to (Map), whether understanding arrives instance-first or principle-first (Path), what observable result convinces them they have it (Check/Look), and how a correction should land (Update).
 
 Those settings are learned from their **preference for, and critique of, how information was presented — judged by whether it built understanding**, not by whether they enjoyed it.
 

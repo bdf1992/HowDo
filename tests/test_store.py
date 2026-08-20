@@ -110,11 +110,37 @@ class StoreResolutionTests(unittest.TestCase):
             self.assertEqual(resolved, configured)
 
     def test_default_store_is_user_scoped_and_keeps_the_canonical_basename(self):
+        """The default is per-platform, so the assertion pins one.
+
+        Passing no ``platform=`` made this agree with whichever host ran it:
+        green on Linux CI, red on Windows against correct behaviour.
+        """
         with tempfile.TemporaryDirectory() as tmp:
-            resolved = resolve_context_path(env={}, home=Path(tmp))
-            self.assertEqual(resolved, Path(tmp) / ".howdo" / "CONTEXT.md")
-            # A different basename would be read as a fork by inspect_context.
-            self.assertEqual(resolved.name, "CONTEXT.md")
+            home = Path(tmp) / "profile"
+            roaming = Path(tmp) / "Roaming"
+            cases = (
+                (
+                    "windows, APPDATA set",
+                    "win32",
+                    {"APPDATA": str(roaming)},
+                    roaming / "howdo" / "CONTEXT.md",
+                ),
+                (
+                    "windows, APPDATA unset",
+                    "win32",
+                    {},
+                    home / "AppData" / "Roaming" / "howdo" / "CONTEXT.md",
+                ),
+                ("posix", "linux", {}, home / ".howdo" / "CONTEXT.md"),
+            )
+            for label, platform, env, expected in cases:
+                with self.subTest(platform=label):
+                    resolved = resolve_context_path(
+                        env=env, home=home, platform=platform
+                    )
+                    self.assertEqual(resolved, expected)
+                    # A different basename reads as a fork to inspect_context.
+                    self.assertEqual(resolved.name, "CONTEXT.md")
 
 
 class EnsureContextTests(unittest.TestCase):
