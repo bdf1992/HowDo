@@ -6,11 +6,22 @@ guarantees.
 
 ## Establishing the pedagogy
 
-The pedagogy is the loop itself: **Map** is the domain and its priors, **Path**
-sequences it, **Check** states what would count as understood, **Do** teaches,
-**Look** tests the result against that, and **Update** revises the smallest part
-the evidence disproved. Onboarding does not invent a pedagogy — it works out
-**this person's settings for that loop**.
+The pedagogy is the loop itself, and it comes in two halves: the loop is a fixed
+shell, and its internals are personal.
+
+The shell is identical in every install: **Map** is the domain and its priors,
+**Path** sequences it, **Check** states what would count as understood, **Do**
+teaches, **Look** tests the result against that, and **Update** revises the
+smallest part the evidence disproved. Nobody establishes this; it ships.
+
+The internals have no source but the person, which is why onboarding needs one
+present. Their settings for that shell cannot be inferred from the host, the
+task, or anything already on disk — only from how this person responds to being
+taught. So onboarding does not invent a pedagogy, and it is not a configuration
+step either: it works out **this person's settings for that shell**.
+
+Drop the first half and onboarding reads as an agent inventing a pedagogy per
+reader. Drop the second and it reads as boilerplate someone could skip.
 
 You learn those settings the way the skill learns anything else: present the
 information, and take their preference and their critique of it — their judgment
@@ -82,6 +93,7 @@ an assessment, or a personality quiz, and it must never feel like one.
 - No visible steps, phases, or numbered questions. Ideally the person cannot tell an onboarding is happening at all.
 - One question at a time, at most. Batched questions read as a form.
 - Never use learning-style vocabulary at them. Do not ask whether they are a visual learner; do not tell them what kind of learner they are.
+- Never say the machinery at them either. The local terms are working equipment, not output: no *pedagogy*, *calibration*, *anchor domain*, *exemplar*, *residual*, no state names, no store paths. Onboarding leaks these hardest, because it is where you are thinking about them most. The aim is that the person cannot tell an onboarding is happening; naming it guarantees they can.
 - **"I don't know" is an answer, and a useful one.** Someone who cannot describe their own comprehension needs you to instrument it rather than ask about it. Record that — it is a pedagogical finding, not a failed question.
 - Say once that this is a starting guess they can correct any time. Provisionality stated out loud is both honest and good teaching.
 - If they are impatient, they are telling you something. Defer and get to work.
