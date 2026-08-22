@@ -1,8 +1,30 @@
 # Changelog
 
-Versions are aligned across `SKILL.md`, `README.md`, `pyproject.toml`, and `CONTEXT.template.md`; `tests/test_release.py` enforces it.
+Versions are aligned across `plugin/SKILL.md`, `README.md`, `pyproject.toml`, `plugin/CONTEXT.template.md`, and `plugin/.claude-plugin/plugin.json`; `tests/test_release.py` enforces it.
 
 ## Unreleased
+
+- **The payload boundary stopped being a rule and became a directory.** The
+  skill now lives in `plugin/`, which *is* the plugin root: manifest,
+  `SKILL.md`, `references/`, `runtime/`, `examples/`, `bin/`. A marketplace
+  clones that directory and reads it exactly as committed, so `/plugin install`
+  works with no build step, and `.claude-plugin/marketplace.json` at the repo
+  root points at it. The reason this matters is not convenience. Nothing holds
+  `tests/` and `experiment/` out of an install any more, because they are not
+  inside the thing that ships — a rule that could be forgotten was replaced by
+  a fact that cannot be.
+
+- **The manifest version is tracked now, and that is a reversal.** It used to
+  be derived: an assembler read it from `SKILL.md` and wrote it into a
+  generated manifest, so there was nothing to keep in sync. That stopped being
+  possible the moment the plugin root became a real tracked directory with no
+  build step in between. So the version is committed, and it joins the four
+  other places `tests/test_release.py` holds aligned rather than floating free.
+
+- **`install.py` is a copier, not an assembler.** It no longer renders a
+  manifest or composes a payload; it copies `plugin/` into a skills directory
+  for people not using a plugin host. `--plugin DIR` copies the root verbatim,
+  so what a marketplace serves and what the script writes are the same bytes.
 
 - **The host already guarantees what `install.py` was built by hand to
   provide.** Almost all of the installer exists to keep `CONTEXT.md` out of the
@@ -144,8 +166,6 @@ Versions are aligned across `SKILL.md`, `README.md`, `pyproject.toml`, and `CONT
   whatever host ran it, and stayed green on Linux-only CI while proving nothing
   about Windows. All three branches are now asserted through `subTest` with
   `platform` pinned per case.
-
-## Unreleased
 
 - **Every skill the emitter produced was unloadable, and so was this one.** A
   plain YAML scalar may not contain `": "`, and a generated description always

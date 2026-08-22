@@ -35,7 +35,12 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent
-sys.path.insert(0, str(REPO / "runtime"))
+# The plugin root is a real directory in the repository, not something this
+# script assembles. That is what makes the payload boundary a filesystem fact:
+# `experiment/` and `tests/` are outside `plugin/`, so no rule has to hold them
+# out. A marketplace clones this directory and reads it exactly as committed.
+PLUGIN = REPO / "plugin"
+sys.path.insert(0, str(PLUGIN / "runtime"))
 
 from howdo.context import (  # noqa: E402
     default_store_path,
@@ -65,9 +70,9 @@ NOISE = shutil.ignore_patterns(
 # the whole point: the boundary that keeps `experiment/` and `tests/` out of an
 # install is enforced in one place, and the plugin inherits it rather than
 # re-deriving it and drifting.
-MANIFEST_SOURCE = REPO / "packaging" / "plugin.json"
 MANIFEST_DIR = ".claude-plugin"
 MANIFEST_NAME = "plugin.json"
+MANIFEST_SOURCE = PLUGIN / MANIFEST_DIR / MANIFEST_NAME
 PLUGIN_EXTRA = ("bin",)
 
 
@@ -87,7 +92,7 @@ def skill_name(skill_md: Path) -> str:
 def copy_payload(destination: Path, *, dry_run: bool) -> list[str]:
     actions = []
     for item in PAYLOAD:
-        source = REPO / item
+        source = PLUGIN / item
         if not source.exists():
             raise FileNotFoundError(source)
         target = destination / item
@@ -132,7 +137,7 @@ def assemble_plugin(destination: Path, *, dry_run: bool) -> list[str]:
     actions = copy_payload(destination, dry_run=dry_run)
 
     for item in PLUGIN_EXTRA:
-        source = REPO / item
+        source = PLUGIN / item
         if not source.exists():
             raise FileNotFoundError(source)
         target = destination / item
@@ -147,13 +152,13 @@ def assemble_plugin(destination: Path, *, dry_run: bool) -> list[str]:
             if path.is_file():
                 path.chmod(path.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
 
-    manifest = json.loads(MANIFEST_SOURCE.read_text(encoding="utf-8"))
-    manifest["version"] = skill_version(REPO / "SKILL.md")
+    # The manifest is tracked, not generated: copied verbatim so what a
+    # marketplace serves and what this writes are the same bytes.
     written = destination / MANIFEST_DIR / MANIFEST_NAME
-    actions.append(f"write {MANIFEST_DIR}/{MANIFEST_NAME} -> {written}")
+    actions.append(f"copy {MANIFEST_DIR}/{MANIFEST_NAME} -> {written}")
     if not dry_run:
         written.parent.mkdir(parents=True, exist_ok=True)
-        written.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+        shutil.copy2(MANIFEST_SOURCE, written)
 
     return actions
 
@@ -259,7 +264,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--dry-run", action="store_true", help="print planned actions only")
     args = parser.parse_args(argv)
 
-    name = skill_name(REPO / "SKILL.md")
+    name = skill_name(PLUGIN / "SKILL.md")
     # A plugin root is named by the manifest, not by the skill frontmatter, and
     # it is a complete directory rather than one entry inside a skills dir --
     # so --plugin names the destination outright instead of a parent to nest in.

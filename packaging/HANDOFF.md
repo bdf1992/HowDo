@@ -1,17 +1,19 @@
 # Packaging lane — handoff
 
 Branch `claude/howdo-fullscope-plugin-qqvw7h`. Draft PR #14.
-Work in `647d4a0`, handoff in `f5d400b`, merged up to `main` at `f8b9236`
-(release 0.9.0) in `9c86850`.
+Merged up to `main` through #13 and #15. Release 0.9.0.
+
+**The layout changed.** `plugin/` is now the plugin root and the whole of what
+ships; everything beside it is a repository concern. Paths below assume that.
 
 This lane converts How Do into a Claude Code plugin. It is **packaging only**:
 no hook, no agent, no `settings.json`, nothing that would make the discipline
 ambient. That restraint is not conservatism, it is the roadmap's gate — see
 *Deliberately not done* below before adding a component.
 
-**The branch does not merge until parity is closed.** Three items are open and
-none of them can be closed from inside this lane alone. They are listed with
-what unblocks each.
+**The branch does not merge until parity is closed.** One item is now closed;
+two remain, and neither can be closed from inside this lane alone. They are
+listed with what unblocks each.
 
 ---
 
@@ -75,28 +77,20 @@ root layout for exactly this reason.
 
 ## Open work items
 
-### 1. Not distributable — blocks parity
+### 1. ~~Not distributable~~ — CLOSED
 
-A marketplace clones a repository and treats a directory as the plugin root.
-Ours is *generated* into `dist/` (gitignored), so `/plugin install` cannot
-reach it. Local use works today (`--plugin-dir`, or assemble into a skills
-directory); distribution does not.
+The payload moved under `plugin/`, now a tracked plugin root: manifest,
+`SKILL.md`, `references/`, `runtime/`, `examples/`, `bin/`.
+`.claude-plugin/marketplace.json` at the repo root points at it. Both pass
+`claude plugin validate --strict`, and loading the tracked directory with
+`--plugin-dir ./plugin` registers the skill as bare `/how-do` with `bin/` on
+`PATH` — no build step anywhere.
 
-Two ways to close it, both cheap once the branches below have landed:
-
-- **Move the payload under `plugin/`** and point a marketplace entry at that
-  subdirectory. Cleanest end state — the boundary becomes a filesystem fact
-  rather than an assembler behaviour. Deferred only because moving `SKILL.md`,
-  `runtime/`, and `references/` now would conflict violently with both open
-  PRs.
-- **Publish a built branch from CI** — run `install.py --plugin` on every push
-  to main and push the result to a `plugin` branch that the marketplace points
-  at. No file moves, but the boundary stays a property of the assembler.
-
-Prefer the first once the tree is quiet. PR #13 has merged, so the payload
-files are no longer contested; #12 and `experiment/m0-harbor-runner` both
-live entirely under `experiment/`, so neither blocks the move. This is now
-the next actionable item in the lane.
+One reversal came with it: **the manifest version is tracked, not derived.**
+There is no assembler left to derive it during, because a marketplace reads
+the file as committed. It is the fifth place `test_release.py` holds aligned.
+Do not try to restore the derived version — an earlier revision of this
+document forbade pinning it, and a test now asserts the opposite.
 
 ### 2. `CONFIGURATION_NOTE` never reaches a plugin user — blocks parity
 
@@ -167,13 +161,13 @@ git merge --abort; git checkout <this-branch>; git branch -D probe
 ## Verifying this lane
 
 ```bash
-python -m unittest discover -s tests -v        # 302 tests, exactly 1 skip (item 3)
-python examples/jira_workflow.py
-python examples/portable_contract.py
-python examples/issue_domain_how.py
-python install.py --plugin dist/how-do
-claude plugin validate dist/how-do             # expects: Validation passed, no warnings
-python install.py --plugin dist/how-do --verify
+python -m unittest discover -s tests -v        # 322 tests, exactly 1 skip (item 3)
+python plugin/examples/jira_workflow.py
+python plugin/examples/portable_contract.py
+python plugin/examples/issue_domain_how.py
+claude plugin validate ./plugin --strict       # the plugin root
+claude plugin validate . --strict              # the marketplace entry
+claude --plugin-dir ./plugin                   # loads the tracked root directly
 python install.py --target /tmp/skilldir && python install.py --target /tmp/skilldir --verify
 ```
 
@@ -182,8 +176,8 @@ A second skip means something regressed — item 3 is the only sanctioned one.
 To watch it load for real:
 
 ```bash
-python install.py --plugin ~/.claude/skills/how-do   # loads as how-do@skills-dir next session
-claude plugin list
+cp -r plugin ~/.claude/skills/how-do   # or: python install.py --plugin ~/.claude/skills/how-do
+claude plugin list                     # expect: how-do@skills-dir, loaded
 ```
 
 ---
@@ -194,14 +188,19 @@ claude plugin list
   the root-`SKILL.md` layout. The skill loads. Do not restructure to fix it.
 - **The single skip is expected.** See item 3. Do not delete the test to get a
   clean run; it is a tripwire that arms itself.
-- **Do not add a `version` to `packaging/plugin.json`.** It is derived. A test
-  enforces this, and a pinned stale version silently blocks updates for every
-  user.
+- **The manifest version IS tracked**, in `plugin/.claude-plugin/plugin.json`,
+  and must match `plugin/SKILL.md`. An earlier revision of this lane derived it
+  and forbade pinning it; that stopped being possible when the plugin root
+  became tracked. `test_release.py` and `test_plugin.py` both assert alignment.
 - **Do not move `SKILL.md` under `skills/`.** It renames the skill. See the
   findings table.
-- **`bin/` is not in `PAYLOAD`.** It ships only via `PLUGIN_EXTRA` in the
-  plugin path. If you add anything to `bin/`, the ordinary install will not
-  carry it — that is intentional, but check it is what you meant.
+- **`bin/` is not in `PAYLOAD`.** It ships only via `PLUGIN_EXTRA` on the
+  `--plugin` path, so an ordinary `install.py` skill directory does not carry
+  it. Intentional — a bare skills directory has no `PATH` to join — but check
+  it is what you meant before adding anything there.
+- **Never put anything in `plugin/` that should not reach a user.** That
+  directory ships verbatim. The handoff you are reading lives in `packaging/`
+  for exactly this reason.
 - **Windows.** `bin/howdo-context` is extensionless with a shebang, so
   `howdo-context.cmd` beside it is what makes the affordance real there. The CI
   `plugin:` job runs on `windows-latest` for this reason. Keep both.

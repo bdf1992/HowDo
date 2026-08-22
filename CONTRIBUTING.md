@@ -25,7 +25,7 @@ The goalposts. Move one only with a residual from real use, never because a prob
 1. **No weakened invariant.** The rows under "Enforced" in `ADVERSARIAL.md` are the contract. A PR that makes any of them false is closed unless it replaces the guarantee with a stronger one and says so.
 2. **One layer per PR.** Kernel, context module, or skill text; a residual points at one place. Cross-layer changes are split, or explained the way `settle(allow_multi_layer=True)` is: explicitly and with a reason.
 3. **Tests target invariants.** Every kernel or context change adds or edits a test whose failure would mean the promise broke. Coverage of lines is not the point; coverage of promises is.
-4. **Versions stay aligned.** `SKILL.md`, `README.md`, `pyproject.toml`, `CONTEXT.template.md`, `runtime/howdo/context.py`, and `CHANGELOG.md` move together. `tests/test_release.py` will tell you if they don't.
+4. **Versions stay aligned.** `plugin/SKILL.md`, `README.md`, `pyproject.toml`, `plugin/CONTEXT.template.md`, `plugin/runtime/howdo/context.py`, `plugin/.claude-plugin/plugin.json`, and `CHANGELOG.md` move together. `tests/test_release.py` will tell you if they don't.
 5. **Handles are earned, not added.** A new small-word handle is admissible only if it names a move over the paradigm and its residual is measurable, and it should arrive with the trace that earned it. The six in `SKILL.md` are a seed set, not a menu, and not the whole set.
 6. **The actor is a modifier, not a fork.** `I / you / we / they` changes whose capability, authority, and evidence apply. It does not add a workflow, a loop, or a kernel branch.
 7. **Contexts are personal, and live outside the payload.** The store is resolved by `resolve_context_path()` and instantiated by `ensure_context()`; the settlement helpers refuse a target inside a skill payload unless it declares `scope: shared` or the caller passes `allow_payload=True`. Never commit a settled `CONTEXT.md` or any fork of one. The tracked file is `CONTEXT.template.md` and must inspect as `template`; a test guards that and that no `CONTEXT.md` is tracked. `.gitignore` excludes `CONTEXT.md` and `CONTEXT.*.md`, negating the template. Respect a persisted `onboarding: declined`, and treat `onboarding: deferred` as an open offer rather than a refusal.
@@ -35,7 +35,7 @@ The goalposts. Move one only with a residual from real use, never because a prob
 
 ```bash
 python -m unittest discover -s tests -t . -v
-python examples/jira_workflow.py
+python plugin/examples/jira_workflow.py
 ```
 
 Zero dependencies; Python ≥ 3.10. `.github/workflows/tests.yml` runs the suite and the example on 3.10–3.13, and runs the installer end to end on Linux, macOS, and Windows — on every push and pull request.

@@ -29,20 +29,19 @@ cd HowDo
 python install.py            # payload -> ~/.claude/skills/how-do, store -> per-user app data
 python install.py --verify   # check an existing install, change nothing
 python install.py --target DIR   # install into a different skills directory
-python install.py --plugin DIR   # assemble a plugin root instead of a skill directory
+python install.py --plugin DIR   # copy the plugin root somewhere, manifest and all
 ```
 
 Reinstalling re-copies the payload and leaves a settled context alone.
 
 ## As a plugin
 
-`--plugin` writes the same payload with a `.claude-plugin/plugin.json` manifest
-and `bin/` alongside it. Point a session at the result, or assemble it straight
-into a skills directory so it loads on the next session:
+`plugin/` is already a plugin root, so there is nothing to build:
 
 ```bash
-python install.py --plugin ~/.claude/skills/how-do   # loads as how-do@skills-dir
-claude --plugin-dir ./dist/how-do                    # or load it for one session
+claude plugin marketplace add bdf1992/HowDo   # then: /plugin install how-do@howdo
+claude --plugin-dir ./plugin                  # or load this checkout for one session
+python install.py --plugin ~/.claude/skills/how-do   # or copy it; loads as how-do@skills-dir
 ```
 
 The skill stays `/how-do`. `SKILL.md` sits at the plugin root rather than under
@@ -216,21 +215,25 @@ python examples/issue_domain_how.py   # run -> issue -> index -> ground -> emit
 
 ## Layout
 
-- `SKILL.md` — the skill itself: discipline, loop, agency modifier, persistence rules. This repo is the skill; install it as a directory.
-- `QUICKSTART.md` — first run and ordinary use.
-- `references/` — detail loaded on demand: `onboarding.md`, `vocabulary.md`.
-- `CONTEXT.template.md` — the shipped template the durable store is instantiated from.
-- `runtime/howdo/core.py` — zero-dependency operation protocol.
-- `runtime/howdo/context.py` — zero-dependency context lifetime helpers.
-- `runtime/howdo/contract.py` — portable request contracts: declared I/O shape, serializable checks, host binding.
-- `runtime/howdo/domain.py` — the issuer and index: domain-hows minted from runs, grounded by evidence.
-- `runtime/howdo/emit.py` — render an artifact as an Agent Skill bundle or a Claude Code workflow script.
-- `examples/jira_workflow.py` — ordinary workflow example.
-- `examples/portable_contract.py` — the same operation as a contract, offered to three hosts.
-- `examples/issue_domain_how.py` — a run that leaves a durable, indexed artifact behind.
-- `tests/` — runtime and context contract tests.
-- `packaging/plugin.json` — the plugin manifest, minus a version the assembler derives.
-- `bin/howdo-context` — store inspection from anywhere; on `PATH` under a plugin host.
+`plugin/` **is** the plugin root and the whole of what ships. Everything beside
+it is a repository concern, which is why nothing has to hold `tests/` and
+`experiment/` out of an install — they are simply not inside it.
+
+- `plugin/.claude-plugin/plugin.json` — the manifest. Its `name` decides the invocation.
+- `plugin/SKILL.md` — the skill itself: discipline, loop, agency modifier, persistence rules. It stays at the plugin root; under `skills/` it would become `/how-do:how-do`.
+- `plugin/QUICKSTART.md` — first run and ordinary use.
+- `plugin/references/` — detail loaded on demand: `onboarding.md`, `vocabulary.md`.
+- `plugin/CONTEXT.template.md` — the shipped template the durable store is instantiated from.
+- `plugin/runtime/howdo/core.py` — zero-dependency operation protocol.
+- `plugin/runtime/howdo/context.py` — zero-dependency context lifetime helpers.
+- `plugin/runtime/howdo/contract.py` — portable request contracts: declared I/O shape, serializable checks, host binding.
+- `plugin/runtime/howdo/domain.py` — the issuer and index: domain-hows minted from runs, grounded by evidence.
+- `plugin/runtime/howdo/emit.py` — render an artifact as an Agent Skill bundle or a Claude Code workflow script.
+- `plugin/examples/` — `jira_workflow.py` (ordinary workflow), `portable_contract.py` (one operation offered to three hosts), `issue_domain_how.py` (a run that leaves a durable artifact).
+- `plugin/bin/howdo-context` — store inspection from anywhere; on `PATH` under a plugin host.
+- `.claude-plugin/marketplace.json` — the marketplace entry pointing at `plugin/`.
+- `install.py` — the non-plugin install path: copies `plugin/` into a skills directory.
+- `tests/` — runtime, context, and packaging contract tests.
 - `ADVERSARIAL.md` — enforced attacks and declared boundaries.
 - `CONTRIBUTING.md` — lanes, rules, PR shape. `CHANGELOG.md` — versions.
 
@@ -238,10 +241,11 @@ python examples/issue_domain_how.py   # run -> issue -> index -> ground -> emit
 
 ```bash
 python -m unittest discover -s tests -v
-python examples/jira_workflow.py
-python examples/portable_contract.py
-python examples/issue_domain_how.py
-python install.py --plugin dist/how-do && claude plugin validate dist/how-do
+python plugin/examples/jira_workflow.py
+python plugin/examples/portable_contract.py
+python plugin/examples/issue_domain_how.py
+claude plugin validate ./plugin --strict
+claude plugin validate . --strict
 ```
 
 The bundle and Python package share release version `0.9.0`, so package identity

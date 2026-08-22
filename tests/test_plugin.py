@@ -20,7 +20,8 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "runtime"))
+PAYLOAD = ROOT / "plugin"
+sys.path.insert(0, str(PAYLOAD / "runtime"))
 sys.path.insert(0, str(ROOT))
 
 import install  # noqa: E402
@@ -49,19 +50,22 @@ class ManifestTests(unittest.TestCase):
         skill description promises that string and a release test asserts it,
         which makes this the load-bearing field in the file.
         """
-        self.assertEqual(self._source()["name"], install.skill_name(ROOT / "SKILL.md"))
+        self.assertEqual(self._source()["name"], install.skill_name(PAYLOAD / "SKILL.md"))
 
-    def test_the_manifest_source_pins_no_version(self):
-        """Six places to edit on release is five too many.
+    def test_the_manifest_version_is_tracked_and_aligned(self):
+        """The version is tracked here, and a test is what keeps it honest.
 
-        The assembled manifest derives its version from the skill. If a version
-        is ever written into the source file it becomes authoritative, drifts
-        on the first release nobody thinks about, and pins the plugin to a
-        stale version for every user.
+        It used to be derived: an assembler read it from ``SKILL.md`` and wrote
+        it into a generated manifest, so there was nothing to keep in sync.
+        That stopped being possible when the plugin root became a real tracked
+        directory -- a marketplace clones it and reads this file exactly as
+        committed, with no build step in between. So the version is committed,
+        and it joins the four other places `test_release.py` holds aligned
+        rather than floating free.
         """
-        self.assertNotIn(
-            "version", self._source(),
-            "packaging/plugin.json pins a version; it is derived from SKILL.md",
+        self.assertEqual(
+            self._source().get("version"), install.skill_version(PAYLOAD / "SKILL.md"),
+            "the manifest version drifted from SKILL.md",
         )
 
     def test_the_assembled_manifest_matches_the_skill_version(self):
@@ -72,10 +76,10 @@ class ManifestTests(unittest.TestCase):
                 (destination / install.MANIFEST_DIR / install.MANIFEST_NAME)
                 .read_text(encoding="utf-8")
             )
-        self.assertEqual(manifest["version"], install.skill_version(ROOT / "SKILL.md"))
+        self.assertEqual(manifest["version"], install.skill_version(PAYLOAD / "SKILL.md"))
 
     def test_skill_version_reads_the_frontmatter_it_claims_to(self):
-        self.assertRegex(install.skill_version(ROOT / "SKILL.md"), r"^\d+\.\d+\.\d+$")
+        self.assertRegex(install.skill_version(PAYLOAD / "SKILL.md"), r"^\d+\.\d+\.\d+$")
 
 
 class LayoutTests(unittest.TestCase):
@@ -178,6 +182,61 @@ class VerifyTests(unittest.TestCase):
             self.assertEqual(code, 1, "a misnamed skill directory was reported as ok")
 
 
+class TrackedRootTests(unittest.TestCase):
+    """The payload boundary stopped being a rule and became a directory.
+
+    Nothing holds `experiment/` and `tests/` out of the plugin any more,
+    because they are not inside it. That is the point of the move: a
+    marketplace clones `plugin/` and gets the payload, so a rule that could be
+    forgotten was replaced by a fact that cannot be.
+    """
+
+    def test_the_plugin_root_is_tracked_not_generated(self):
+        for name in ("SKILL.md", "CONTEXT.template.md", "QUICKSTART.md", "LICENSE"):
+            self.assertTrue((PAYLOAD / name).is_file(), f"plugin/{name} is missing")
+        for name in ("references", "runtime", "examples", "bin"):
+            self.assertTrue((PAYLOAD / name).is_dir(), f"plugin/{name}/ is missing")
+        self.assertTrue((PAYLOAD / ".claude-plugin" / "plugin.json").is_file())
+
+    def test_repository_concerns_are_outside_the_plugin_root(self):
+        """The boundary, stated as the filesystem fact it now is."""
+        for name in ("experiment", "tests", "install.py", "CONTRIBUTING.md",
+                     "ADVERSARIAL.md", "CHANGELOG.md", "README.md", "pyproject.toml"):
+            self.assertTrue((ROOT / name).exists(), f"{name} vanished from the repo root")
+            self.assertFalse(
+                (PAYLOAD / name).exists(),
+                f"{name} is inside the plugin root and would ship to every user",
+            )
+
+    def test_the_marketplace_points_at_the_plugin_root(self):
+        """A marketplace entry naming the wrong directory installs nothing."""
+        market = json.loads(
+            (ROOT / ".claude-plugin" / "marketplace.json").read_text(encoding="utf-8")
+        )
+        entries = {entry["name"]: entry for entry in market["plugins"]}
+        self.assertIn("how-do", entries, "the marketplace does not list how-do")
+        source = entries["how-do"]["source"]
+        self.assertEqual((ROOT / source).resolve(), PAYLOAD.resolve(),
+                         f"marketplace source {source!r} is not the plugin root")
+
+    def test_the_marketplace_is_not_mistaken_for_a_plugin(self):
+        """`.claude-plugin/` at the repo root holds a marketplace, not a plugin.
+
+        A `plugin.json` there would make the whole repository a plugin root and
+        ship `experiment/` and `tests/` to every user -- exactly the regression
+        the move exists to make impossible.
+        """
+        self.assertFalse((ROOT / ".claude-plugin" / "plugin.json").exists())
+
+    def test_the_shipped_licence_matches_the_repository_licence(self):
+        """Two copies on purpose: GitHub reads the root, the artifact carries
+        its own. Two copies that disagree would be worse than one."""
+        self.assertEqual(
+            (ROOT / "LICENSE").read_text(encoding="utf-8"),
+            (PAYLOAD / "LICENSE").read_text(encoding="utf-8"),
+        )
+
+
 class ParityTests(unittest.TestCase):
     """The plugin root is the ordinary payload plus a manifest and bin/."""
 
@@ -227,7 +286,7 @@ class ParityTests(unittest.TestCase):
             self.assertEqual(strays, [], f"the plugin ships repository concerns: {strays}")
 
     @unittest.skipIf(
-        (ROOT / "runtime" / "howdo" / "environment.py").exists(),
+        (PAYLOAD / "runtime" / "howdo" / "environment.py").exists(),
         "the PILOT-0001 adapter still lives in runtime/, so every install "
         "path ships it; this check activates when it moves out of the payload",
     )
