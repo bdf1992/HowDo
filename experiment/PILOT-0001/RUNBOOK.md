@@ -57,15 +57,20 @@ Each of these gates has a mechanical answer. A `no` stops the run.
 ## Harbor commands
 
 Verified against `harbor-framework/harbor@39b8587`. `harbor run` is an alias for
-`harbor job start`.
+`harbor job start`. The dataset spec is `name@version`, not `name==version`.
+
+The pool below is `terminal-bench@2.0` as a **placeholder**: the candidate pool
+is a Stage A decision that has not been made. See `SIZING.md` for the comparison
+against `harbor-index`, which is the other real option and which
+`registry.json` does not list because it is served from Harbor Hub.
 
 **Qualify the pool — no model inference, so do this first.** Every
 `terminal-bench` 2.0 task ships a `solution/solve.sh`, so the oracle agent can
 run across the whole pool in hours rather than the weeks a screening pass costs.
 
 ```bash
-harbor run --dataset terminal-bench==2.0 --agent oracle  --n-attempts 5 --jobs-dir runs/qualify-oracle
-harbor run --dataset terminal-bench==2.0 --agent nop     --n-attempts 3 --jobs-dir runs/qualify-noop
+harbor run --dataset terminal-bench@2.0 --agent oracle  --n-attempts 5 --jobs-dir runs/qualify-oracle
+harbor run --dataset terminal-bench@2.0 --agent nop     --n-attempts 3 --jobs-dir runs/qualify-noop
 ```
 
 Then fold the two into qualification records:
@@ -82,7 +87,7 @@ from harness import qualify_task
 
 ```bash
 harbor run \
-  --dataset terminal-bench==2.0 \
+  --dataset terminal-bench@2.0 \
   --agent <scaffold> --model <organism> \
   --n-attempts <trials per task> \
   --agent-timeout-multiplier <declared> \

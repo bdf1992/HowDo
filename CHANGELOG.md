@@ -4,6 +4,30 @@ Versions are aligned across `SKILL.md`, `README.md`, `pyproject.toml`, and `CONT
 
 ## Unreleased
 
+- **A correction that was itself wrong, and a real defect it was hiding.** An
+  earlier entry claimed no `harbor-index` dataset exists. It does. The check had
+  been a grep of the Harbor repository's `registry.json`, and absence from that
+  one registry was read as absence — Harbor Index is served from Harbor Hub as
+  `harbor-index/harbor-index`, with its tasks in `harbor-framework/harbor-index`.
+  Measuring both pools properly changes the recommendation's *reasoning* while
+  leaving it standing: `terminal-bench@2.0` has 89 tasks that all write a binary
+  reward from their own test suite, so all 89 can certify; `harbor-index` has 80
+  of which 34 are LLM-judged, and `TASK-QUALIFICATION.md` makes those
+  `research_only`, leaving 46 — on a suite curated to defeat frontier agents,
+  which on a 12B means near-total floor effects, and with a judge that turns a
+  local study into one needing a paid API. Neither is chosen; the pool is a
+  Stage A commitment nobody has made, and the runbook now says its dataset is a
+  placeholder. Alongside it, one real defect the audit surfaced: the runbook's
+  Harbor commands used `--dataset name==version`, and the CLI takes
+  `name@version`, so every command in it would have failed. Four other inferences
+  were checked and hold — `oracle` and `nop` are real agent names, results land
+  at `<trial_dir>/result.json`, and the binary reward mapping is not an
+  assumption but the canonical task template's behaviour, verified across all 89
+  terminal-bench tasks. The claim that cost is timeout-bound is now labelled an
+  inference rather than a finding, because it is one: a scaffold stops when the
+  model says it is done, a small model may stop early and often, and M−1 is what
+  settles it.
+
 - **The runbook described a scheduler and an audit that did not exist.** Both
   were prose steps for a person to carry out on a run that will take weeks, which
   is exactly when a checklist gets walked through quickly.

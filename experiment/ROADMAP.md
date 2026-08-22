@@ -259,6 +259,10 @@ These came out of the design and apply across milestones.
 - Reconnaissance budget cap — proposed in `PILOT-0001/PREREGISTRATION.md`, not signed off.
 - δ\* — proposed at 0.10, not signed off; must be set before M0.0's power gate.
 - Task variance ceiling and harm-rate ceiling — proposed, not signed off.
+- **Candidate pool — undecided, and a Stage A commitment.** `terminal-bench@2.0`
+  (89 tasks, all deterministic) against `harbor-index` (80 tasks, 46
+  deterministic, curated to defeat frontier agents, needs a paid judge). See
+  `PILOT-0001/SIZING.md`. The runbook uses terminal-bench as a placeholder only.
 - Pilot task set — uncommitted; Stage B, depends on M0.0 screening.
 - Whether the environment adapter's kind-awareness in `runtime/howdo/context.py`
   should move fully out of the payload. Currently the hook ships and the
