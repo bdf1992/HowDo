@@ -101,6 +101,40 @@ Versions are aligned across `SKILL.md`, `README.md`, `pyproject.toml`, and `CONT
   about Windows. All three branches are now asserted through `subTest` with
   `platform` pinned per case.
 
+## Unreleased
+
+- **Every skill the emitter produced was unloadable, and so was this one.** A
+  plain YAML scalar may not contain `": "`, and a generated description always
+  does — "not a general-purpose helper: an unrelated question ...". So did this
+  repo's own `SKILL.md`, whose description has read "requested, not ambient: use
+  when ..." since 0.8.0. Claude Code's reader is lenient enough to have hidden
+  it; the paths that are not — claude.ai upload, the Skills API,
+  `package_skill.py` — validate the block and fail with a hard error. Frontmatter
+  values are now quoted unconditionally rather than when a scan believes it is
+  needed, this repo's own description is quoted, and
+  `FrontmatterIsParseableTests` checks both without adding a dependency. Found by
+  giving the generated output to a real parser instead of reading it.
+
+- **Emission had one frontmatter target where there are two.** Outside Claude
+  Code only six fields are accepted and any other key is a hard error, while
+  inside it every documented field works. `render_skill` now takes
+  `target="spec"` (the default, restricted to `name`, `description`, `license`,
+  `compatibility`, `metadata`, `allowed-tools`) or `target="claude-code"`. The
+  distinction is not bookkeeping: a domain-how whose contract is consequential
+  describes an operation with side effects, which is the documented case for
+  `disable-model-invocation: true` — "workflows with side effects or that you
+  want to control timing, like `/commit`, `/deploy`" — and also this
+  discipline's own posture. Consequential artifacts emitted for Claude Code are
+  therefore not left auto-invocable. The portable target cannot say it, states
+  it in the body instead, and that limit is declared in `ADVERSARIAL.md` rather
+  than papered over.
+
+- **Two spec fields were being left on the floor.** `license` is emitted when the
+  caller supplies one — the issuer knows how an artifact was produced, not what
+  covers the domain knowledge in it — and a contract's `requires` now becomes the
+  `compatibility` statement, which is what that field is for, capped at the
+  specification's 500 characters.
+
 ## 0.9.0
 
 Two capabilities, one arc: a request's declared I/O becomes portable, and a run

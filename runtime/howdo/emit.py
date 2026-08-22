@@ -17,13 +17,30 @@ it stamps the output so a reader cannot mistake a draft for settled ground.
 
 Format constraints come from the two specifications, not from taste:
 
-* Agent Skills -- `name` is lowercase letters, digits and hyphens, at most 64
-  characters, no leading or trailing hyphen, and must equal the directory name;
-  `description` is at most 1024 characters and says both what it does and when
-  to use it; angle brackets are kept out of frontmatter because they can inject
+* Agent Skills -- a skill lives at `<root>/<name>/SKILL.md`, and `name` is
+  lowercase letters, digits and hyphens, at most 64 characters, with no leading
+  or trailing hyphen. Claude Code treats `name` as a display name defaulting to
+  the directory name, so emitting the two identical is what satisfies both
+  readings. Angle brackets are kept out of frontmatter because they can inject
   instructions into a system prompt.
 * Dynamic workflows -- a `meta` object literal, then plain JavaScript with no
   module loading, and `meta.phases` titles matching the `phase()` calls.
+
+**Two frontmatter targets, because they are not the same set.** Outside Claude
+Code -- claude.ai uploads, the Skills API, `package_skill.py` -- only the Agent
+Skills spec's six fields are accepted, and *any* other key fails packaging with
+a hard error rather than being ignored. Inside Claude Code every documented
+field works. `target="spec"` therefore emits only `name`, `description`,
+`license`, `compatibility`, `metadata`, and `allowed-tools`; `target="claude-code"`
+may add extensions.
+
+The extension that matters is `disable-model-invocation`. A domain-how whose
+contract is consequential describes an operation with side effects, and the
+Claude Code documentation names exactly that case: use it "for workflows with
+side effects or that you want to control timing, like `/commit`, `/deploy`".
+That is also How Do's own doctrine -- requested, not ambient -- so a
+consequential artifact emitted for Claude Code is not left auto-invocable. The
+spec target cannot say this, and `render_skill` says so in the body instead.
 """
 
 from __future__ import annotations
@@ -38,8 +55,12 @@ from .contract import Field, Shape
 from .domain import STATUS_GROUNDED, DomainError, DomainHow
 
 __all__ = [
+    "MAX_COMPATIBILITY",
     "MAX_DESCRIPTION",
     "MAX_NAME",
+    "SPEC_FIELDS",
+    "TARGET_CLAUDE_CODE",
+    "TARGET_SPEC",
     "EmitError",
     "SkillBundle",
     "WorkflowScript",
@@ -52,8 +73,28 @@ __all__ = [
 
 #: Agent Skills: `name` caps at 64 characters.
 MAX_NAME = 64
-#: Agent Skills: `description` caps at 1024 characters.
+#: Agent Skills: `description` caps at 1024 characters. Claude Code truncates the
+#: combined `description` + `when_to_use` at 1536 in its skill listing, which is a
+#: display limit rather than a validation one -- so 1024 is the safe intersection
+#: and the only cap that cannot fail a packaging step.
 MAX_DESCRIPTION = 1024
+#: Agent Skills: `compatibility` caps at 500 characters.
+MAX_COMPATIBILITY = 500
+
+#: The six fields the Agent Skills spec accepts. Anything else is a hard error on
+#: claude.ai upload, the Skills API, and `package_skill.py`.
+SPEC_FIELDS = (
+    "name",
+    "description",
+    "license",
+    "compatibility",
+    "metadata",
+    "allowed-tools",
+)
+
+TARGET_SPEC = "spec"
+TARGET_CLAUDE_CODE = "claude-code"
+_TARGETS = (TARGET_SPEC, TARGET_CLAUDE_CODE)
 
 _SKILL_NAME = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 # Angle brackets in frontmatter can inject instructions into a system prompt.
@@ -95,6 +136,21 @@ def skill_name(concern: str) -> str:
     if not _SKILL_NAME.match(candidate):
         raise EmitError(f"{concern!r} projects to {candidate!r}, which is not a legal name")
     return candidate
+
+
+def _yaml_scalar(value: str) -> str:
+    """Quote a frontmatter value so a YAML parser accepts it.
+
+    A plain scalar may not contain ": ", may not end in ":", and may not open
+    with an indicator character. A generated description says things like
+    "not a general-purpose helper: an unrelated question ...", which is exactly
+    the first case -- and an unparseable frontmatter block is a hard failure on
+    the packaging and upload paths, not a cosmetic problem. Double-quoting is
+    valid for any content, so it is applied unconditionally rather than only
+    when a scan thinks it is needed.
+    """
+
+    return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
 def _frontmatter_safe(name: str, value: str) -> str:
@@ -153,15 +209,32 @@ class WorkflowScript:
     source: str
 
 
-def render_skill(how: DomainHow, *, allow_untested: bool = False) -> SkillBundle:
+def render_skill(
+    how: DomainHow,
+    *,
+    allow_untested: bool = False,
+    target: str = TARGET_SPEC,
+    license: str | None = None,
+) -> SkillBundle:
     """Render an issued domain-how as a `SKILL.md` bundle.
 
     The body carries what the artifact holds -- the map, the workflow, the gate,
     the observable result, and the run it was issued from -- plus the honest
     limit of what grounding proved, which is one matching run and not
     correctness.
+
+    ``target`` decides which frontmatter fields may appear. ``"spec"`` keeps to
+    the six the Agent Skills specification accepts, so the bundle survives
+    packaging and upload; ``"claude-code"`` additionally marks a consequential
+    artifact `disable-model-invocation: true`, which the spec target cannot say
+    and which the body states in prose instead.
+
+    ``license`` is emitted only when given: the issuer knows how the artifact was
+    produced, not what licence covers the domain knowledge in it.
     """
 
+    if target not in _TARGETS:
+        raise EmitError(f"unknown target {target!r}; expected one of {_TARGETS}")
     _guard(how, allow_untested)
     name = skill_name(how.concern)
     contract = how.contract
@@ -178,10 +251,26 @@ def render_skill(how: DomainHow, *, allow_untested: bool = False) -> SkillBundle
     if len(description) > MAX_DESCRIPTION:
         description = description[: MAX_DESCRIPTION - 1].rstrip() + "."
 
-    lines = [
-        "---",
-        f"name: {name}",
-        f"description: {description}",
+    # `name` is charset-guaranteed safe as a plain scalar; the rest are not.
+    lines = ["---", f"name: {name}", f"description: {_yaml_scalar(description)}"]
+    if license is not None:
+        lines.append(f"license: {_yaml_scalar(_frontmatter_safe('license', license))}")
+    if contract.requires:
+        compatibility = _frontmatter_safe(
+            "compatibility",
+            "Requires a host offering: " + ", ".join(contract.requires) + ".",
+        )
+        if len(compatibility) > MAX_COMPATIBILITY:
+            raise EmitError(
+                f"compatibility is {len(compatibility)} characters; the specification "
+                f"caps it at {MAX_COMPATIBILITY}"
+            )
+        lines.append(f"compatibility: {_yaml_scalar(compatibility)}")
+    if target == TARGET_CLAUDE_CODE and contract.consequential:
+        # The documented case for the field: a workflow with side effects, whose
+        # timing someone should control. Also the discipline's own posture.
+        lines.append("disable-model-invocation: true")
+    lines += [
         "metadata:",
         '  issued_by: "how-do"',
         f'  concern: "{how.concern}"',
@@ -195,6 +284,15 @@ def render_skill(how: DomainHow, *, allow_untested: bool = False) -> SkillBundle
         contract.intent + ".",
         "",
     ]
+    if contract.consequential and target == TARGET_SPEC:
+        lines += [
+            "> **This operation has consequences.** It mutates state or crosses a "
+            "boundary, so it should be invoked deliberately rather than loaded "
+            "because a conversation drifted near the topic. Outside Claude Code "
+            "the frontmatter cannot enforce that; treat this paragraph as the "
+            "instruction.",
+            "",
+        ]
 
     if how.status == STATUS_GROUNDED:
         lines += [
@@ -398,14 +496,19 @@ def write_skill(
     *,
     allow_untested: bool = False,
     overwrite: bool = False,
+    target: str = TARGET_SPEC,
+    license: str | None = None,
 ) -> Path:
     """Write a rendered skill to ``<root>/<name>/SKILL.md``.
 
-    The directory name must equal the skill's ``name``, so the layout is not the
-    caller's to choose.
+    The directory is named for the skill, so the layout is not the caller's to
+    choose: Claude Code defaults an absent `name` to the directory name, and the
+    specification pins the two together.
     """
 
-    bundle = render_skill(how, allow_untested=allow_untested)
+    bundle = render_skill(
+        how, allow_untested=allow_untested, target=target, license=license
+    )
     directory = Path(root).expanduser() / bundle.name
     target = directory / "SKILL.md"
     if target.exists() and not overwrite:
