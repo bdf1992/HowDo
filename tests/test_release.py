@@ -101,6 +101,59 @@ class ReleaseContractTests(unittest.TestCase):
         self.assertIn("does not prove", skill)
 
 
+class FrontmatterIsParseableTests(unittest.TestCase):
+    """A skill whose frontmatter a YAML parser rejects fails packaging outright.
+
+    The Agent Skills distribution paths -- claude.ai upload, the Skills API,
+    `package_skill.py` -- validate the block rather than reading it leniently.
+    This repo's own description says "requested, not ambient: use when ...",
+    and a plain YAML scalar may not contain ": ", so it has to be quoted.
+
+    Checked without a YAML dependency: the failure mode is narrow and the repo
+    ships zero dependencies.
+    """
+
+    INDICATORS = "-?:,[]{}#&*!|>'\"%@`"
+
+    def _frontmatter(self, path: Path) -> str:
+        text = path.read_text(encoding="utf-8")
+        self.assertTrue(text.startswith("---"), f"{path} has no frontmatter")
+        return text[3 : text.index("\n---", 3)]
+
+    def _hazards(self, front: str) -> list:
+        found = []
+        for line in front.splitlines():
+            if not line or line.startswith((" ", "\t", "#")) or ":" not in line:
+                continue
+            key, _, value = line.partition(":")
+            value = value.strip()
+            if not value:
+                continue
+            if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+                continue  # a quoted scalar may contain anything
+            if ": " in value or value.endswith(":"):
+                found.append(f"{key}: unquoted scalar contains a colon")
+            elif value[0] in self.INDICATORS:
+                found.append(f"{key}: unquoted scalar opens with {value[0]!r}")
+        return found
+
+    def test_the_skill_frontmatter_has_no_unquoted_hazard(self):
+        for name in ("SKILL.md", "CONTEXT.template.md"):
+            with self.subTest(document=name):
+                self.assertEqual(self._hazards(self._frontmatter(ROOT / name)), [])
+
+    def test_it_parses_when_a_yaml_parser_is_available(self):
+        yaml = __import__("importlib").util.find_spec("yaml")
+        if yaml is None:
+            self.skipTest("pyyaml absent; the hazard check above still ran")
+        import yaml as parser  # noqa: PLC0415
+
+        for name in ("SKILL.md", "CONTEXT.template.md"):
+            with self.subTest(document=name):
+                data = parser.safe_load(self._frontmatter(ROOT / name))
+                self.assertIsInstance(data, dict)
+
+
 class IssuerGuaranteeTests(unittest.TestCase):
     """0.9.0 was a deliberate goalpost move; CONTRIBUTING asks a release test to hold it.
 
@@ -293,7 +346,12 @@ class InvocationIntentTests(unittest.TestCase):
         text = (ROOT / "SKILL.md").read_text(encoding="utf-8")
         front = text[3 : text.index("\n---", 3)]
         line = next(l for l in front.splitlines() if l.startswith("description:"))
-        return line.split(":", 1)[1].strip()
+        value = line.split(":", 1)[1].strip()
+        # The value is a quoted YAML scalar: it contains ": ", which a plain one
+        # may not. See FrontmatterIsParseableTests.
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+            value = value[1:-1]
+        return value
 
     def test_description_asks_to_be_invoked(self):
         description = self._description().lower()
