@@ -81,8 +81,12 @@ from .domain import (
 )
 
 from .emit import (
+    MAX_COMPATIBILITY,
     MAX_DESCRIPTION,
     MAX_NAME,
+    SPEC_FIELDS,
+    TARGET_CLAUDE_CODE,
+    TARGET_SPEC,
     EmitError,
     SkillBundle,
     WorkflowScript,
@@ -116,8 +120,12 @@ from .core import (
 )
 
 __all__ = [
+    "MAX_COMPATIBILITY",
     "MAX_DESCRIPTION",
     "MAX_NAME",
+    "SPEC_FIELDS",
+    "TARGET_CLAUDE_CODE",
+    "TARGET_SPEC",
     "EmitError",
     "SkillBundle",
     "WorkflowScript",

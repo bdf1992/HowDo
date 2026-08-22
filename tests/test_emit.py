@@ -18,8 +18,12 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "runtime"))
 
 from howdo import (  # noqa: E402
+    MAX_COMPATIBILITY,
     MAX_DESCRIPTION,
     MAX_NAME,
+    SPEC_FIELDS,
+    TARGET_CLAUDE_CODE,
+    TARGET_SPEC,
     Clause,
     DomainHow,
     EmitError,
@@ -163,6 +167,126 @@ class SkillSpecificationTests(unittest.TestCase):
             with self.assertRaises(EmitError):
                 write_skill(grounded(), tmp)
             self.assertTrue(write_skill(grounded(), tmp, overwrite=True).is_file())
+
+
+def _frontmatter(body: str) -> str:
+    return body.split("---")[1]
+
+
+def _top_level_keys(body: str) -> set:
+    return {
+        line.split(":", 1)[0]
+        for line in _frontmatter(body).strip().splitlines()
+        if line and not line.startswith((" ", "\t"))
+    }
+
+
+class FrontmatterTargetTests(unittest.TestCase):
+    """Two accepted field sets, and an unknown key is a hard error on one of them.
+
+    Outside Claude Code -- claude.ai upload, the Skills API, package_skill.py --
+    a field the spec does not list fails packaging outright rather than being
+    ignored, so the default target cannot emit one.
+    """
+
+    def test_the_spec_target_emits_only_the_six_accepted_fields(self):
+        body = render_skill(grounded(), license="MIT").body
+        self.assertTrue(_top_level_keys(body) <= set(SPEC_FIELDS), _top_level_keys(body))
+
+    def test_the_spec_target_is_the_default(self):
+        self.assertEqual(
+            render_skill(grounded()).body, render_skill(grounded(), target=TARGET_SPEC).body
+        )
+
+    def test_an_unknown_target_is_refused(self):
+        with self.assertRaises(EmitError):
+            render_skill(grounded(), target="anthropic-api")
+
+    def test_a_consequential_artifact_is_not_left_auto_invocable_for_claude_code(self):
+        """The documented case for the field: a workflow with side effects."""
+        self.assertTrue(CONTRACT.consequential)
+        body = render_skill(grounded(), target=TARGET_CLAUDE_CODE).body
+        self.assertIn("disable-model-invocation: true", _frontmatter(body))
+
+    def test_an_observation_only_artifact_stays_invocable(self):
+        how = dataclasses.replace(
+            grounded(),
+            contract=dataclasses.replace(
+                CONTRACT, mutates=False, crosses_boundary=False, expects=Shape(), rules=()
+            ),
+        )
+        body = render_skill(how, target=TARGET_CLAUDE_CODE).body
+        self.assertNotIn("disable-model-invocation", _frontmatter(body))
+
+    def test_the_spec_target_says_in_prose_what_it_cannot_say_in_frontmatter(self):
+        body = render_skill(grounded()).body
+        self.assertNotIn("disable-model-invocation", _frontmatter(body))
+        self.assertIn("This operation has consequences.", body)
+
+
+class SpecFieldTests(unittest.TestCase):
+    """license and compatibility are spec fields; both were being left on the floor."""
+
+    def test_a_licence_is_emitted_only_when_the_caller_supplies_one(self):
+        """The issuer knows how the artifact was made, not what covers its content."""
+        self.assertNotIn("license:", _frontmatter(render_skill(grounded()).body))
+        self.assertIn('license: "MIT"', _frontmatter(render_skill(grounded(), license="MIT").body))
+
+    def test_required_capabilities_become_the_compatibility_statement(self):
+        body = render_skill(grounded()).body
+        # Quoted, because the value itself contains ": ".
+        self.assertIn('compatibility: "Requires a host offering: jira.write."', body)
+
+    def test_an_artifact_needing_nothing_declares_no_compatibility(self):
+        how = dataclasses.replace(
+            grounded(), contract=dataclasses.replace(CONTRACT, requires=())
+        )
+        self.assertNotIn("compatibility:", _frontmatter(render_skill(how).body))
+
+    def test_values_carrying_a_colon_are_quoted_rather_than_emitted_plain(self):
+        """A plain YAML scalar may not contain ": ", and the description always does."""
+        front = _frontmatter(render_skill(grounded()).body)
+        for line in front.strip().splitlines():
+            if line.startswith(("description:", "compatibility:", "license:")):
+                value = line.split(":", 1)[1].strip()
+                self.assertTrue(value.startswith('"') and value.endswith('"'), line)
+
+    def test_a_compatibility_line_over_the_cap_is_refused(self):
+        how = dataclasses.replace(
+            grounded(),
+            contract=dataclasses.replace(
+                CONTRACT, requires=tuple(f"cap-{i:03d}-{'x' * 20}" for i in range(20))
+            ),
+        )
+        with self.assertRaises(EmitError):
+            render_skill(how)
+        self.assertEqual(MAX_COMPATIBILITY, 500)
+
+
+@unittest.skipIf(__import__("importlib").util.find_spec("yaml") is None, "pyyaml absent")
+class FrontmatterParsesTests(unittest.TestCase):
+    """Frontmatter a YAML parser rejects makes the skill unloadable."""
+
+    def _parse(self, body: str):
+        import yaml
+
+        return yaml.safe_load(_frontmatter(body))
+
+    def test_both_targets_parse_as_yaml(self):
+        for target in (TARGET_SPEC, TARGET_CLAUDE_CODE):
+            with self.subTest(target=target):
+                data = self._parse(render_skill(grounded(), target=target).body)
+                self.assertEqual(data["name"], "jira-workflow")
+                self.assertIsInstance(data["metadata"], dict)
+
+    def test_a_colon_in_an_intent_does_not_break_the_description(self):
+        """`description: a: b` is a YAML error, not a description."""
+        how = dataclasses.replace(
+            grounded(),
+            contract=dataclasses.replace(CONTRACT, intent="do this: then that"),
+        )
+        data = self._parse(render_skill(how).body)
+        self.assertIn("do this", data["description"])
 
 
 class SkillBodyTests(unittest.TestCase):

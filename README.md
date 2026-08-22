@@ -195,6 +195,15 @@ observable result, and the run it came from. The workflow script is the loop:
 phases, and `Look` observes the world independently instead of reading back what
 the acting agents reported.
 
+Frontmatter has two targets, because the accepted field sets differ. The default
+`target="spec"` emits only the six fields the Agent Skills specification allows
+(`name`, `description`, `license`, `compatibility`, `metadata`, `allowed-tools`),
+so the bundle survives claude.ai upload, the Skills API, and `package_skill.py` —
+any other key fails those with a hard error rather than being ignored.
+`target="claude-code"` additionally marks a consequential artifact
+`disable-model-invocation: true`, so a skill that mutates state is not loaded
+because a conversation drifted near the topic.
+
 An untested artifact is refused unless you pass `allow_untested=True`, and the
 override stamps the output — an installed skill pre-loads every later session on
 that concern, so shipping an unconfirmed one is a different order of mistake
