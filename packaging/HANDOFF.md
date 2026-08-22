@@ -1,9 +1,12 @@
 # Packaging lane — handoff
 
-Branch `claude/howdo-fullscope-plugin-handoff-2yn8w9`, replayed onto `main` at
-`f8b9236`. It started as `claude/howdo-fullscope-plugin-qqvw7h` at `647d4a0`;
-PR #14 is that earlier draft, and it is superseded by this branch rather than
-rebased in place, so the probe results below still stand as recorded.
+Branch `claude/howdo-fullscope-plugin-handoff-2yn8w9`. Work in `647d4a0`,
+handoff in `f5d400b`, both replayed onto `main`.
+
+`claude/howdo-fullscope-plugin-qqvw7h` (draft PR #14) is where the lane
+started, and it replayed onto the same `main` independently and in parallel.
+Its work is merged in here; **close #14 rather than working it further**, or
+the two states drift again.
 
 This lane converts How Do into a Claude Code plugin. It is **packaging only**:
 no hook, no agent, no `settings.json`, nothing that would make the discipline
@@ -68,7 +71,7 @@ root layout for exactly this reason.
 - `install.py::report()` — plugin-aware. A plugin root is judged by its
   manifest name; the directory is free. An ordinary skill dir still has to
   match `SKILL.md`.
-- `tests/test_plugin.py` — 28 tests. Parity is asserted **in both directions**
+- `tests/test_plugin.py` — 28 tests of 465. Parity is asserted **in both directions**
   against `copy_payload`'s output rather than a second file list.
 - CI `plugin:` job — appended at the end of `tests.yml` deliberately, so it
   cannot conflict with in-flight edits to the `suite:` job.
@@ -153,25 +156,27 @@ Dry-run merges as of `5c71a17`, both against `origin/main` at `f8b9236`:
 
 | open PR | branch | conflicts with this lane |
 |---|---|---|
-| **#12** experiment/packaging boundary | `claude/skill-graph-benchmark-index-s1vxax` | `CHANGELOG.md` |
-| **#15** emit frontmatter | `claude/how-do-request-contract-3jqsr1` | none |
+| — | `experiment/m0-harbor-runner` | `CHANGELOG.md` |
 
-**#13** (request contracts / domain-how) merged as `f8b9236`. Replaying this
-lane over it took the two conflicts it had predicted — a changelog block and a
-QA-block entry in `README.md`, both additive, both resolved as unions — and
-nothing else. `install.py`, `runtime/howdo/context.py`, `SKILL.md`, `tests/`,
-and `.github/workflows/tests.yml` merged untouched, as the earlier probe said
-they would.
+**Every PR the original map listed has merged.** #13 (request contracts /
+domain-how) as `f8b9236`, #15 (emit frontmatter, same branch) as `333c837`, and
+#12 (experiment/packaging boundary) as `4c2f5e5`. Each took only the additive
+conflicts the map predicted — changelog blocks and a QA-command entry — and
+`install.py`, `runtime/howdo/context.py`, `SKILL.md`, `tests/`, and
+`.github/workflows/tests.yml` were never contested by any of them.
 
-The one conflict left is a changelog block against #12. Whichever of the two
-lands second resolves it.
+What is left in flight is `experiment/m0-harbor-runner`, which lives entirely
+under `experiment/` and touches `CHANGELOG.md` alone. **The tree is quiet**, so
+item 1's gate is open.
+
+The 0.9.0 bump needed **no edit here**: the manifest derives its version from
+`SKILL.md`, so `--plugin` emitted 0.9.0 on its own. That is the design working;
+do not add a version to `packaging/plugin.json` to "keep them in sync".
 
 `howdo/payload-store-split` is empty against main. Stale; ignore.
 
-**Suggested order.** Let #12 land first (item 3 closes for free). Then #13 —
-note it moves the release to 0.9.0, and because the manifest derives its
-version from `SKILL.md` there is nothing extra to bump here. Rebase this lane
-onto the result, then do item 1.
+**Suggested order.** Done: #13, #15, #12 all landed and this lane took them.
+Item 1 is next and no longer waits on anything.
 
 To re-check collisions after anything moves:
 
