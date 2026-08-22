@@ -10,9 +10,10 @@ no hook, no agent, no `settings.json`, nothing that would make the discipline
 ambient. That restraint is not conservatism, it is the roadmap's gate — see
 *Deliberately not done* below before adding a component.
 
-**The branch does not merge until parity is closed.** Three items are open and
-none of them can be closed from inside this lane alone. They are listed with
-what unblocks each.
+**The branch does not merge until parity is closed.** Three items were open and
+none could be closed from inside this lane alone. **Item 3 is now closed** — #12
+landed as `4c2f5e5` and this lane merged it. Two remain, listed with what
+unblocks each.
 
 ---
 
@@ -119,7 +120,7 @@ explains a pending conversation may be admissible where injected context is
 not, but that is a skill-text decision, not a packaging one. Raise it as a
 skill-text change with a trace, per `CONTRIBUTING.md`.
 
-### 3. The plugin ships PILOT-0001 — blocked on PR #12
+### 3. ~~The plugin ships PILOT-0001~~ — CLOSED by PR #12
 
 `tests/test_plugin.py::ParityTests::test_the_plugin_names_no_experiment` is
 **skipped, not passing.** `runtime/howdo/environment.py` is the pilot adapter
@@ -132,14 +133,17 @@ when PR #12 moves the adapter to `experiment/PILOT-0001/adapter/`. Verified
 that it activates: with the adapter removed the test runs and correctly flags
 the remaining `__init__.py` re-exports, so it also catches a partial fix.
 
-**Confirmed against the real #12, not a hand-made removal.** Dry merge of
-`origin/claude/skill-graph-benchmark-index-s1vxax` into this lane at `cb641b7`:
-one conflict, the expected additive `CHANGELOG.md` block, and then **450 tests,
-zero skips, all passing** — `test_the_plugin_names_no_experiment` among them.
-That is the stronger reading of the tripwire: #12 moves the adapter *and*
-clears the `howdo/__init__.py` re-exports, so the test does not merely un-skip,
-it goes green. Item 3 closes the moment #12 lands, with no follow-up owed by
-this lane. The probe was discarded; nothing here depends on it.
+**Closed as of `042e431`.** #12 merged to `main` as `4c2f5e5`; this lane took
+it with the one additive `CHANGELOG.md` conflict the probe had predicted, and
+the suite is now **465 tests, zero skips, all passing** —
+`test_the_plugin_names_no_experiment` among them.
+
+The tripwire read stronger than it was written to. A hand-made removal of the
+adapter had left the `howdo/__init__.py` re-exports behind and the test flagged
+them; #12 moves the adapter *and* clears the re-exports, so the test did not
+merely un-skip, it went green. Nothing was owed by this lane and nothing was
+added to it. **There is no longer a sanctioned skip:** a skipped test in this
+suite is now a regression, wherever it appears.
 
 ---
 
@@ -182,7 +186,7 @@ git merge --abort; git checkout <this-branch>; git branch -D probe
 ## Verifying this lane
 
 ```bash
-python -m unittest discover -s tests -v        # 302 tests, exactly 1 skip (item 3)
+python -m unittest discover -s tests -v        # 465 tests, zero skips
 python examples/jira_workflow.py
 python examples/portable_contract.py
 python examples/issue_domain_how.py
@@ -192,7 +196,8 @@ python install.py --plugin dist/how-do --verify
 python install.py --target /tmp/skilldir && python install.py --target /tmp/skilldir --verify
 ```
 
-A second skip means something regressed — item 3 is the only sanctioned one.
+Any skip means something regressed. The one sanctioned skip was item 3 and it
+is closed.
 
 To watch it load for real:
 
@@ -207,8 +212,10 @@ claude plugin list
 
 - **`plugin details` showing `Skills (0)` is expected.** Host reporting gap for
   the root-`SKILL.md` layout. The skill loads. Do not restructure to fix it.
-- **The single skip is expected.** See item 3. Do not delete the test to get a
-  clean run; it is a tripwire that arms itself.
+- **There is no expected skip any more.** Item 3's was the only one and #12
+  closed it. The test that carried it is a tripwire that arms itself, so a skip
+  reappearing means the pilot adapter is back in the payload. Do not delete the
+  test to get a clean run.
 - **Do not add a `version` to `packaging/plugin.json`.** It is derived. A test
   enforces this, and a pinned stale version silently blocks updates for every
   user.
