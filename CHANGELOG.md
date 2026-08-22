@@ -54,6 +54,16 @@ a 0.10.x patch. The fix was not weakened to dodge that call.
   genuine race. Zero new dependencies; filesystem durability across reboots
   remains a declared host boundary.
 
+- **The public protocol boundary is written down and pinned.** `PROTOCOL.md`
+  proposes the answers to the pre-1.0 boundary questions from what the code
+  enforces today — which exports are protocol, what hosts may replace, the
+  additive-only compatibility policy, the per-artifact format versions, and
+  refusal-over-partial-reads for unknown future formats — and marks the one
+  genuinely open row (`howdo_context` version validation) as open rather than
+  deciding it. `tests/test_protocol.py` pins the shape: removed or renamed
+  public names, lost dataclass fields, shrunken vocabularies, or a version
+  refusal that stops refusing all fail the suite.
+
 - **The experiment lane moved to the `experiment` branch.** `main` no longer
   carries `experiment/` or the tests that import it; the lane — PILOT-0001, the
   evidence contracts, the harness, and the adapter — develops on its own branch
