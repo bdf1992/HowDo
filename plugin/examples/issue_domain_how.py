@@ -153,3 +153,34 @@ with tempfile.TemporaryDirectory() as tmp:
         write_skill(draft, installable / "skills")
     except EmitError as exc:
         print("refused:", str(exc).split(":", 1)[1].strip()[:96], "...")
+
+    # --- published where a host will actually load it ----------------------
+
+    from howdo import publish, published, write_reference
+
+    print()
+    project = Path(tmp) / "repo"
+    # Who may reach a published skill is the person's call, not the issuer's.
+    # Left unsaid it falls back to the contract's consequences, and says so --
+    # which is a prompt to ask them, not their answer.
+    for entry in publish(promoted, scope="project", project=project):
+        reach = "n/a" if entry.auto_invocable is None else (
+            "you or Claude" if entry.auto_invocable else "you only")
+        print(f"published {entry.kind:9} {entry.path.relative_to(project)}")
+        if entry.kind == "skill":
+            print(f"  reachable by {reach} (chosen by: {entry.invocation_chosen_by})")
+    print()
+
+    # The catalogue is scanned from the destinations, not from a record of
+    # intent -- so this is what is really loadable, not what we meant to write.
+    print("what How Do has already built:")
+    for entry in published("project", project=project):
+        print(f"  {entry.concern:16} {entry.command:16} {entry.kind:9} {entry.status}")
+
+    reference = write_reference(
+        scope="project", project=project, store=Path(tmp) / "store" / "CONTEXT.md"
+    )
+    print()
+    print(f"catalogue -> {reference.name} in the store, read before re-deriving anything")
+    print()
+    print("-> next week this concern is one command, not another Map -> Path -> Check.")

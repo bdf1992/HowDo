@@ -223,8 +223,45 @@ that concern, so shipping an unconfirmed one is a different order of mistake
 from getting one answer wrong. Emission is a projection: re-emit rather than
 editing what came out.
 
+### Publish it, so next week is one command
+
+Rendering produces text. Publishing puts it where the host looks:
+
+```python
+from howdo import publish, published, write_reference
+
+publish(how, scope="project")     # -> .claude/skills/<name>/SKILL.md
+                                  #    .claude/workflows/<name>.js  -> runs as /<name>
+published("project")              # what How Do has actually built
+write_reference(scope="project")  # -> SUBSKILLS.md in the store
+```
+
+`scope="project"` writes into the repo's `.claude/`, shared with everyone who
+clones it; `scope="personal"` writes under `~/.claude` (or `$CLAUDE_CONFIG_DIR`),
+available in every project.
+
+**Who may reach a published skill is your choice, not the issuer's.** You worked
+the concern out, so you know whether it belongs in Claude's reach:
+
+```python
+publish(how, disable_model_invocation=False)  # you or Claude can invoke it
+publish(how, disable_model_invocation=True)   # only you
+publish(how)                                  # falls back to the contract's
+                                              # consequences, and says it did
+```
+
+The fallback reports `invocation_chosen_by == "default"`, which is a prompt to
+ask you rather than an answer on your behalf. `SUBSKILLS.md` shows the result in
+a **reachable by** column, so what got decided stays visible.
+
+**This is the point of the whole arc.** A concern that recurs weekly is exactly
+the one nobody should re-derive. Once published it is `/<name>`, and
+`SUBSKILLS.md` — scanned from the destinations rather than from a record of
+intent, so a deleted artifact is absent and a hand-placed one appears — is what
+How Do reads before establishing anything fresh.
+
 ```bash
-python plugin/examples/issue_domain_how.py   # run -> issue -> index -> ground -> emit
+python plugin/examples/issue_domain_how.py   # run -> issue -> ground -> emit -> publish
 ```
 
 ## Layout
@@ -240,6 +277,7 @@ python plugin/examples/issue_domain_how.py   # run -> issue -> index -> ground -
 - `plugin/runtime/howdo/contract.py` — portable request contracts: declared I/O shape, serializable checks, host binding.
 - `plugin/runtime/howdo/domain.py` — the issuer and index: domain-hows minted from runs, grounded by evidence.
 - `plugin/runtime/howdo/emit.py` — render an artifact as an Agent Skill bundle or a Claude Code workflow script.
+- `plugin/runtime/howdo/publish.py` — install those where a host loads them, and index what exists.
 - `plugin/examples/jira_workflow.py` — ordinary workflow example.
 - `plugin/examples/portable_contract.py` — the same operation as a contract, offered to three hosts.
 - `plugin/examples/issue_domain_how.py` — a run that leaves a durable, indexed artifact behind.

@@ -166,6 +166,48 @@ Versions are aligned across `plugin/SKILL.md`, `README.md`, `pyproject.toml`, an
   from one that came out wrong, and filing it as the latter claims a test ran
   that did not. Optional, additive, and no invariant above it moved.
 
+- **The loop produced artifacts nobody could invoke, which is not what an issuer
+  is for.** `emit.py` rendered a `SKILL.md` and a workflow script and wrote them
+  to a directory the caller had to pass in; nothing resolved the locations a host
+  actually loads from, so an artifact never became a command. The consequence is
+  the one that matters for a concern someone works weekly or daily: every session
+  re-derived the same map, the same path, and the same gate, because the thing
+  the last session learned went somewhere nobody would look. `runtime/howdo/
+  publish.py` writes to `<project>/.claude/skills/<name>/SKILL.md` and
+  `.claude/workflows/<name>.js`, or the same two under `~/.claude` /
+  `$CLAUDE_CONFIG_DIR`, and reports the `/<name>` that re-runs the work. A
+  consequential artifact installed into Claude Code is marked
+  `disable-model-invocation: true` — the destination decides the frontmatter
+  target, not the caller.
+
+
+- **How Do had no way to find out what it had already built.** `published()`
+  scans the destinations for artifacts carrying How Do's marker and
+  `write_reference()` renders `SUBSKILLS.md` into the store, beside `CONTEXT.md`
+  and outside the payload. Derived rather than declared, the same rule
+  `CROSSINGS.md` sets for the skill graph: a deleted artifact is absent, a
+  hand-placed one appears, and another author's skill is not counted as ours.
+  `SKILL.md` now reads the catalogue before establishing anything fresh — a
+  concern that already has a grounded skill is invoked, not rebuilt — which is
+  the whole point of issuing anything.
+
+
+- **Reachability was decided for the person instead of by them.** Publishing
+  marked any consequential artifact `disable-model-invocation: true` on the
+  strength of the contract alone. But the person publishing worked the concern
+  out — they were in the room while the how was built — and they are the one who
+  knows whether it belongs in Claude's reach; sometimes the answer is yes even
+  for something consequential, and sometimes no for something harmless.
+  `disable_model_invocation` is now an explicit choice on `render_skill`,
+  `write_skill` and `publish`, refused rather than coerced if it is not a
+  boolean. Left unmade, the contract's consequences still stand in — but the
+  result reports `invocation_chosen_by == "default"`, and `SKILL.md` tells the
+  agent to put the question in one line with a lean rather than let a fallback
+  pass for an answer. `SUBSKILLS.md` gained a **reachable by** column so the
+  decision stays visible, read back from the installed file rather than from what
+  was published, so a later hand-edit governs.
+
+
 - **Every module was unit-tested and the chain had never run.**
   `tests/test_end_to_end.py` drives a synthetic Harbor jobs directory through
   the walk, the blob store, ingestion, the append-only log, the schedule, the

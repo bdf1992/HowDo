@@ -82,6 +82,22 @@ from .emit import (
     write_workflow,
 )
 
+from .publish import (
+    FORMATS,
+    SCOPE_PERSONAL,
+    SCOPE_PROJECT,
+    SUBSKILLS_BASENAME,
+    Published,
+    PublishError,
+    publish,
+    published,
+    render_reference,
+    skills_root,
+    subskills_path,
+    workflows_root,
+    write_reference,
+)
+
 from .core import (
     Admission,
     Agency,
@@ -108,6 +124,19 @@ from .core import (
 # file declares. Nothing here names a particular consumer of the environment
 # kind, and no consumer of it is installed with the skill.
 __all__ = [
+    "FORMATS",
+    "SCOPE_PERSONAL",
+    "SCOPE_PROJECT",
+    "SUBSKILLS_BASENAME",
+    "Published",
+    "PublishError",
+    "publish",
+    "published",
+    "render_reference",
+    "skills_root",
+    "subskills_path",
+    "workflows_root",
+    "write_reference",
     "MAX_COMPATIBILITY",
     "MAX_DESCRIPTION",
     "MAX_NAME",

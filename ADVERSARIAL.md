@@ -91,6 +91,24 @@ Emission installs something. These hold for `plugin/runtime/howdo/emit.py`.
 | unknown emission target | refused rather than silently treated as portable |
 | an existing skill or workflow silently replaced | refused without `overwrite=True` |
 
+## Enforced publishing invariants
+
+Publishing installs something someone may later invoke. These hold for
+`plugin/runtime/howdo/publish.py`.
+
+| Attack | Publisher response |
+|---|---|
+| untested artifact installed where a host will load it | refused; the emitter's guard applies to every destination |
+| artifact published into a skill payload | refused; the next install would replace it with no error raised |
+| catalogue written inside the payload | refused for the same reason |
+| a published artifact someone may be invoking silently swapped | refused without `overwrite=True` |
+| reachability decided for the person rather than by them | `disable_model_invocation` is an explicit choice; an unmade one falls back *and reports* `invocation_chosen_by: default` |
+| a non-boolean passed as the choice | refused rather than coerced into truthiness |
+| the catalogue reporting reachability from what was published rather than what is installed | read back from the file on disk, so a later hand-edit governs |
+| unknown scope or format | refused rather than guessed |
+| catalogue trusted as a record of what was published | scanned from the destinations; a deleted artifact is absent, a hand-placed one appears |
+| another author's skill counted as How Do's | only artifacts carrying How Do's own marker are catalogued |
+
 ## Enforced context invariants
 
 | Attack | Context response |
@@ -188,6 +206,9 @@ These are semantic invariants rather than Python NLP rules:
 - **A contract binds the declaration, not the executor.** It states what the operation must make observable; whether the executor pursues that or something else is caught at Look, not at the door. A contract makes the lie checkable, not impossible.
 - **The clause set is closed on purpose.** A predicate it cannot state has to ship as a host-supplied `Check`, and that check does not travel with the contract. The contract's own rules still gate the operation, so the portable floor holds while the local ceiling does not — but a contract whose real gate is local is portable in form only, and nothing here detects that.
 - **The portable target cannot restrict who invokes a skill.** `disable-model-invocation` is a Claude Code extension, and emitting it on the path that goes to claude.ai or the Skills API fails packaging with a hard error. So a consequential artifact rendered for that target says so in its body and nothing enforces it. Prose in a skill body is an instruction, not a permission boundary.
+- **A fallback is not consent.** When nobody decides reachability, the contract's consequences stand in. The runtime records that as `default` and `SKILL.md` tells the agent to ask, but nothing forces the question to be put — a caller that ignores the field gets a reasonable answer nobody chose.
+- **Publishing does not make a concern recur; it makes recurring cheap.** How Do issues and indexes artifacts. Running one on a cadence is the host's scheduler, and nothing here holds a clock — a published artifact nobody invokes is inert.
+- **A published artifact and its domain-how drift independently.** Publishing is a projection taken at one moment. Revise the artifact and the installed copy keeps being loaded until it is published again, and the catalogue reports the revision on disk rather than the current one.
 - **An emitted skill is a projection, and drifts the moment the artifact moves.** Nothing tracks what was emitted or re-emits it: `emit` is stateless by design, in the same spirit as the index being rebuilt rather than stored. An installed skill whose domain-how has since been revised will keep being loaded, and only re-emission fixes that.
 - **A generated workflow can state Look's discipline but cannot enforce it.** The kernel structurally withholds the executor report from the observer; a script can only instruct an agent not to read it back. That instruction is prose in a prompt, and an agent may ignore it.
 - **An issued artifact is structurally grounded, not correct.** `ground()` proves a residual matched on one run. It does not prove the map is good, the path is the best one, or that the concern was worth an artifact — the same boundary `onboarding: complete` already declares one level up. Ablation across runs is the semantic test, and it is not in the runtime.
