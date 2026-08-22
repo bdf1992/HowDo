@@ -25,7 +25,7 @@ measurement downstream is uninterpretable without them.
 | 1 | Declare δ\* — the smallest effect worth acting on | decision | M0.0 power gate, M0.1 endpoint | undeclared |
 | 2 | Declare the reconnaissance budget cap | decision | H1/H2 arm definition | undeclared |
 | 3 | Write `PILOT-0001/PREREGISTRATION.md` | writing | the Gate; `preregistration_digest` in M0 | not started |
-| 4 | Run the M−1 envelope probe | hardware | M0.0, M0.1, hours-per-100-trials | next |
+| 4 | Run the M−1 envelope probe | hardware | M0.0, M0.1, hours-per-100-trials | protocol written; probe not run |
 | 5 | Rest of the receipt schema (M0) | code | M0.1 ingestion | partial |
 | 6 | Settle the payload asymmetry | decision | release hygiene at 0.9 | open |
 
@@ -59,6 +59,13 @@ Prove one exact local configuration can repeatedly run representative Harbor
 tasks without memory, offload, or context behaviour changing underneath the
 study.
 
+- [x] **Protocol written** — `M-1/PROTOCOL.md`. What varies, what is held
+      constant, what counts as stable (declared before the probe runs), what is
+      recorded, and the three outcomes including "no stable cell exists".
+- [x] **Lock file is executable** — `M-1/ORGANISM.template.json` plus
+      `evidence/organism.py`. The fingerprint is computed from the
+      configuration and refuses a lock with any field left unfilled; the
+      observed envelope is recorded but excluded from the digest.
 - [ ] Probe Q4_K_M and Q8_0 across 8k/16k/32k+ context; record peak VRAM, RAM,
       tok/s, prompt throughput, offload events, failures.
 - [ ] Emit **hours per 100 trials** as a first-class output. It sizes every

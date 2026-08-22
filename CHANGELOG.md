@@ -4,6 +4,23 @@ Versions are aligned across `SKILL.md`, `README.md`, `pyproject.toml`, and `CONT
 
 ## Unreleased
 
+- **The envelope milestone described a probe nobody could run twice the same
+  way.** M−1 said to record peak VRAM, throughput, and offload events and to
+  freeze the winning configuration, which is a summary of a protocol rather than
+  one. `experiment/M-1/PROTOCOL.md` now states which factors vary and which are
+  held constant, defines stability *before* the probe runs (no offload
+  transition mid-run, no truncation, no hard failures, peak memory within 5%
+  across repeats, throughput CV ≤ 0.15), records determinism rather than
+  requiring it, derives hours-per-100-trials from end-to-end wall clock rather
+  than token rates, and names "no stable cell exists" as a result instead of a
+  reason to lower the bar. The probe set is drawn from tasks explicitly excluded
+  from the pilot, because tuning against tasks the pilot will score is selection
+  on the outcome. `evidence/organism.py` makes the output executable: the
+  fingerprint is computed from identity, configuration, and hardware, the
+  observed envelope is recorded but deliberately not hashed, and a lock file
+  with any field still a placeholder is refused — a fingerprint over an unfilled
+  form certifies nothing while looking exactly like one that does.
+
 - **The contribution rules had no lane the experiment could enter through.**
   Attack, Fix, and Skill text all require a residual from real use, and rule 8
   requires a trace that could not be served without the change — but producing
