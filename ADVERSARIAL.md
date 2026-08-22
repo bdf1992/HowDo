@@ -52,6 +52,8 @@ surface.
 
 | Attack | Adapter response |
 |---|---|
+| pilot adapter reaches end users by sitting in `runtime/` | `install.py` copies `runtime/`; the adapter is not there, and an install test imports the installed package in a clean interpreter and finds no pilot API |
+| installed skill points at a directory it does not ship | no payload file names `PILOT-0001`; the kind hook that remains is generic |
 | person context relabelled `context_kind: environment` | `invalid`; the required metadata keys differ and the evidence sections do not overlap |
 | environment context relabelled `context_kind: person` | not ready; `onboarding` is missing and person evidence is absent |
 | person evidence reused to settle an environment context | `reconnaissance_required`; the headings themselves are disjoint |

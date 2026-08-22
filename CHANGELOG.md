@@ -4,6 +4,20 @@ Versions are aligned across `SKILL.md`, `README.md`, `pyproject.toml`, and `CONT
 
 ## Unreleased
 
+- **The experiment/release boundary was a claim in a document, not a fact about
+  the filesystem.** `ROADMAP.md` said `experiment/` is outside the installed
+  skill, but `install.py` copies all of `runtime/`, the pilot adapter lived at
+  `runtime/howdo/environment.py`, and `howdo.__init__` re-exported twelve pilot
+  symbols — so every install carried the adapter and the release surface
+  silently included it. The adapter moved to
+  `experiment/PILOT-0001/adapter/`, the exports are gone, and the boundary is
+  now enforced: `tests/test_release.py` installs into a temporary directory and
+  checks that no pilot module ships, that a clean interpreter importing the
+  installed `howdo` finds none of the pilot API, and that no payload file so
+  much as names the pilot. Kind-awareness stays in `context.py` because
+  `inspect_context()` needs it, and it is generic — it validates whichever kind
+  a file declares and names no consumer.
+
 - **A benchmark agent cannot honestly hold a person's context, so it gets a
   different kind.** `CONTEXT.template.md` says a pedagogy "cannot be generated"
   because it has no source but the person, and the required evidence sections
@@ -17,8 +31,8 @@ Versions are aligned across `SKILL.md`, `README.md`, `pyproject.toml`, and `CONT
   not overlap, so relabelling one kind as the other fails on both, and each
   settlement helper refuses the other's file with `ContextKindError`. Lifetime
   and write authority are orthogonal to kind, so `environment` never silently
-  implies `ephemeral`. Under `experiment/PILOT-0001/`; nothing in the shipped
-  discipline refers to it and no version moved.
+  implies `ephemeral`. Nothing in the shipped discipline refers to it and no
+  version moved.
 
 - **A trial's resolution is the one thing a receipt cannot recompute.** The
   benchmark experiment derives everything it can from evidence — capability
