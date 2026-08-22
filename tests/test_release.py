@@ -681,12 +681,13 @@ class ExperimentBoundaryTests(unittest.TestCase):
                     offenders.append(str(path.relative_to(destination)))
             self.assertEqual(offenders, [], f"payload names the pilot: {offenders}")
 
-    def test_the_adapter_still_exists_outside_the_payload(self):
-        # The boundary is only meaningful if the code is somewhere; a test that
-        # passes because the adapter was deleted proves nothing.
-        adapter = ROOT / "experiment" / "PILOT-0001" / "adapter" / "environment.py"
-        self.assertTrue(adapter.exists(), "the adapter was moved out of the payload and lost")
-        self.assertIn("from howdo.context import", adapter.read_text())
+    def test_the_working_tree_carries_no_experiment_directory(self):
+        # The lane lives on the `experiment` branch; a re-grown experiment/
+        # on main would silently re-open the boundary the move closed.
+        self.assertFalse(
+            (ROOT / "experiment").exists(),
+            "experiment/ belongs on the experiment branch, not on main",
+        )
 
 if __name__ == "__main__":
     unittest.main()

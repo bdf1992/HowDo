@@ -136,50 +136,27 @@ Publishing installs something someone may later invoke. These hold for
 | build noise present in the working tree at install time | excluded from the payload |
 | install directory name drifts from the skill's declared `name:` | `--verify` fails |
 
-## Enforced experiment-adapter invariants
+## Enforced context-kind invariants
 
-Experiment layer, not the discipline: these hold for `experiment/` and the
-`context_kind` hook it needs, and none of them is part of the 0.9.0 release
-surface.
+The generic hook the experiment lane needs: `context_kind`, lifetime and
+authority declarations, and the trial binding. The pilot adapter that uses it —
+and the receipt, preregistration, organism, and resolution invariants that
+guard the measurement — live on the `experiment` branch, whose own copy of this
+file carries their table. What ships, and is enforced here, is only this:
 
-| Attack | Adapter response |
+| Attack | Runtime response |
 |---|---|
-| pilot adapter reaches end users by sitting in the payload | the payload is `plugin/` and the adapter is outside it, and an install test imports the installed package in a clean interpreter and finds no pilot API |
+| pilot adapter reaches end users by sitting in the payload | the payload is `plugin/` and the adapter is on the `experiment` branch, and an install test imports the installed package in a clean interpreter and finds no pilot API |
 | installed skill points at a directory it does not ship | no payload file names `PILOT-0001`; the kind hook that remains is generic |
 | person context relabelled `context_kind: environment` | `invalid`; the required metadata keys differ and the evidence sections do not overlap |
 | environment context relabelled `context_kind: person` | not ready; `onboarding` is missing and person evidence is absent |
 | person evidence reused to settle an environment context | `reconnaissance_required`; the headings themselves are disjoint |
 | `complete_onboarding()` aimed at an environment context | `ContextKindError` |
-| `complete_reconnaissance()` aimed at a person context | `ContextKindError` |
 | unrecognised `context_kind` | `invalid` rather than silently treated as a person |
+| unrecognised `lifetime` or `write_authority` | `invalid`; the vocabularies are closed |
 | ephemeral context read by a later trial | `expired`; a reused volume surfaces as a state, not as contamination |
 | ephemeral context read with no trial asserted | `invalid`; a relation cannot answer with an operand missing |
 | ephemeral context with no `trial_id` | `invalid`; ephemerality without a binding is unverifiable |
-| one trial settling another trial's context | refused |
-| one trial closing another trial's context | refused; the file is preserved |
-| settlement attempted on a frozen or read-only context | `FrozenContextError` |
-| frozen context declared immutable on a writable file | `describe_frozen()` reports the filesystem, not the frontmatter |
-| unsettled context frozen as if it were ground | refused |
-| persistent accumulating context used in a pilot trial | `PilotAdmissibilityError`; later trials would inherit earlier trials' information |
-| person context carried into a benchmark trial | `PilotAdmissibilityError`; no arm of the pilot carries a pedagogy |
-| reconnaissance marker flipped with sections left blank | `reconnaissance_required` |
-| receipt asserts `certifies: true` on a judge-scored trial | refused at write time and rechecked at verification, so a recomputed digest does not help |
-| result refiled as infrastructure noise after the fact | `failure_class` is refused on `pass` and `fail` and required on `error` and `excluded` |
-| confirmatory trial cites no preregistration | refused; it is an exploratory trial wearing the word |
-| trial log accepts receipts in any order | `append_receipt()` refuses a non-increasing `run_sequence_index` per experiment |
-| a wrong receipt edited or deleted | corrections append against its digest; the original is never touched |
-| trajectory stored as a filesystem path or inline text | refused; custody references must be sha256 content addresses |
-| control arm reports reconnaissance, or a treatment arm reports none | refused; the arm and the recon outcome must agree |
-| qualification record edited to promote a rejected task | `verify_qualification()` recomputes the outcome, not just the digest |
-| judge-scored task certifies capability | derived outcome is `research_only`; certification is unreachable |
-| preregistration digested while a commitment is still a proposal | refused, and the refusal lists what is open |
-| organism lock fingerprinted from an unfilled template | refused; every required field is checked, not just the first |
-| observed envelope changes the organism fingerprint | it is excluded from the hashed payload by construction |
-| `Skill(foo) + Environment(bar)` digested as `Environment(foo) + Skill(bar)` | different digests; role and kind are committed separately |
-| two-operand resolution digested as a three-operand one | different digests; arity is committed |
-| operand identity crafted to impersonate the serialization | different digests; every value is a quoted string in a typed structure |
-| resolution operands reordered after the fact | `verify_resolution()` fails |
-| canonicalization rules changed without notice | `resolution_version` is inside the hashed payload |
 
 ## Skill-level agency attacks
 
@@ -200,8 +177,8 @@ These are semantic invariants rather than Python NLP rules:
 - **Store lifetime is the host's, not the module's.** `payload_root()` decides a *location* question — is this file in the part of the install that gets replaced — which is decidable in one session. Whether a store outside the payload survives a reboot, a container reset, or an ephemeral home directory is not observable from inside the process that writes it: a successful write to a discarded filesystem is byte-identical to a durable one. A host whose entire filesystem is scratch will pass every check here and still lose the context. That is declared, not enforced.
 - Context completion proves a **structural receipt**, not the truth of a learning claim. LongHow + user settlement remain the semantic boundary.
 - Rename/new-basename forks are detectable from the file itself. A byte-for-byte copy of an entire settled installation under the same filenames is not distinguishable without an external installation identity/custody mechanism; this release does not pretend otherwise.
-- **Reconnaissance records observations, not conclusions — as a rule, not a check.** The structural validator proves an environment context's sections are populated. It cannot tell "pytest is the verifier here" from "the best way to solve this task is X", and the second would make the treatment a solver rather than a discipline. Documented in `experiment/PILOT-0001/reconnaissance.md`; enforced by review.
-- **A frozen context's read-only mount is the harness's, not the module's.** `freeze_context()` drops the file to read-only permissions and publishes a digest, so a change is detectable afterwards. Preventing the change requires the mount.
+- **Reconnaissance records observations, not conclusions — as a rule, not a check.** The structural validator proves an environment context's sections are populated. It cannot tell "pytest is the verifier here" from "the best way to solve this task is X", and the second would make the treatment a solver rather than a discipline. Documented in `reconnaissance.md` on the `experiment` branch; enforced by review.
+- **A frozen context's read-only mount is the harness's, not the module's.** The experiment branch's `freeze_context()` drops the file to read-only permissions and publishes a digest, so a change is detectable afterwards. Preventing the change requires the mount.
 - **A host's capabilities are declared, not authenticated.** `bind` proves a contract was not loaded somewhere it says it cannot run. It does not prove the host told the truth about what it can do, and it cannot: the same class of boundary as the caller-supplied comparator.
 - **A contract binds the declaration, not the executor.** It states what the operation must make observable; whether the executor pursues that or something else is caught at Look, not at the door. A contract makes the lie checkable, not impossible.
 - **The clause set is closed on purpose.** A predicate it cannot state has to ship as a host-supplied `Check`, and that check does not travel with the contract. The contract's own rules still gate the operation, so the portable floor holds while the local ceiling does not — but a contract whose real gate is local is portable in form only, and nothing here detects that.

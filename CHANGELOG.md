@@ -2,6 +2,20 @@
 
 Versions are aligned across `plugin/SKILL.md`, `README.md`, `pyproject.toml`, and `plugin/CONTEXT.template.md`; `tests/test_release.py` enforces it.
 
+## Unreleased
+
+- **The experiment lane moved to the `experiment` branch.** `main` no longer
+  carries `experiment/` or the tests that import it; the lane — PILOT-0001, the
+  evidence contracts, the harness, and the adapter — develops on its own branch
+  and takes `main` in by merge. The payload boundary the directory's placement
+  used to assert is now a fact about the branch: an ordinary checkout of `main`
+  cannot ship experiment code because it does not contain any. The generic
+  `context_kind` hook stays in the runtime and keeps its coverage in
+  `tests/test_context_kind.py`; the adapter-, receipt-, preregistration-,
+  organism-, and resolution-level invariants move to the branch's copy of
+  `ADVERSARIAL.md`, and a release test now asserts `experiment/` stays absent
+  from `main`.
+
 ## 0.10.0
 
 - **Shipped code cited documents the reader does not have.** `domain.py` and
