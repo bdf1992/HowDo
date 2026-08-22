@@ -14,10 +14,10 @@ ambient. That restraint is not conservatism, it is the roadmap's gate — see
 *Deliberately not done* below before adding a component.
 
 **The branch does not merge until parity is closed.** Three items were open and
-none could be closed from inside this lane alone. **Two are now closed:** #12
-landed and took item 3 with it; item 1 is closed by moving the payload under
-`plugin/`. **Item 2 is the only one left**, and it is a skill-text decision
-rather than a packaging one — see below.
+none could be closed from inside this lane alone. **All three are now
+resolved:** #12 landed and took item 3 with it; item 1 is closed by moving the
+payload under `plugin/`; item 2 turned out not to be a packaging gap at all and
+is raised as skill-text issue #18, which this lane does not wait on.
 
 ---
 
@@ -132,16 +132,47 @@ onboarding conversation and both opt-outs. `tests/test_release.py::InstallerNote
 guards its content carefully. A `/plugin install` never runs `install.py`, so
 that note reaches nobody.
 
-This is a degraded first run, not a broken one: `SKILL.md` still gates
-onboarding at the first substantive HowDo, so the conversation happens — the
-person just never got the heads-up that explains it and offers the decline.
+**Read the skill text before deciding this is a gap.** It was written up as a
+degraded first run — the conversation still happens, the person just never got
+the heads-up. Checking that against `SKILL.md` does not support it, and points
+somewhere else:
 
-**Do not reach for a `SessionStart` hook without deciding the doctrine question
-first.** A hook that speaks before being asked is close to the line `SKILL.md`
-draws in *Refuses* — "Loading the discipline uninvited." A note that only
-explains a pending conversation may be admissible where injected context is
-not, but that is a skill-text decision, not a packaging one. Raise it as a
-skill-text change with a trace, per `CONTRIBUTING.md`.
+- *"Onboarding gates the first substantive HowDo, not the person's first
+  sentence: by the time it runs, they have already opted into the discipline."*
+  The plugin user is not skipping a gate. They reach the same gate by the same
+  route.
+- *"Keep it a conversation between two people working out how to work together;
+  it is never an intake form, and **the person should ideally not be able to
+  tell an onboarding is happening**."* This is the one that matters. A note
+  announcing *four things are about to be established and you may decline* is
+  precisely telling them an onboarding is happening. By the skill's own
+  standard the installer path is the deviation and the plugin path is the
+  described ideal.
+- The decline is not lost either. *Refuses* forbids "silently bypassing
+  onboarding without an explicit user decline or deferral" — an explicit answer
+  inside the conversation, which the routing table and the four guarantees make
+  first-class. It does not require a pre-announcement.
+
+What is genuinely lost is narrower than the item claimed: the chance to decline
+*before* the conversation starts, rather than during it. Whether that is worth
+having is a real question, and it is not obviously yes.
+
+So the packaging answer is **do nothing here**, and the open question is not
+"how do we deliver the note to a plugin user" but **"is `CONFIGURATION_NOTE`
+doctrinally right in the first place?"** — because it and the sentence in
+`SKILL.md` cannot both be. `tests/test_release.py::InstallerNoteTests` guards
+the note's content carefully, which makes the tension enforced rather than
+latent: the suite pins a note that pre-announces, while the skill text asks for
+a conversation the person cannot detect.
+
+That is a skill-text decision, not a packaging one, and it is raised as one in
+**issue #18**, with the three ways it could go and the note that none of them
+has a trace from real use behind it yet. Packaging is not blocked on the
+answer: whichever way it lands, this lane does nothing differently. **Do not reach for a `SessionStart` hook**
+in the meantime: a hook speaks on every session rather than once at install,
+and injects context rather than printing to a console the person is watching,
+which is much closer to the line *Refuses* draws at "Loading the discipline
+uninvited" than the installer note ever was.
 
 ### 3. ~~The plugin ships PILOT-0001~~ — CLOSED by PR #12
 
