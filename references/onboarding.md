@@ -158,13 +158,24 @@ one environment always resolves to one path. Anyone moving a settled store point
 `HOWDO_CONTEXT` at it. The basename stays `CONTEXT.md`; a different basename is
 read as a fork.
 
-If the payload ships `runtime/`, the helpers answer all of this directly:
+If the payload ships `bin/` on `PATH` — a plugin host puts it there — one
+command answers all of this from any directory:
+
+```bash
+howdo-context --ensure
+```
+
+Otherwise the helpers answer it directly, from the payload root:
 
 ```bash
 python -c "import sys; sys.path.insert(0, 'runtime'); \
 from howdo.context import ensure_context, inspect_context; \
 s = ensure_context(template='CONTEXT.template.md'); print(s.path, s.state)"
 ```
+
+That second form resolves `runtime` relative to the working directory, so run
+it from the payload or give it an absolute path. `howdo-context` has no such
+requirement, which is the reason it exists.
 
 If `runtime/` or `CONTEXT.template.md` is absent — the skill was copied by hand
 rather than installed — do not guess a store into the payload. Create the

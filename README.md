@@ -29,9 +29,36 @@ cd HowDo
 python install.py            # payload -> ~/.claude/skills/how-do, store -> per-user app data
 python install.py --verify   # check an existing install, change nothing
 python install.py --target DIR   # install into a different skills directory
+python install.py --plugin DIR   # assemble a plugin root instead of a skill directory
 ```
 
 Reinstalling re-copies the payload and leaves a settled context alone.
+
+## As a plugin
+
+`--plugin` writes the same payload with a `.claude-plugin/plugin.json` manifest
+and `bin/` alongside it. Point a session at the result, or assemble it straight
+into a skills directory so it loads on the next session:
+
+```bash
+python install.py --plugin ~/.claude/skills/how-do   # loads as how-do@skills-dir
+claude --plugin-dir ./dist/how-do                    # or load it for one session
+```
+
+The skill stays `/how-do`. `SKILL.md` sits at the plugin root rather than under
+`skills/`, which is what keeps the invocation un-namespaced — a `skills/how-do/`
+layout would make it `/how-do:how-do`.
+
+Two things come with the plugin host. `$CLAUDE_PLUGIN_DATA` is a directory it
+guarantees will survive updates, so the durable store no longer depends on this
+repository choosing a safe path. And `bin/` joins the shell `PATH` while the
+plugin is enabled, so `howdo-context` is addressable from any directory:
+
+```bash
+howdo-context            # report the store's state
+howdo-context --ensure   # instantiate it from the template if missing
+howdo-context --path     # print the resolved store path
+```
 
 ## Durable context
 
@@ -51,7 +78,8 @@ The store is per-person, so it lives where the platform keeps per-user state:
 |---|---|---|
 | 1 | `--context PATH` | as given |
 | 2 | `$HOWDO_CONTEXT` | as given |
-| 3 | platform default | `%APPDATA%\howdo\CONTEXT.md` on Windows; `~/.howdo/CONTEXT.md` on macOS and Linux |
+| 3 | `$CLAUDE_PLUGIN_DATA` | `<that directory>/CONTEXT.md`, when a plugin host declares one |
+| 4 | platform default | `%APPDATA%\howdo\CONTEXT.md` on Windows; `~/.howdo/CONTEXT.md` on macOS and Linux |
 
 Moving a settled context means pointing `HOWDO_CONTEXT` at it. Keep the filename
 `CONTEXT.md`: any other name is read as a fork — a separate context that starts
@@ -105,6 +133,8 @@ automatically become a permanent learner claim.
 - `runtime/howdo/context.py` — zero-dependency context lifetime helpers.
 - `examples/jira_workflow.py` — ordinary workflow example.
 - `tests/` — runtime and context contract tests.
+- `packaging/plugin.json` — the plugin manifest, minus a version the assembler derives.
+- `bin/howdo-context` — store inspection from anywhere; on `PATH` under a plugin host.
 - `ADVERSARIAL.md` — enforced attacks and declared boundaries.
 - `CONTRIBUTING.md` — lanes, rules, PR shape. `CHANGELOG.md` — versions.
 
@@ -113,6 +143,7 @@ automatically become a permanent learner claim.
 ```bash
 python -m unittest discover -s tests -v
 python examples/jira_workflow.py
+python install.py --plugin dist/how-do && claude plugin validate dist/how-do
 ```
 
 The bundle and Python package share release version `0.8.0`, so package identity
