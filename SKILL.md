@@ -90,7 +90,7 @@ The local terms — paradigm, map, path, precondition, invariant, gate, operatio
 
 0. **Resolve the store, then load or calibrate durable context.** Durable context lives outside the skill payload: the payload is replaced by every install or update, so a context settled inside it is discarded with no error raised. Resolve the store and route on its state as in **Durable context and first-run onboarding**, instantiate it from the shipped template when absent, and never settle the template copy in place. If the context is fresh, forked, or unresolved, read `references/onboarding.md` and establish the pedagogy before substantive work unless the user declines or defers. Persist a decline as `onboarding: declined` and never ask again; persist a deferral as `onboarding: deferred` and leave the offer open. Both proceed without learned durable context.
 1. **Bind the actor; establish the receiver — visibly.** Resolve `I / you / we / they / named actor` first. Use that actor lens to constrain capability, authority, and evidence. Separately project a small local rendering contract from any ready durable context plus the current request. State the useful read in one line and let the person correct it.
-2. **Resolve the request against a paradigm.** Load only saved domain-how/context admissible for the bound actor. Otherwise establish the smallest useful map, then a path through it. Do not require a grand ontology. For every step that mutates state or crosses a boundary, state a precondition and an observable postcondition. Observation-only steps may stay lighter. Name invariants that must survive the operation; minimum invariant: the active paradigm stays inspectable in one look.
+2. **Resolve the request against a paradigm.** Check the subskill catalogue before building anything: a concern that already has a grounded skill or workflow is invoked, not rebuilt. Otherwise load only saved domain-how/context admissible for the bound actor. Otherwise establish the smallest useful map, then a path through it. Do not require a grand ontology. For every step that mutates state or crosses a boundary, state a precondition and an observable postcondition. Observation-only steps may stay lighter. Name invariants that must survive the operation; minimum invariant: the active paradigm stays inspectable in one look.
 3. **Gate.** Admit the operation only if the requested point can be located and the consequential contracts are grounded in real state. If not, fizzle: identify the missing distinction, evidence, permission, dependency, or contract. A fizzle is not a failed operation because the crossing never became admissible.
 4. **Do.** Execute the admitted operation. Keep the operation attributable to the resolved paradigm revision and the checks that opened the gate.
 5. **Look.** Check wrote the test; Look runs it. Take in the resulting state independently of the model's claim of success whenever practical, and test it against the observable postconditions and invariants. What the test yields — observed minus expected — is the residual, and it is the input to step 6. A step that only looks at what was reported has not run the test.
@@ -111,11 +111,13 @@ A paradigm that lives only in one turn cannot support changed-state behavior. Ke
 - **`CONTEXT.md` / context fork** — per-person and per-install, resolved as above; keep it out of shared version control by default (gitignore or a user-scoped path), because it records how one person takes explanations. Durable settled orientation for how this installation should present and interact: calibration domains, representation observations, liked/disliked structures, interaction observations, and LongHow settlements. It has its own context lineage and onboarding state.
 - **Rendering contract** — local projection for the current request. It may use the durable context but can differ whenever the task demands it. Do not force a learned preference where it harms the work.
 - **Domain-how** — one file per recurring concern: map, path, consequential contracts, invariants, one worked example, and revision. Issued rather than described: the runtime mints it from a run that actually happened, keeps it `untested` until an observed run grounds it, and indexes what exists by concern, workflow, and required capability.
+- **Subskill catalogue** — `SUBSKILLS.md` in the store: what How Do has already built and left where a host loads it, with the command that re-runs each one. Derived by scanning those destinations rather than from a record of intent, so a deleted artifact is absent and a hand-placed one appears. This is the file that makes a weekly or daily concern cheap the second time; without it every session re-derives the same map.
 - **HowDo trace / operation record** — the bound actor, resolved revision, rendering used, gate result, observed evidence, residual, and settlement. This is history and evidence, not automatically part of durable context.
 - **LongHow** — compares multiple HowDo traces (or unusually strong explicit feedback) and proposes the smallest reusable context lesson. The person settles persistent edits.
 - **When to save domain-how.** On explicit ask, or after a how survives at least one do/look cycle. Never promote an untested exemplar simply because it sounded plausible — issuing records `untested`, only a residual that matched promotes it, and any revision drops the grounding its predecessor earned.
 - **When to update durable context.** Establishing the pedagogy may settle direct user feedback. Afterward, do not rewrite `CONTEXT.md` from every session. Route presentation residuals into traces; LongHow promotes only recurring or explicitly ratified lessons, with provenance and limits.
-- **When to load.** Load active durable context and relevant saved domain-how before establishing anything fresh. Resolve from saved state and say only what materially changes the current interaction.
+- **When to load.** Load active durable context and relevant saved domain-how before establishing anything fresh. **Read the subskill catalogue first when the request names a recurring concern** — if How Do already built a skill or workflow for it, invoke that rather than re-deriving the map, the path, and the gate from nothing. Resolve from saved state and say only what materially changes the current interaction.
+- **When to publish.** When a grounded domain-how covers work someone will do again. Publishing is what makes the concern invocable next week: the skill loads by name and the workflow runs as its command. An artifact that is still `untested` is not published except explicitly, for review.
 - **When to update a paradigm.** At settlement, only the layer supported by the residual. Accepted settlement rebases that layer into the next revision; it does not rebuild the whole paradigm.
 - **When nothing domain-specific is saved.** Search for the common pattern or offer exemplars. Mark exemplar-derived hows as untested until observed work grounds them.
 
@@ -216,7 +218,18 @@ override stamps what it produces. A `SKILL.md` on disk pre-loads every later
 session on that concern, which is the point at which an unconfirmed exemplar
 stops costing one answer and starts costing all of them.
 
-`runtime/howdo/domain.py` and `runtime/howdo/emit.py`;
+Rendering is not the end of it. An artifact only becomes reusable once it is
+**published** where the host looks — `.claude/skills/<name>/SKILL.md` and
+`.claude/workflows/<name>.js`, in the project or under the user's own config —
+because that is what makes it invocable as `/<name>` tomorrow rather than a file
+someone would have to find. Publishing then re-derives the catalogue by scanning
+those destinations, and writes it to the store.
+
+That is the whole reason to issue anything. A concern that recurs weekly is
+exactly the one nobody should re-derive, and a loop that only ever produced
+understanding inside a session could not serve it.
+
+`runtime/howdo/domain.py`, `emit.py`, and `publish.py`;
 `examples/issue_domain_how.py` runs the whole arc.
 
 ## Handles

@@ -153,3 +153,27 @@ with tempfile.TemporaryDirectory() as tmp:
         write_skill(draft, installable / "skills")
     except EmitError as exc:
         print("refused:", str(exc).split(":", 1)[1].strip()[:96], "...")
+
+    # --- published where a host will actually load it ----------------------
+
+    from howdo import publish, published, write_reference
+
+    print()
+    project = Path(tmp) / "repo"
+    for entry in publish(promoted, scope="project", project=project):
+        print(f"published {entry.kind:9} {entry.path.relative_to(project)}")
+    print()
+
+    # The catalogue is scanned from the destinations, not from a record of
+    # intent -- so this is what is really loadable, not what we meant to write.
+    print("what How Do has already built:")
+    for entry in published("project", project=project):
+        print(f"  {entry.concern:16} {entry.command:16} {entry.kind:9} {entry.status}")
+
+    reference = write_reference(
+        scope="project", project=project, store=Path(tmp) / "store" / "CONTEXT.md"
+    )
+    print()
+    print(f"catalogue -> {reference.name} in the store, read before re-deriving anything")
+    print()
+    print("-> next week this concern is one command, not another Map -> Path -> Check.")

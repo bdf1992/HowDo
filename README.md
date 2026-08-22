@@ -182,8 +182,32 @@ that concern, so shipping an unconfirmed one is a different order of mistake
 from getting one answer wrong. Emission is a projection: re-emit rather than
 editing what came out.
 
+### Publish it, so next week is one command
+
+Rendering produces text. Publishing puts it where the host looks:
+
+```python
+from howdo import publish, published, write_reference
+
+publish(how, scope="project")     # -> .claude/skills/<name>/SKILL.md
+                                  #    .claude/workflows/<name>.js  -> runs as /<name>
+published("project")              # what How Do has actually built
+write_reference(scope="project")  # -> SUBSKILLS.md in the store
+```
+
+`scope="project"` writes into the repo's `.claude/`, shared with everyone who
+clones it; `scope="personal"` writes under `~/.claude` (or `$CLAUDE_CONFIG_DIR`),
+available in every project. A consequential artifact installed into Claude Code
+is marked `disable-model-invocation: true`, so it is invoked deliberately.
+
+**This is the point of the whole arc.** A concern that recurs weekly is exactly
+the one nobody should re-derive. Once published it is `/<name>`, and
+`SUBSKILLS.md` — scanned from the destinations rather than from a record of
+intent, so a deleted artifact is absent and a hand-placed one appears — is what
+How Do reads before establishing anything fresh.
+
 ```bash
-python examples/issue_domain_how.py   # run -> issue -> index -> ground -> emit
+python examples/issue_domain_how.py   # run -> issue -> ground -> emit -> publish
 ```
 
 ## Layout
@@ -197,6 +221,7 @@ python examples/issue_domain_how.py   # run -> issue -> index -> ground -> emit
 - `runtime/howdo/contract.py` — portable request contracts: declared I/O shape, serializable checks, host binding.
 - `runtime/howdo/domain.py` — the issuer and index: domain-hows minted from runs, grounded by evidence.
 - `runtime/howdo/emit.py` — render an artifact as an Agent Skill bundle or a Claude Code workflow script.
+- `runtime/howdo/publish.py` — install those where a host loads them, and index what exists.
 - `examples/jira_workflow.py` — ordinary workflow example.
 - `examples/portable_contract.py` — the same operation as a contract, offered to three hosts.
 - `examples/issue_domain_how.py` — a run that leaves a durable, indexed artifact behind.

@@ -4,6 +4,30 @@ Versions are aligned across `SKILL.md`, `README.md`, `pyproject.toml`, and `CONT
 
 ## Unreleased
 
+- **The loop produced artifacts nobody could invoke, which is not what an issuer
+  is for.** `emit.py` rendered a `SKILL.md` and a workflow script and wrote them
+  to a directory the caller had to pass in; nothing resolved the locations a host
+  actually loads from, so an artifact never became a command. The consequence is
+  the one that matters for a concern someone works weekly or daily: every session
+  re-derived the same map, the same path, and the same gate, because the thing
+  the last session learned went somewhere nobody would look. `runtime/howdo/
+  publish.py` writes to `<project>/.claude/skills/<name>/SKILL.md` and
+  `.claude/workflows/<name>.js`, or the same two under `~/.claude` /
+  `$CLAUDE_CONFIG_DIR`, and reports the `/<name>` that re-runs the work. A
+  consequential artifact installed into Claude Code is marked
+  `disable-model-invocation: true` — the destination decides the frontmatter
+  target, not the caller.
+
+- **How Do had no way to find out what it had already built.** `published()`
+  scans the destinations for artifacts carrying How Do's marker and
+  `write_reference()` renders `SUBSKILLS.md` into the store, beside `CONTEXT.md`
+  and outside the payload. Derived rather than declared, the same rule
+  `CROSSINGS.md` sets for the skill graph: a deleted artifact is absent, a
+  hand-placed one appears, and another author's skill is not counted as ours.
+  `SKILL.md` now reads the catalogue before establishing anything fresh — a
+  concern that already has a grounded skill is invoked, not rebuilt — which is
+  the whole point of issuing anything.
+
 - **A request's I/O was implied, so it was neither checkable nor portable.** The
   kernel refuses a consequential operation with no expected state and no
   precondition, but it never knew what that expected state was *shaped* like,
