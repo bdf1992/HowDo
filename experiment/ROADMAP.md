@@ -123,7 +123,11 @@ fingerprints. No XP, no levels, no skill graph.
       trials do, because the task is the unit of analysis.
 - [x] **Results template** — `PILOT-0001/RESULTS.template.md`, preregistered
       result before exploratory work, by document order.
-- [ ] Harbor ingestion. Do not rebuild a runner; Harbor already owns execution.
+- [x] **Harbor ingestion** — `experiment/harness/`. `ingest.py` maps a Harbor
+      `TrialResult` to a receipt, `blobs.py` is the content-addressed store,
+      `qualify.py` folds oracle and no-op runs into a qualification record. No
+      runner was rebuilt: Harbor owns execution and this is the seam.
+- [ ] Wire the seam to a real Harbor job on the target machine (needs M−1).
 
 ## M0.0 — Noise floor · `blocked` on M−1 · [#10](https://github.com/bdf1992/HowDo/issues/10)
 

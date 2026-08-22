@@ -4,6 +4,28 @@ Versions are aligned across `SKILL.md`, `README.md`, `pyproject.toml`, and `CONT
 
 ## Unreleased
 
+- **The evidence layer had no way to receive evidence.** Everything up to here
+  was contracts and validators; nothing read a trial. `experiment/harness/` is
+  the seam to Harbor, and only that — Harbor owns execution, and the roadmap
+  says not to rebuild a runner. `ingest.py` maps a Harbor `TrialResult` to a
+  receipt and refuses rather than guesses at each point where a guess would
+  become evidence: a partial reward is refused instead of rounded, since
+  rounding invents an outcome the verifier never reported and is invisible in
+  the aggregate afterwards; an exception is always an `error` and never a
+  `fail`, since a crashed trial did not measure the treatment; an unmapped
+  exception becomes `other` rather than a neighbouring class that would make the
+  tally wrong. It also closes part of a gap `RECEIPT.md` declared open — Harbor
+  records which model ran and the lock records which was frozen, so a mismatch
+  is refused rather than left to review. `blobs.py` gives custody its other
+  half: a digest in a receipt now resolves to bytes that re-hash to it, an
+  edited blob is detected on read, and a trajectory directory archives
+  deterministically so two machines agree. `qualify.py` folds oracle and no-op
+  runs into a qualification record, counting infrastructure errors separately
+  from both — an error miscounted as an oracle failure drops a solvable task
+  from an already small pool, and one miscounted as a no-op failure keeps a
+  vacuous verifier in. The runbook now carries the real Harbor commands,
+  verified against the CLI.
+
 - **A request's I/O was implied, so it was neither checkable nor portable.** The
   kernel refuses a consequential operation with no expected state and no
   precondition, but it never knew what that expected state was *shaped* like,

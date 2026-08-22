@@ -54,6 +54,54 @@ Each of these gates has a mechanical answer. A `no` stops the run.
    content digest of the skill bytes the agent will actually load. A commit
    identifies a tree; a working tree can differ from it.
 
+## Harbor commands
+
+Verified against `harbor-framework/harbor@39b8587`. `harbor run` is an alias for
+`harbor job start`.
+
+**Qualify the pool — no model inference, so do this first.** Every
+`terminal-bench` 2.0 task ships a `solution/solve.sh`, so the oracle agent can
+run across the whole pool in hours rather than the weeks a screening pass costs.
+
+```bash
+harbor run --dataset terminal-bench==2.0 --agent oracle  --n-attempts 5 --jobs-dir runs/qualify-oracle
+harbor run --dataset terminal-bench==2.0 --agent nop     --n-attempts 3 --jobs-dir runs/qualify-noop
+```
+
+Then fold the two into qualification records:
+
+```bash
+python -c "
+import sys; sys.path.insert(0, 'experiment')
+from harness import qualify_task
+# one call per task, oracle_results and noop_results read from the jobs dirs
+"
+```
+
+**A measured run.**
+
+```bash
+harbor run \
+  --dataset terminal-bench==2.0 \
+  --agent <scaffold> --model <organism> \
+  --n-attempts <trials per task> \
+  --agent-timeout-multiplier <declared> \
+  --n-concurrent <declared> \
+  --jobs-dir runs/<stage>
+```
+
+Two flags are treatment parameters rather than conveniences.
+`--agent-timeout-multiplier` scales every task's cap; declared once and
+identical across arms it is legitimate, changed mid-study it invalidates the
+arm. `--n-concurrent` must not exceed what M−1 accepted as stable.
+
+**Why the multiplier matters more than it looks.** Across the 89 tasks the agent
+timeout is median 15 min, p90 60 min, max 200 min — one worst-case sweep is 41.5
+hours. A failing agent does not stop early, it works until its cap, and the
+pilot's organism is expected to fail often. Cost is therefore timeout-bound
+rather than throughput-bound, and the multiplier is the largest single lever on
+how long the study takes.
+
 ## Per trial
 
 The lifecycle is fixed by the contamination law in `TREATMENT.md`. Every step
