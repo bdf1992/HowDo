@@ -151,6 +151,13 @@ Notes on the steps that go wrong quietly:
   run continues the existing schedule rather than making a new one.
 - Persist the schedule beside the receipt log. A schedule that exists only in a
   process's memory cannot be checked against the receipts afterwards.
+- **Persist the trial-name → sequence-index mapping as each trial starts.**
+  Harbor names trial directories after the task, and a task appears once per
+  replicate per arm, so nothing in Harbor's output records which scheduled trial
+  a directory was. Without the mapping, ingestion after the fact can only guess
+  at the order — and the order is the sole evidence the arms were interleaved.
+  `harness.ordered_trials()` consumes it and refuses any directory it cannot
+  place.
 
 ## When something fails
 
@@ -170,6 +177,9 @@ Look up the disposition; do not decide it.
 
 1. **Do not look at the difference yet.** Run the integrity checks first, so
    that what they find cannot be influenced by knowing which way it cuts.
+   `harness.check_run()` is the whole of step 2 below in one call; it returns
+   findings rather than raising, so a malformed log lists every problem instead
+   of stopping at the first.
 
    ```bash
    python -c "

@@ -140,6 +140,14 @@ fingerprints. No XP, no levels, no skill graph.
       throughout, no stray analysis class, unique sequence indices, exclusions
       under the ceiling per arm, only committed tasks, every receipt matching
       the trial the schedule planned, and no dangling correction.
+- [x] **Jobs-directory walk** — `harness/jobs.py`. Trials are identified by
+      content, not depth, because a job directory carries its own
+      `result.json` beside the trials'. `ordered_trials()` ingests in run order
+      from a mapping the runner must persist; `find_trials()` is for inspection
+      and says so.
+- [x] **End-to-end pass** — `tests/test_end_to_end.py`. The whole chain over a
+      synthetic Harbor jobs directory, in CI. It found two defects on its first
+      run; see `PILOT-0001/REHEARSAL.md`.
 - [ ] Wire the seam to a real Harbor job on the target machine (needs M−1).
 
 ## M0.0 — Noise floor · `blocked` on M−1 · [#10](https://github.com/bdf1992/HowDo/issues/10)

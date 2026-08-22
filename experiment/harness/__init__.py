@@ -8,6 +8,13 @@ it into receipts, and stores trajectories where a digest can find them.
 
 from .blobs import BlobError, BlobStore
 from .checks import Finding, RunReport, check_run
+from .jobs import (
+    JobsError,
+    TrialArtifacts,
+    find_trials,
+    ordered_trials,
+    store_artifacts,
+)
 from .schedule import (
     ScheduleError,
     ScheduledTrial,
@@ -34,14 +41,19 @@ __all__ = [
     "ScheduledTrial",
     "TrialSchedule",
     "IngestError",
+    "JobsError",
+    "TrialArtifacts",
     "QualificationCounts",
     "build_or_load",
     "build_schedule",
     "check_run",
     "count_runs",
+    "find_trials",
     "load_schedule",
+    "ordered_trials",
     "remaining",
     "save_schedule",
+    "store_artifacts",
     "ingest_trial",
     "qualify_task",
     "read_trial_result",

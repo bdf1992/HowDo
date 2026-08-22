@@ -64,6 +64,16 @@ class BlobStore:
         Trial trajectories arrive as directories. ``tar`` with sorted member
         names and no timestamps would be ideal; ``shutil.make_archive`` is not
         deterministic, so this builds the archive itself.
+
+        **The archive format is part of every digest that addresses a tree.**
+        Changing it -- adding compression, changing the member ordering, letting
+        a timestamp back in -- changes the digest of unchanged content, and
+        every receipt already citing that content becomes unverifiable. It is
+        free to change today because no real trial exists; it is not free
+        afterwards. Uncompressed tar is chosen for exactly that reason: it is
+        the format most likely to still be readable and reproducible in a
+        decade, and the padding it costs (10 KB per archive, minimum) is
+        irrelevant beside a receipt log that must outlive the tooling.
         """
         source = Path(path)
         if not source.is_dir():
