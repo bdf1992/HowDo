@@ -28,6 +28,7 @@ jobs:
         run: |
           python examples/jira_workflow.py
           python examples/portable_contract.py
+          python examples/issue_domain_how.py
 
   install:
     # The suite exercises the library; this exercises what a person actually

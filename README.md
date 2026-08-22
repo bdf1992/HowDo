@@ -1,4 +1,4 @@
-# How Do v0.8.0 + Runtime Toolkit
+# How Do v0.9.0 + Runtime Toolkit
 
 **How Do** is a small discipline for understanding-before-acting.
 
@@ -125,6 +125,35 @@ Python checks, but only on top of the contract's own.
 python examples/portable_contract.py   # one contract, three hosts
 ```
 
+## Issued artifacts
+
+A finished HowDo can leave a **domain-how** behind: one file per recurring
+concern, holding the map, the workflow, the contracts and invariants, and the
+worked example from the run that produced it.
+
+```python
+from howdo import issue, issue_from_run, read_index, ground
+
+how = issue_from_run(resolution, residual, concern="jira.workflow",
+                     contract=CONTRACT, map={"statuses": [...]})
+issue(how)                                   # -> ~/.howdo/domains/jira.workflow.json
+read_index(status="grounded", requires=host_capabilities)
+```
+
+It is minted from a run that happened, never from a plan. It stays `untested`
+until `ground()` promotes it on a residual that matched — and a revision drops
+the grounding its predecessor earned, so an edited map cannot inherit evidence
+about the old one. The index is rebuilt from the files, so it is a catalogue
+rather than a second source of truth.
+
+Artifacts live beside your context (`~/.howdo/domains/`, or `$HOWDO_DOMAINS`),
+outside the payload, for the reason `CONTEXT.md` does: an update replaces the
+skill without discarding what the work produced.
+
+```bash
+python examples/issue_domain_how.py   # run -> issue -> index -> ground -> staleness
+```
+
 ## Layout
 
 - `SKILL.md` — the skill itself: discipline, loop, agency modifier, persistence rules. This repo is the skill; install it as a directory.
@@ -134,8 +163,10 @@ python examples/portable_contract.py   # one contract, three hosts
 - `runtime/howdo/core.py` — zero-dependency operation protocol.
 - `runtime/howdo/context.py` — zero-dependency context lifetime helpers.
 - `runtime/howdo/contract.py` — portable request contracts: declared I/O shape, serializable checks, host binding.
+- `runtime/howdo/domain.py` — the issuer and index: domain-hows minted from runs, grounded by evidence.
 - `examples/jira_workflow.py` — ordinary workflow example.
 - `examples/portable_contract.py` — the same operation as a contract, offered to three hosts.
+- `examples/issue_domain_how.py` — a run that leaves a durable, indexed artifact behind.
 - `tests/` — runtime and context contract tests.
 - `ADVERSARIAL.md` — enforced attacks and declared boundaries.
 - `CONTRIBUTING.md` — lanes, rules, PR shape. `CHANGELOG.md` — versions.
@@ -146,9 +177,10 @@ python examples/portable_contract.py   # one contract, three hosts
 python -m unittest discover -s tests -v
 python examples/jira_workflow.py
 python examples/portable_contract.py
+python examples/issue_domain_how.py
 ```
 
-The bundle and Python package share release version `0.8.0`, so package identity
+The bundle and Python package share release version `0.9.0`, so package identity
 does not drift from the skill release.
 
 ## License

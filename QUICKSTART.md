@@ -1,4 +1,4 @@
-# How Do v0.8.0 — quickstart
+# How Do v0.9.0 — quickstart
 
 ## First run
 

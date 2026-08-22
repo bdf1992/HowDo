@@ -4,7 +4,7 @@ description: Understanding-before-acting discipline — bind the actor, map the 
 license: MIT
 metadata:
   author: bdo
-  version: "0.8.0"
+  version: "0.9.0"
   category: discipline
 ---
 
@@ -110,10 +110,10 @@ A paradigm that lives only in one turn cannot support changed-state behavior. Ke
 
 - **`CONTEXT.md` / context fork** — per-person and per-install, resolved as above; keep it out of shared version control by default (gitignore or a user-scoped path), because it records how one person takes explanations. Durable settled orientation for how this installation should present and interact: calibration domains, representation observations, liked/disliked structures, interaction observations, and LongHow settlements. It has its own context lineage and onboarding state.
 - **Rendering contract** — local projection for the current request. It may use the durable context but can differ whenever the task demands it. Do not force a learned preference where it harms the work.
-- **Domain-how** — one file per recurring concern: map, path, consequential contracts, invariants, one worked example, and revision.
+- **Domain-how** — one file per recurring concern: map, path, consequential contracts, invariants, one worked example, and revision. Issued rather than described: the runtime mints it from a run that actually happened, keeps it `untested` until an observed run grounds it, and indexes what exists by concern, workflow, and required capability.
 - **HowDo trace / operation record** — the bound actor, resolved revision, rendering used, gate result, observed evidence, residual, and settlement. This is history and evidence, not automatically part of durable context.
 - **LongHow** — compares multiple HowDo traces (or unusually strong explicit feedback) and proposes the smallest reusable context lesson. The person settles persistent edits.
-- **When to save domain-how.** On explicit ask, or after a how survives at least one do/look cycle. Never promote an untested exemplar simply because it sounded plausible.
+- **When to save domain-how.** On explicit ask, or after a how survives at least one do/look cycle. Never promote an untested exemplar simply because it sounded plausible — issuing records `untested`, only a residual that matched promotes it, and any revision drops the grounding its predecessor earned.
 - **When to update durable context.** Establishing the pedagogy may settle direct user feedback. Afterward, do not rewrite `CONTEXT.md` from every session. Route presentation residuals into traces; LongHow promotes only recurring or explicitly ratified lessons, with provenance and limits.
 - **When to load.** Load active durable context and relevant saved domain-how before establishing anything fresh. Resolve from saved state and say only what materially changes the current interaction.
 - **When to update a paradigm.** At settlement, only the layer supported by the residual. Accepted settlement rebases that layer into the next revision; it does not rebuild the whole paradigm.
@@ -175,6 +175,29 @@ latter claims a test ran that did not.
 
 Optional, like the rest of the runtime — `runtime/howdo/contract.py`, with
 `examples/portable_contract.py` offering one contract to three hosts.
+
+### Issued artifacts
+
+The loop produces understanding, and until a run leaves something behind, all of
+it is spent at the end of the session. Durable `CONTEXT.md` is a pedagogy and is
+barred from carrying domain facts, so a person's domain work had nowhere to land.
+
+A **domain-how** is that landing place, and the runtime issues it from a
+completed HowDo rather than from a plan: the run supplies the worked example, the
+contract supplies the path, shapes, and rules. Three rules keep an issuer from
+becoming a way to manufacture false ground. It is `untested` until a residual
+that *matched* grounds it. Any content revision drops the grounding its
+predecessor earned, because an observation of the old content says nothing about
+the new. And the index is rebuilt from the artifacts it describes, never trusted
+as a second authority — so a lost index is a rebuild, not a loss.
+
+One thing the kernel cannot do for a stored artifact: `admit` fizzles a stale
+resolution, but that protection ends at the process boundary, which is exactly
+where persistence begins. A grounded domain-how therefore records the paradigm
+revision it was observed against, and drift is something you can ask about
+rather than something that silently stops being true.
+
+`runtime/howdo/domain.py`; `examples/issue_domain_how.py` runs the whole arc.
 
 ## Handles
 

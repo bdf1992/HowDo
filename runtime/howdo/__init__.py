@@ -59,6 +59,27 @@ from .contract import (
     bind,
 )
 
+from .domain import (
+    DOMAIN_VERSION,
+    STATUS_GROUNDED,
+    STATUS_UNTESTED,
+    DomainError,
+    DomainHow,
+    IndexEntry,
+    Staleness,
+    WorkedExample,
+    domain_path,
+    ground,
+    issue,
+    issue_from_run,
+    load,
+    read_index,
+    reindex,
+    resolve_domain_root,
+    revise,
+    staleness,
+)
+
 from .core import (
     Admission,
     Agency,
@@ -82,6 +103,24 @@ from .core import (
 )
 
 __all__ = [
+    "DOMAIN_VERSION",
+    "STATUS_GROUNDED",
+    "STATUS_UNTESTED",
+    "DomainError",
+    "DomainHow",
+    "IndexEntry",
+    "Staleness",
+    "WorkedExample",
+    "domain_path",
+    "ground",
+    "issue",
+    "issue_from_run",
+    "load",
+    "read_index",
+    "reindex",
+    "resolve_domain_root",
+    "revise",
+    "staleness",
     "CONTRACT_VERSION",
     "ELEMENT_TYPES",
     "OPS",

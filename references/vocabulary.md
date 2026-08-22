@@ -18,6 +18,9 @@ Terms below map to established practice so a reader from outside can audit them.
 | gate | admission check | the brink between a resolved request and an admitted operation |
 | request contract | interface / schema / IDL | one operation's declared inputs, result shape, checks, and host requirements, stated as data so they travel |
 | shape | type declaration | which keys a mapping must carry, of which types, and whether undeclared ones are admitted |
+| domain-how | runbook / playbook artifact | one recurring concern's map, workflow, contracts, worked example, and revision, issued into the store |
+| index | catalogue / materialized view | what has been issued, rebuilt from the artifacts rather than trusted as a second authority |
+| grounded | evidence-backed | an issued artifact a matching run confirmed; the opposite is `untested`, and a revision returns it there |
 | host | runtime environment | where an operation actually runs; declares the capabilities and write authority a contract binds against |
 | operation | command / effectful call | an admitted attempt to traverse the path |
 | observation | independent evidence | what can be checked about the actual result |
