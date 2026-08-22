@@ -11,12 +11,9 @@ no hook, no agent, no `settings.json`, nothing that would make the discipline
 ambient. That restraint is not conservatism, it is the roadmap's gate — see
 *Deliberately not done* below before adding a component.
 
-**Two of three parity items are closed. One remains, and it still gates the
-merge.** Item 2 is a real difference between the two install paths: a person
-who installs the plugin never sees the note the installer prints. It is not
-packaging work — the only obvious fix is a `SessionStart` hook, and whether
-that is admissible is a question about the discipline, not about packaging.
-It needs a decision, not an implementation.
+**Parity is closed.** All three items are done and the branch is a merge
+candidate. What the lane still deliberately does *not* do is in
+*Deliberately not done* at the end — read it before adding a component.
 
 ---
 
@@ -71,7 +68,9 @@ root layout for exactly this reason.
 - `install.py::report()` — plugin-aware. A plugin root is judged by its
   manifest name; the directory is free. An ordinary skill dir still has to
   match `SKILL.md`.
-- `tests/test_plugin.py` — 28 tests of 302. Parity is asserted **in both directions**
+- `plugin/hooks/hooks.json` + `howdo-context --notice` — the first-run notice, `systemMessage` only, silent once answered.
+- `plugin/runtime/howdo/notice.py` — the note's single source, shared with `install.py`.
+- `tests/test_plugin.py` — 42 tests of 479, including `NoticeTests`. Parity is asserted **in both directions**
   against `copy_payload`'s output rather than a second file list.
 - CI `plugin:` job — appended at the end of `tests.yml` deliberately, so it
   cannot conflict with in-flight edits to the `suite:` job.
@@ -95,23 +94,29 @@ the file as committed. It is the fifth place `test_release.py` holds aligned.
 Do not try to restore the derived version — an earlier revision of this
 document forbade pinning it, and a test now asserts the opposite.
 
-### 2. `CONFIGURATION_NOTE` never reaches a plugin user — OPEN, still gates parity
+### 2. ~~`CONFIGURATION_NOTE` never reaches a plugin user~~ — CLOSED
 
-`install.py` prints a person-facing note on a fresh install explaining the
-onboarding conversation and both opt-outs. `tests/test_release.py::InstallerNoteTests`
-guards its content carefully. A `/plugin install` never runs `install.py`, so
-that note reaches nobody.
+A `SessionStart` hook now says it. The design question this raised was real and
+was decided by the repository owner, not inside this lane: `SKILL.md` refuses
+to load the discipline uninvited, and a shipped hook looks like a contradiction
+of that.
 
-This is a degraded first run, not a broken one: `SKILL.md` still gates
-onboarding at the first substantive HowDo, so the conversation happens — the
-person just never got the heads-up that explains it and offers the decline.
+**It is not, and the reason is mechanical rather than a matter of intent.** The
+hook emits `systemMessage` with `suppressOutput` and never `additionalContext`,
+so it reaches the person and puts nothing in the agent's context. The
+discipline is not loaded; the next request resolves as if the hook had not run.
+Confirmed two ways: `claude plugin details` reports the hook as "harness-only —
+no model context cost", and a headless session with a fresh store answered
+`SAW_NOTE=NO` while still resolving the skill as `/how-do`.
 
-**Do not reach for a `SessionStart` hook without deciding the doctrine question
-first.** A hook that speaks before being asked is close to the line `SKILL.md`
-draws in *Refuses* — "Loading the discipline uninvited." A note that only
-explains a pending conversation may be admissible where injected context is
-not, but that is a skill-text decision, not a packaging one. Raise it as a
-skill-text change with a trace, per `CONTRIBUTING.md`.
+That line is now stated in `SKILL.md` rather than left inferable, and *Refuses*
+names the widened form. `ADVERSARIAL.md` carries ten invariants and
+`tests/test_plugin.py::NoticeTests` enforces them.
+
+**If you touch the hook, the invariant to preserve is one sentence: it may
+never emit `additionalContext`.** The moment it does, the refusal in `SKILL.md`
+becomes false and the plugin is loading the discipline uninvited. If the note
+needs to say more, that is a sign the conversation should say it instead.
 
 ### 3. ~~The plugin ships PILOT-0001~~ — CLOSED
 
@@ -158,7 +163,7 @@ git merge --abort; git checkout <this-branch>; git branch -D probe
 ## Verifying this lane
 
 ```bash
-python -m unittest discover -s tests -v        # 470 tests, no skips
+python -m unittest discover -s tests -v        # 479 tests, no skips
 python plugin/examples/jira_workflow.py
 python plugin/examples/portable_contract.py
 python plugin/examples/issue_domain_how.py
@@ -206,12 +211,20 @@ claude plugin list                     # expect: how-do@skills-dir, loaded
 
 ## Deliberately not done
 
-Five plugin slots are empty on purpose.
+Four plugin slots are empty on purpose, and the fifth is deliberately narrow.
 
-`hooks/`, and `settings.json` with an `agent` key, would make How Do load
-without being asked. `SKILL.md` *Refuses* names that directly, and its
-*When this runs* section is built on being requested rather than ambient.
-Adding either is a discipline change wearing packaging clothes.
+`hooks/` holds exactly one entry: a `SessionStart` notice that reaches the
+person and never the agent's context. That is the whole of what it may ever be.
+The refusal it lives beside is not "no hooks" — it is that nothing may put
+skill content into the agent's context before it is asked for, which is why the
+`additionalContext` invariant, not the existence of `hooks/`, is the thing to
+protect. A second hook, or this one growing a context payload, is a discipline
+change wearing packaging clothes.
+
+`settings.json` with an `agent` key stays empty and is the clearer case: it
+activates How Do as the main-thread agent, which is the discipline running
+unasked in the plain sense, with no mechanical distinction available to rescue
+it.
 
 `monitors/`, `.mcp.json`, and `.lsp.json` have no fit.
 

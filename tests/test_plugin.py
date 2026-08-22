@@ -237,6 +237,131 @@ class TrackedRootTests(unittest.TestCase):
         )
 
 
+class NoticeTests(unittest.TestCase):
+    """The one thing How Do says before it is asked anything.
+
+    `SKILL.md` refuses to load the discipline uninvited, and this plugin ships
+    a `SessionStart` hook. Those coexist because of exactly three properties,
+    and a claim in a document is not one of them -- so each is asserted here.
+    If any of these fails, the hook has stopped being a notice and the refusal
+    in `SKILL.md` has become false.
+    """
+
+    def _run(self, store: Path, *args: str):
+        environment = dict(os.environ)
+        environment.pop("CLAUDE_PLUGIN_DATA", None)
+        environment["HOWDO_CONTEXT"] = str(store)
+        return subprocess.run(
+            [sys.executable, str(PAYLOAD / "bin" / "howdo-context"), "--notice", *args],
+            capture_output=True, text=True, env=environment, cwd=tempfile.gettempdir(),
+        )
+
+    def _settled(self, tmp) -> Path:
+        store = Path(tmp) / "CONTEXT.md"
+        subprocess.run(
+            [sys.executable, str(PAYLOAD / "bin" / "howdo-context"), "--ensure"],
+            capture_output=True, text=True, cwd=tempfile.gettempdir(),
+            env={**os.environ, "HOWDO_CONTEXT": str(store)},
+        )
+        return store
+
+    def test_it_never_emits_model_context(self):
+        """The property the whole doctrine rests on.
+
+        `systemMessage` reaches the person. `additionalContext` reaches the
+        model, and the moment this hook emits it the plugin is loading the
+        discipline uninvited.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            result = self._run(Path(tmp) / "CONTEXT.md")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            payload = json.loads(result.stdout)
+            self.assertNotIn("additionalContext", json.dumps(payload))
+            emitted = payload["hookSpecificOutput"]
+            self.assertEqual(emitted["hookEventName"], "SessionStart")
+            self.assertTrue(emitted["suppressOutput"])
+            # The two halves that make it a notice rather than an advert: it
+            # says a conversation is coming, and it says you may refuse it.
+            self.assertIn("the first conversation works it out with you",
+                          emitted["systemMessage"])
+            self.assertIn("You can also say no", emitted["systemMessage"])
+
+    def test_it_speaks_when_the_question_has_no_answer_yet(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            for store in (Path(tmp) / "absent.md", self._settled(tmp)):
+                with self.subTest(store=store.name):
+                    self.assertTrue(self._run(store).stdout.strip())
+
+    def test_it_is_silent_once_the_question_has_an_answer(self):
+        """Declined and deferred are answers. Re-asking is the nagging the
+        discipline refuses, and silence is how that refusal is kept here."""
+        from howdo.context import decline_onboarding, defer_onboarding  # noqa: PLC0415
+
+        for settle in (decline_onboarding, defer_onboarding):
+            with self.subTest(settle=settle.__name__), tempfile.TemporaryDirectory() as tmp:
+                store = self._settled(tmp)
+                settle(store)
+                self.assertEqual(self._run(store).stdout.strip(), "",
+                                 f"the notice speaks after {settle.__name__}")
+
+    def test_silence_is_empty_rather_than_an_empty_object(self):
+        """`SessionStart` stdout becomes context when it is not valid JSON, so
+        the quiet path must emit nothing at all rather than something small."""
+        from howdo.context import decline_onboarding  # noqa: PLC0415
+
+        with tempfile.TemporaryDirectory() as tmp:
+            store = self._settled(tmp)
+            decline_onboarding(store)
+            self.assertEqual(self._run(store).stdout, "")
+
+    def test_it_reads_and_never_writes(self):
+        """Ignoring the notice must leave the person exactly where they were."""
+        with tempfile.TemporaryDirectory() as tmp:
+            store = Path(tmp) / "CONTEXT.md"
+            self._run(store)
+            self.assertFalse(store.exists(), "the notice instantiated the store")
+
+    def test_a_broken_store_does_not_break_every_session(self):
+        """A hook that raises would open every session with an error about a
+        file nobody asked about. Quiet is the correct failure."""
+        with tempfile.TemporaryDirectory() as tmp:
+            store = Path(tmp) / "CONTEXT.md"
+            store.write_text("not a context file at all\n", encoding="utf-8")
+            result = self._run(store)
+            self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_the_hook_is_declared_and_points_at_something_that_exists(self):
+        config = json.loads((PAYLOAD / "hooks" / "hooks.json").read_text(encoding="utf-8"))
+        entries = config["hooks"]["SessionStart"]
+        commands = [h["command"] for entry in entries for h in entry["hooks"]]
+        self.assertEqual(len(commands), 1, "more than one SessionStart hook ships")
+        command = commands[0]
+        self.assertIn("--notice", command)
+        self.assertIn("${CLAUDE_PLUGIN_ROOT}", command,
+                      "the hook hard-codes a path that moves on every update")
+        self.assertTrue((PAYLOAD / "bin" / "howdo-context").is_file())
+
+    def test_only_a_session_start_hook_ships(self):
+        """Five plugin slots are empty on purpose; this guards the sixth from
+        quietly growing. A hook on any other event is not a first-run notice."""
+        config = json.loads((PAYLOAD / "hooks" / "hooks.json").read_text(encoding="utf-8"))
+        self.assertEqual(list(config["hooks"]), ["SessionStart"])
+
+    def test_the_note_has_exactly_one_source(self):
+        """Two copies of a text this carefully worded would drift on the first
+        edit, and only one of them is covered by the installer's tests."""
+        from howdo.notice import CONFIGURATION_NOTE  # noqa: PLC0415
+
+        self.assertEqual(install.CONFIGURATION_NOTE, CONFIGURATION_NOTE)
+        with tempfile.TemporaryDirectory() as tmp:
+            spoken = json.loads(self._run(Path(tmp) / "CONTEXT.md").stdout)
+            self.assertEqual(
+                spoken["hookSpecificOutput"]["systemMessage"],
+                CONFIGURATION_NOTE.strip(),
+                "the hook and the installer say different things",
+            )
+
+
 class ParityTests(unittest.TestCase):
     """The plugin root is the ordinary payload plus a manifest and bin/."""
 

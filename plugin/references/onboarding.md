@@ -126,6 +126,34 @@ are used. It does not need another round of questions.
 weakest evidence source in the system. Traces from real work beat anything
 established at the door. Get enough to start, then let the work correct you.
 
+## The notice that announces this
+
+On a plugin install a `SessionStart` hook runs `howdo-context --notice`, which
+tells the person that this conversation is pending and how to decline or
+postpone it. Three properties make it admissible, and all three are enforced in
+code rather than trusted:
+
+- **It reaches the person, never the agent.** It emits `systemMessage` with
+  `suppressOutput`, and never `additionalContext`. Nothing enters the model's
+  context, so the discipline is not loaded and the next request resolves as if
+  the hook had not run. `claude plugin details` reports the hook as
+  "harness-only — no model context cost".
+- **It speaks once, then never again.** It prints only when the store is
+  `missing` or `onboarding: required`. Settled, declined, and deferred are all
+  answers, and repeating the question at an answer is the nagging this
+  reference already forbids.
+- **It reads and never writes.** It does not instantiate the store, so a person
+  who ignores it entirely is in exactly the state they were in before.
+
+Do not widen it. The moment a hook emits `additionalContext`, it stops being a
+notice and becomes the discipline loading uninvited, which `SKILL.md` refuses.
+If the note ever needs to say more, that is a sign the conversation should say
+it instead — the note exists to make the conversation expected, not to replace
+any part of it.
+
+Installing without a plugin host prints the same words from `install.py`. The
+text has one source, `howdo.notice`, so the two cannot drift.
+
 ## Decline versus deferral
 
 Two different answers, two different states, and conflating them costs a calibration.

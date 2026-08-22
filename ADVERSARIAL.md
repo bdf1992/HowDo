@@ -18,6 +18,34 @@ The runtime is a small protocol kernel, not a complete trust system. v0.9 makes 
 | stale residual settles newer revision | refused |
 | multi-layer settlement by default | refused |
 
+## Enforced first-run notice invariants
+
+The plugin ships one `SessionStart` hook, and `SKILL.md` refuses to load the
+discipline uninvited. Those coexist only while the hook stays a notice to the
+person rather than context for the agent, so the distinction is enforced rather
+than asserted. `tests/test_plugin.py::NoticeTests` is the enforcement.
+
+| Attack | Response |
+|---|---|
+| hook emits `additionalContext` | no code path produces it; asserted absent from the whole payload |
+| hook speaks after a decline | silent — only `missing` and `onboarding_required` print |
+| hook speaks after a deferral | silent, same rule; a postponement is an answer |
+| hook nags a settled context | silent |
+| quiet path emits `{}` and is read as context | quiet path writes zero bytes |
+| hook instantiates the store as a side effect | reads only; store absent afterwards |
+| malformed store breaks every session start | caught; exits 0 silently |
+| hook hard-codes a path that moves on update | must use `${CLAUDE_PLUGIN_ROOT}` |
+| a second hook joins on another event | only `SessionStart` may be declared |
+| installer note and hook note drift apart | one source, `howdo.notice`; equality asserted |
+
+## Declared boundaries
+
+The notice reaches whatever the host does with `systemMessage`. If a host ever
+routed that into model context, the boundary would move without this repository
+changing — the guarantee is "we never emit `additionalContext`", not a claim
+about what a host does with what we do emit. `claude plugin details` reporting
+the hook as harness-only is the current corroboration, not a contract.
+
 ## Enforced request-contract invariants
 
 Optional runtime surface. These hold for `runtime/howdo/contract.py`, and the

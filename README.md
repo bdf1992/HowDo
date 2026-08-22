@@ -48,6 +48,13 @@ The skill stays `/how-do`. `SKILL.md` sits at the plugin root rather than under
 `skills/`, which is what keeps the invocation un-namespaced — a `skills/how-do/`
 layout would make it `/how-do:how-do`.
 
+A plugin install also gets the one thing How Do says before it is asked
+anything: a `SessionStart` hook tells the **person** that a short setup
+conversation is pending and that they may decline or postpone it. It reaches
+the person and puts nothing in the agent's context, so the discipline is not
+loaded and the next request resolves as if the hook had not run. It goes quiet
+permanently once the question has an answer.
+
 Two things come with the plugin host. `$CLAUDE_PLUGIN_DATA` is a directory it
 guarantees will survive updates, so the durable store no longer depends on this
 repository choosing a safe path. And `bin/` joins the shell `PATH` while the
@@ -231,6 +238,8 @@ it is a repository concern, which is why nothing has to hold `tests/` and
 - `plugin/runtime/howdo/emit.py` — render an artifact as an Agent Skill bundle or a Claude Code workflow script.
 - `plugin/examples/` — `jira_workflow.py` (ordinary workflow), `portable_contract.py` (one operation offered to three hosts), `issue_domain_how.py` (a run that leaves a durable artifact).
 - `plugin/bin/howdo-context` — store inspection from anywhere; on `PATH` under a plugin host.
+- `plugin/hooks/hooks.json` — one `SessionStart` hook: tells the person a setup conversation is pending, and puts nothing in the agent's context.
+- `plugin/runtime/howdo/notice.py` — the text that hook and `install.py` share, so they cannot drift.
 - `.claude-plugin/marketplace.json` — the marketplace entry pointing at `plugin/`.
 - `install.py` — the non-plugin install path: copies `plugin/` into a skills directory.
 - `tests/` — runtime, context, and packaging contract tests.

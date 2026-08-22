@@ -4,6 +4,33 @@ Versions are aligned across `plugin/SKILL.md`, `README.md`, `pyproject.toml`, `p
 
 ## Unreleased
 
+- **How Do says one thing before it is asked anything, and the line it stands
+  on is mechanical.** A plugin install never runs `install.py`, so the note
+  explaining the pending setup conversation — and offering both ways out of it
+  — reached nobody. A `SessionStart` hook now says it. That looks like a
+  contradiction of *Refuses*, which forbids loading the discipline uninvited,
+  and the resolution is not a matter of intent: the hook emits `systemMessage`
+  with `suppressOutput` and never `additionalContext`, so it reaches the person
+  and puts zero tokens in the agent's context. No pedagogy is read, no loop is
+  entered, and the request that follows resolves exactly as it would have with
+  the hook absent. `claude plugin details` reports it as "harness-only — no
+  model context cost", and a headless session with a fresh store confirmed the
+  model cannot see the note while the skill still loads.
+
+  `SKILL.md` now states the distinction rather than leaving it inferable, and
+  *Refuses* names the widened form: any hook, monitor, or default that puts
+  skill content into the agent's context before it is asked for. Ten invariants
+  in `ADVERSARIAL.md` hold the line — no `additionalContext` anywhere in the
+  payload, silence after a decline or a deferral, zero bytes on the quiet path
+  so stdout is never read as context, reads that never write, and only
+  `SessionStart` may ever be declared.
+
+- **The note has one source.** It lived in `install.py`, which is a repository
+  concern and never ships, so the hook could not reach it. It moved to
+  `howdo.notice` inside the payload, `install.py` imports it, and a test asserts
+  the installer and the hook say the same words. The installer's existing note
+  tests kept passing unchanged.
+
 - **The tripwire fired itself.** This lane left a skipped test asserting that
   no file in the shipped plugin names PILOT-0001, skipping on a condition that
   would clear when the adapter moved out of the payload. #12 moved it. The test

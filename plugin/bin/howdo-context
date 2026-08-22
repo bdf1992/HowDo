@@ -11,6 +11,7 @@ while the plugin is enabled, so ``howdo-context`` is addressable from anywhere.
     howdo-context            report the store's state
     howdo-context --ensure   instantiate it from the template if it is missing
     howdo-context --path     print the resolved store path and nothing else
+    howdo-context --notice   SessionStart hook: tell the person, not the agent
 
 Exit status is 0 when the store is usable (including a deliberate decline or
 deferral) and 1 when it is invalid, forked, or absent under ``--path``.
@@ -19,6 +20,7 @@ deferral) and 1 when it is invalid, forked, or absent under ``--path``.
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
 from pathlib import Path
@@ -47,6 +49,7 @@ try:
         inspect_context,
         resolve_context_path,
     )
+    from howdo.notice import CONFIGURATION_NOTE, UNSETTLED  # noqa: E402
 except ModuleNotFoundError:  # pragma: no cover - depends on how it was copied
     print(f"howdo-context: no runtime/ under {ROOT}", file=sys.stderr)
     print("the payload was copied by hand, or CLAUDE_PLUGIN_ROOT is wrong", file=sys.stderr)
@@ -58,6 +61,51 @@ except ModuleNotFoundError:  # pragma: no cover - depends on how it was copied
 BROKEN = {"invalid", "fork_required"}
 
 
+def notice(store: Path) -> int:
+    """Say the one thing How Do says before it is asked anything.
+
+    This runs from a `SessionStart` hook, so it is the only part of the skill
+    that speaks unprompted -- and the shape of what it emits is what keeps that
+    admissible. `systemMessage` reaches the person; `suppressOutput` keeps it
+    out of the transcript body; neither puts a single token into the model's
+    context. The skill is not loaded, no pedagogy is read, and nothing about
+    the discipline is in play. A person is told that a conversation is coming
+    and how to decline it.
+
+    `additionalContext` is the field that would change that, and this function
+    must never emit it. A test asserts so.
+
+    Silence is the common case. Once the question has an answer -- settled,
+    declined, or postponed -- repeating it is the nagging the discipline
+    refuses, so anything outside `UNSETTLED` prints nothing at all. Empty
+    stdout adds no context; that is the point of returning early rather than
+    emitting an empty object.
+    """
+    try:
+        state = inspect_context(store).state
+    except Exception:
+        # A hook that fails loudly on a malformed store would make every
+        # session start with an error about a file the person did not ask
+        # about. Staying quiet is the correct failure here.
+        return 0
+
+    if state not in UNSETTLED:
+        return 0
+
+    json.dump(
+        {
+            "hookSpecificOutput": {
+                "hookEventName": "SessionStart",
+                "systemMessage": CONFIGURATION_NOTE.strip(),
+                "suppressOutput": True,
+            }
+        },
+        sys.stdout,
+    )
+    sys.stdout.write("\n")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--context", type=Path, default=None,
@@ -66,6 +114,9 @@ def main(argv: list[str] | None = None) -> int:
                         help="instantiate from the shipped template if missing")
     parser.add_argument("--path", action="store_true",
                         help="print the resolved store path and exit")
+    parser.add_argument("--notice", action="store_true",
+                        help="SessionStart hook mode: emit the first-run notice for the "
+                             "person, as systemMessage only, never as model context")
     args = parser.parse_args(argv)
 
     store = resolve_context_path(args.context)
@@ -73,6 +124,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.path:
         print(store)
         return 0
+
+    if args.notice:
+        return notice(store)
 
     if args.ensure:
         status = ensure_context(store, template=ROOT / "CONTEXT.template.md")
