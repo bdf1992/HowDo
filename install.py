@@ -85,7 +85,11 @@ NOISE = shutil.ignore_patterns(
 MANIFEST_SOURCE = REPO / "packaging" / "plugin.json"
 MANIFEST_DIR = ".claude-plugin"
 MANIFEST_NAME = "plugin.json"
-PLUGIN_EXTRA = ("bin",)
+# Plugin-only components. A bare skills directory has no PATH to join and no
+# hook loader, so shipping these there would be dead weight -- but a plugin
+# host loads both, and the parity test treats anything in plugin/ that no
+# install path claims as a drift waiting to happen.
+PLUGIN_EXTRA = ("bin", "hooks")
 
 
 def skill_name(skill_md: Path) -> str:

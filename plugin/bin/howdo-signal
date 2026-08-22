@@ -1,0 +1,124 @@
+#!/usr/bin/env python3
+"""PostToolUse hook: record an operation the model declared and the disk confirms.
+
+Reads a hook payload on stdin, finds the file the session just wrote, and if
+that file carries a How Do header, appends one signal line beside the durable
+store.
+
+It is off unless the person turned it on. `automated_onboarding: on` in the
+store's frontmatter is the switch, and its absence means off -- so an install
+that never opts in never records anything, and the observation surface cannot
+arrive by surprise. That opt-in is also what makes this admissible at all: a
+hook that watched without being asked would be the ambience `SKILL.md` refuses,
+and one the person switched on is not.
+
+Silence is the default in every direction. Most files a session writes have
+nothing to do with How Do; most sessions have the switch off. A hook that
+spoke up for either would be noise on every edit.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import sys
+from pathlib import Path
+
+
+def _plugin_root() -> Path:
+    declared = os.environ.get("CLAUDE_PLUGIN_ROOT")
+    if declared:
+        return Path(declared).expanduser().resolve()
+    return Path(__file__).resolve().parent.parent
+
+
+ROOT = _plugin_root()
+sys.path.insert(0, str(ROOT / "runtime"))
+
+# Recording is a side errand on someone else's tool call. Anything unexpected
+# here must cost them nothing, so every failure below exits 0 in silence.
+try:
+    from howdo.context import inspect_context, resolve_context_path
+    from howdo.signal import (
+        SignalError,
+        append,
+        signal_from_header,
+        signal_log_path,
+    )
+except Exception:  # pragma: no cover - depends how the payload was copied
+    raise SystemExit(0)
+
+
+SWITCH = "automated_onboarding"
+ON = {"on", "true", "yes", "1", "enabled"}
+
+# Only tools that put bytes on disk. A signal is about an artifact existing;
+# a read or a search has no artifact to confirm.
+WRITING_TOOLS = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
+
+
+def enabled(store: Path) -> bool:
+    """Whether this person switched the observation surface on."""
+    try:
+        from howdo.context import _frontmatter  # noqa: PLC0415
+
+        if not store.is_file():
+            return False
+        metadata = _frontmatter(store.read_text(encoding="utf-8"))
+    except Exception:
+        return False
+    return metadata.get(SWITCH, "").strip().lower() in ON
+
+
+def main() -> int:
+    try:
+        payload = json.load(sys.stdin)
+    except Exception:
+        return 0
+    if not isinstance(payload, dict):
+        return 0
+
+    tool = payload.get("tool_name", "")
+    if tool not in WRITING_TOOLS:
+        return 0
+
+    written = (payload.get("tool_input") or {}).get("file_path")
+    if not written:
+        return 0
+
+    store = resolve_context_path(None)
+    if not enabled(store):
+        return 0
+
+    target = Path(written)
+    try:
+        text = target.read_text(encoding="utf-8", errors="ignore")
+    except OSError:
+        # The file the tool reported is gone or unreadable. Nothing to confirm,
+        # so nothing to record -- the absence is the observation.
+        return 0
+
+    try:
+        signal = signal_from_header(
+            text,
+            path=str(target),
+            tool=tool,
+            session=str(payload.get("session_id", "")),
+        )
+    except SignalError:
+        # A declared stage outside the loop is a typo in the header, not an
+        # event worth logging and not worth interrupting the session over.
+        return 0
+
+    if signal is None:
+        return 0
+
+    try:
+        append(signal, signal_log_path(store))
+    except OSError:
+        return 0
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
