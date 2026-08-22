@@ -4,6 +4,18 @@ Versions are aligned across `SKILL.md`, `README.md`, `pyproject.toml`, and `CONT
 
 ## Unreleased
 
+- **The contribution rules had no lane the experiment could enter through.**
+  Attack, Fix, and Skill text all require a residual from real use, and rule 8
+  requires a trace that could not be served without the change — but producing
+  the first trace is what the measurement work exists to do, so every research
+  PR had to argue its way past rules written for a released discipline. A fourth
+  lane now carries its own: treatment before implementation, preregistration
+  before confirmatory data, raw evidence never rewritten, experimental code
+  never implying promotion, the payload boundary enforced by test rather than
+  asserted, and cross-boundary imports declared in the importing module with
+  their direction. The PR shape gains `experiment` as a layer and a `Promotes:`
+  line whose honest answer is almost always `no`.
+
 - **The experiment/release boundary was a claim in a document, not a fact about
   the filesystem.** `ROADMAP.md` said `experiment/` is outside the installed
   skill, but `install.py` copies all of `runtime/`, the pilot adapter lived at

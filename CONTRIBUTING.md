@@ -12,13 +12,15 @@ The goalposts. Move one only with a residual from real use, never because a prob
 - It **is not** a trust boundary, an agent framework, an identity or custody system, a pronoun parser, or the interviewer. Anything the kernel cannot prove is written in `ADVERSARIAL.md` as a declared boundary, not hidden.
 - The runtime must never become more complex than the work it protects.
 
-## Three lanes
+## Four lanes
 
 **Attack.** Reproduce a way the kernel or context module breaks a promise it makes. Open an issue with the shortest script that shows it (see `ADVERSARIAL.md` for the shape). An attack that only defeats a *declared* boundary is a doc issue, not a bug.
 
 **Fix.** Close an attack. A kernel change ships with a test named for the invariant it protects (`test_admission_is_single_use`, not `test_fix_bug_12`), and `ADVERSARIAL.md` moves the row from declared to enforced, or adds it.
 
 **Skill text.** Change `SKILL.md`, `CONTEXT.md`, or the examples. Justify with a trace: what request, which actor, what was rendered, what the residual was, which one layer it indicts.
+
+**Experiment.** Change anything under `experiment/`. This lane exists because measurement work does not obey the other three: it has no residual from real use yet — producing one is the whole point — and rule 8 cannot be satisfied by a trace that does not exist. It gets its own rules, below, and its own goalposts. Nothing in this lane is a How Do release, and code here never earns promotion by being well made.
 
 ## Rules that will block a merge
 
@@ -30,6 +32,17 @@ The goalposts. Move one only with a residual from real use, never because a prob
 6. **The actor is a modifier, not a fork.** `I / you / we / they` changes whose capability, authority, and evidence apply. It does not add a workflow, a loop, or a kernel branch.
 7. **Contexts are personal, and live outside the payload.** The store is resolved by `resolve_context_path()` and instantiated by `ensure_context()`; the settlement helpers refuse a target inside a skill payload unless it declares `scope: shared` or the caller passes `allow_payload=True`. Never commit a settled `CONTEXT.md` or any fork of one. The tracked file is `CONTEXT.template.md` and must inspect as `template`; a test guards that and that no `CONTEXT.md` is tracked. `.gitignore` excludes `CONTEXT.md` and `CONTEXT.*.md`, negating the template. Respect a persisted `onboarding: declined`, and treat `onboarding: deferred` as an open offer rather than a refusal.
 8. **No new subsystems without use.** Persistence backends, parsers, orchestration, hosting, plugin systems: proposals need a real HowDo trace that could not be served without them.
+
+### Rules for the experiment lane
+
+These replace rule 8 inside `experiment/` and add to the rest. Rules 1, 3, and 4 still apply unchanged: an experiment PR may not falsify an enforced row, must test the promise it makes, and may not drift the release version.
+
+9. **Treatment before implementation.** What is being administered is written and frozen before the code that administers it. An adapter built first will define the treatment by accident, and the definition will be whatever was convenient to build.
+10. **Preregistration before confirmatory data.** No confirmatory trial runs before `PREREGISTRATION.md` names the endpoints, the analysis, the effect threshold, and the STOP condition. Analysis chosen after results are visible is exploratory, and must be labelled exploratory in the writeup. Adding an endpoint after seeing the data is not a fix.
+11. **Raw evidence is never rewritten.** Receipts are append-only. A wrong receipt is corrected by appending a correction that references it, never by editing or deleting it. A PR that mutates historical evidence is closed regardless of what it fixes.
+12. **Experimental code does not imply skill promotion.** Landing on the experiment branch grants nothing. Promotion into `runtime/` or `SKILL.md` requires evidence that the discipline changed an outcome, and is a separate PR in a separate lane. "The implementation is clean" is not evidence.
+13. **The payload boundary is enforced, not asserted.** `install.py` copies `runtime/`; nothing under `experiment/` may be reachable from an ordinary install, and no payload file may name a specific experiment. `tests/test_release.py` checks this by installing into a temporary directory.
+14. **Cross-boundary dependencies are explicit or refused.** Experiment code may import from `runtime/howdo`; the reverse never happens. Where an experiment module depends on kernel internals, its docstring states the dependency and its direction, so that a later kernel change breaks the experiment loudly rather than the skill silently. A change to `runtime/` made *for* the experiment is a cross-layer PR under rule 2 and must say so.
 
 ## Running the suite
 
@@ -45,12 +58,15 @@ Zero dependencies; Python ≥ 3.10. `.github/workflows/tests.yml` runs the suite
 Fill these in; short is fine, missing is not.
 
 ```
-Layer:     kernel | context | skill-text | docs
+Layer:     kernel | context | skill-text | docs | experiment
 Residual:  what broke, or what real use surfaced (link the issue or paste the trace)
+           (experiment lane: what the change makes measurable, or what it stops
+            the measurement from being able to claim)
 Map:       the parts and relations this touches
 Path:      what changed, in order
 Check:     the test(s) that would fail if the promise broke
 Declared:  any boundary added to or removed from ADVERSARIAL.md
+Promotes:  experiment lane only — `no`, or the evidence that earns it
 ```
 
 Commit messages follow the same idea: name the invariant or the residual, not the file.
