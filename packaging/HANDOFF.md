@@ -11,9 +11,12 @@ no hook, no agent, no `settings.json`, nothing that would make the discipline
 ambient. That restraint is not conservatism, it is the roadmap's gate — see
 *Deliberately not done* below before adding a component.
 
-**The branch does not merge until parity is closed.** One item is now closed;
-two remain, and neither can be closed from inside this lane alone. They are
-listed with what unblocks each.
+**Two of three parity items are closed. One remains, and it still gates the
+merge.** Item 2 is a real difference between the two install paths: a person
+who installs the plugin never sees the note the installer prints. It is not
+packaging work — the only obvious fix is a `SessionStart` hook, and whether
+that is admissible is a question about the discipline, not about packaging.
+It needs a decision, not an implementation.
 
 ---
 
@@ -92,7 +95,7 @@ the file as committed. It is the fifth place `test_release.py` holds aligned.
 Do not try to restore the derived version — an earlier revision of this
 document forbade pinning it, and a test now asserts the opposite.
 
-### 2. `CONFIGURATION_NOTE` never reaches a plugin user — blocks parity
+### 2. `CONFIGURATION_NOTE` never reaches a plugin user — OPEN, still gates parity
 
 `install.py` prints a person-facing note on a fresh install explaining the
 onboarding conversation and both opt-outs. `tests/test_release.py::InstallerNoteTests`
@@ -110,59 +113,37 @@ explains a pending conversation may be admissible where injected context is
 not, but that is a skill-text decision, not a packaging one. Raise it as a
 skill-text change with a trace, per `CONTRIBUTING.md`.
 
-### 3. The plugin ships PILOT-0001 — blocked on PR #12
+### 3. ~~The plugin ships PILOT-0001~~ — CLOSED
 
-`tests/test_plugin.py::ParityTests::test_the_plugin_names_no_experiment` is
-**skipped, not passing.** `plugin/runtime/howdo/environment.py` is the pilot
-adapter and `plugin/runtime/howdo/__init__.py` re-exports its API.
+#12 merged and moved the adapter to `experiment/PILOT-0001/adapter/`, out of
+the payload. The tripwire this lane left behind
+(`test_the_plugin_names_no_experiment`) stopped skipping on its own, ran, and
+passed. Nothing in `plugin/` names the pilot.
 
-The move made this sharper rather than fixing it. The adapter used to be
-copied into an install by an assembler; it is now **tracked inside the
-directory that ships verbatim**. Same defect, more visible, and no longer
-something a build step could be taught to filter — which is the correct
-pressure, since the answer was always to move the file out rather than to
-filter it.
-
-Nothing to do here. The skip condition is
-`(PAYLOAD / "runtime" / "howdo" / "environment.py").exists()`, which clears
-when #12 moves the adapter to `experiment/PILOT-0001/adapter/`. Verified that
-it activates: with the adapter removed the test runs and correctly flags the
-remaining `__init__.py` re-exports, so it also catches a partial fix. See the
-collision map for the exact merge resolution.
+The suite now has **no skips at all**. Any skip is a regression.
 
 ## Collision map
 
-Dry-run merges as of `15bfee2`, against `origin/main` after #13 and #15:
+Nothing is in flight against this lane. #13, #15, and #12 have all merged and
+all three are absorbed.
 
-| in flight | conflicts with this lane |
-|---|---|
-| **#12** `claude/skill-graph-benchmark-index-s1vxax` | `environment.py` (rename/rename), `tests/test_environment_context.py` |
-| `experiment/m0-harbor-runner` | the same, plus `CHANGELOG.md` |
-
-**This got worse when the payload moved, and it was worth it.** Both branches
-move `runtime/howdo/environment.py`, to different places: this lane took it to
-`plugin/runtime/howdo/environment.py` along with the rest of the payload, and
-#12 takes it to `experiment/PILOT-0001/adapter/environment.py`. Git reports a
-rename/rename conflict on three paths at once.
-
-**The resolution is not a judgement call — #12 is right.** That file is the
-pilot adapter and does not belong in the payload at all. When merging:
+The one that mattered is recorded here because it will look strange in the
+history otherwise. #12 and this lane both moved `runtime/howdo/environment.py`,
+to different places — here to `plugin/runtime/` with the rest of the payload,
+there to `experiment/PILOT-0001/adapter/`. Git reported a rename/rename
+conflict across three paths. **#12 won, correctly**: that file is the pilot
+adapter and never belonged in the payload. The resolution was:
 
 ```bash
-git rm plugin/runtime/howdo/environment.py          # ours: wrong home
+git rm plugin/runtime/howdo/environment.py           # ours: wrong home
 git add experiment/PILOT-0001/adapter/environment.py # theirs: correct home
-# then drop the pilot re-exports from plugin/runtime/howdo/__init__.py,
-# taking #12's version of that hunk
 ```
 
-Then `tests/test_environment_context.py` takes #12's version, repointed at
-`PAYLOAD` where it references payload files. After that,
-`test_the_plugin_names_no_experiment` stops skipping — see item 3.
+`tests/test_environment_context.py` then needed both paths, one on each side of
+the boundary: `PAYLOAD / "runtime"` for the runtime it tests, and
+`ROOT / "experiment" / "PILOT-0001"` for the adapter that imports across it.
 
 `howdo/payload-store-split` is empty against main. Stale; ignore.
-
-**Suggested order.** #12 next: it closes item 3 and the conflict above is
-mechanical once you know which side wins.
 
 To re-check collisions after anything moves:
 
@@ -177,7 +158,7 @@ git merge --abort; git checkout <this-branch>; git branch -D probe
 ## Verifying this lane
 
 ```bash
-python -m unittest discover -s tests -v        # 322 tests, exactly 1 skip (item 3)
+python -m unittest discover -s tests -v        # 470 tests, no skips
 python plugin/examples/jira_workflow.py
 python plugin/examples/portable_contract.py
 python plugin/examples/issue_domain_how.py
@@ -187,7 +168,7 @@ claude --plugin-dir ./plugin                   # loads the tracked root directly
 python install.py --target /tmp/skilldir && python install.py --target /tmp/skilldir --verify
 ```
 
-A second skip means something regressed — item 3 is the only sanctioned one.
+Any skip is a regression. The one that used to be sanctioned closed with #12.
 
 To watch it load for real:
 
@@ -202,8 +183,8 @@ claude plugin list                     # expect: how-do@skills-dir, loaded
 
 - **`plugin details` showing `Skills (0)` is expected.** Host reporting gap for
   the root-`SKILL.md` layout. The skill loads. Do not restructure to fix it.
-- **The single skip is expected.** See item 3. Do not delete the test to get a
-  clean run; it is a tripwire that arms itself.
+- **There are no sanctioned skips.** There used to be exactly one; it closed
+  when #12 landed. A skip now means something regressed.
 - **The manifest version IS tracked**, in `plugin/.claude-plugin/plugin.json`,
   and must match `plugin/SKILL.md`. An earlier revision of this lane derived it
   and forbade pinning it; that stopped being possible when the plugin root

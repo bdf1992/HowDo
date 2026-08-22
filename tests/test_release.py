@@ -1,5 +1,7 @@
+import os
 import re
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -531,6 +533,102 @@ class PayloadHygieneTests(unittest.TestCase):
             ]
             self.assertEqual(strays, [], f"install shipped build noise: {strays}")
 
+
+class ExperimentBoundaryTests(unittest.TestCase):
+    """The boundary between the skill and the research around it is a fact
+    about the filesystem, not a claim in a document.
+
+    An ordinary install copies ``runtime/``. If pilot code lives there, then
+    every installed user carries an experiment adapter, the release surface
+    silently includes it, and a decision to abandon the pilot cannot be
+    carried out by deleting a directory.
+    """
+
+    PILOT_API = (
+        "PILOT_ADMISSIBLE",
+        "FrozenContext",
+        "FrozenContextError",
+        "PilotAdmissibilityError",
+        "ReconReceipt",
+        "TrialClosure",
+        "assert_pilot_admissible",
+        "close_trial_context",
+        "complete_reconnaissance",
+        "describe_frozen",
+        "freeze_context",
+        "open_trial_context",
+    )
+
+    def _payload(self, tmp):
+        sys.path.insert(0, str(ROOT))
+        import install  # noqa: PLC0415
+
+        destination = Path(tmp) / "how-do"
+        install.copy_payload(destination, dry_run=False)
+        return destination
+
+    def test_the_installer_never_copies_the_experiment(self):
+        sys.path.insert(0, str(ROOT))
+        import install  # noqa: PLC0415
+
+        self.assertNotIn("experiment", install.PAYLOAD)
+
+    def test_an_ordinary_install_carries_no_pilot_module(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            destination = self._payload(tmp)
+            self.assertTrue((destination / "runtime" / "howdo" / "context.py").exists())
+            strays = [
+                path.relative_to(destination)
+                for path in destination.rglob("environment.py")
+            ]
+            self.assertEqual(strays, [], f"install shipped the pilot adapter: {strays}")
+
+    def test_an_ordinary_install_exposes_no_pilot_api(self):
+        # Imported out of the installed copy in a clean interpreter, so a
+        # module already imported by this test run cannot mask the answer.
+        with tempfile.TemporaryDirectory() as tmp:
+            destination = self._payload(tmp)
+            probe = (
+                "import howdo, sys\n"
+                f"names = {self.PILOT_API!r}\n"
+                "leaked = [n for n in names if hasattr(howdo, n) or n in getattr(howdo, '__all__', ())]\n"
+                "try:\n"
+                "    import howdo.environment\n"
+                "    leaked.append('howdo.environment')\n"
+                "except ImportError:\n"
+                "    pass\n"
+                "sys.stdout.write(','.join(leaked))\n"
+            )
+            result = subprocess.run(
+                [sys.executable, "-c", probe],
+                cwd=str(destination / "runtime"),
+                capture_output=True,
+                text=True,
+                check=True,
+                env={"PYTHONPATH": str(destination / "runtime"), "PATH": os.environ.get("PATH", "")},
+            )
+            self.assertEqual(result.stdout, "", f"installed skill exposes pilot API: {result.stdout}")
+
+    def test_the_installed_skill_does_not_name_the_pilot(self):
+        # A payload that points at a directory it does not ship is a dangling
+        # reference for anyone reading the installed copy.
+        with tempfile.TemporaryDirectory() as tmp:
+            destination = self._payload(tmp)
+            offenders = []
+            for path in sorted(destination.rglob("*")):
+                if not path.is_file() or path.suffix not in {".py", ".md"}:
+                    continue
+                text = path.read_text(encoding="utf-8", errors="replace")
+                if "PILOT-0001" in text:
+                    offenders.append(str(path.relative_to(destination)))
+            self.assertEqual(offenders, [], f"payload names the pilot: {offenders}")
+
+    def test_the_adapter_still_exists_outside_the_payload(self):
+        # The boundary is only meaningful if the code is somewhere; a test that
+        # passes because the adapter was deleted proves nothing.
+        adapter = ROOT / "experiment" / "PILOT-0001" / "adapter" / "environment.py"
+        self.assertTrue(adapter.exists(), "the adapter was moved out of the payload and lost")
+        self.assertIn("from howdo.context import", adapter.read_text())
 
 if __name__ == "__main__":
     unittest.main()

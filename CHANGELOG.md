@@ -4,6 +4,19 @@ Versions are aligned across `plugin/SKILL.md`, `README.md`, `pyproject.toml`, `p
 
 ## Unreleased
 
+- **The tripwire fired itself.** This lane left a skipped test asserting that
+  no file in the shipped plugin names PILOT-0001, skipping on a condition that
+  would clear when the adapter moved out of the payload. #12 moved it. The test
+  stopped skipping, ran, and passed with no edit. The suite now has no skips at
+  all, so any skip is a regression rather than a known exception.
+
+  Merging the two took a rename/rename resolution worth recording: both
+  branches moved `runtime/howdo/environment.py`, this lane to `plugin/runtime/`
+  with the rest of the payload and #12 to `experiment/PILOT-0001/adapter/`.
+  #12's home is the correct one — that file is the pilot adapter and never
+  belonged in the payload — so the payload move gave up the file it should
+  never have carried.
+
 - **The payload boundary stopped being a rule and became a directory.** The
   skill now lives in `plugin/`, which *is* the plugin root: manifest,
   `SKILL.md`, `references/`, `runtime/`, `examples/`, `bin/`. A marketplace
@@ -91,6 +104,132 @@ Versions are aligned across `plugin/SKILL.md`, `README.md`, `pyproject.toml`, `p
   from one that came out wrong, and filing it as the latter claims a test ran
   that did not. Optional, additive, and no invariant above it moved.
 
+- **Writing the analysis before the data caught two defects in the stopping
+  rule.** `experiment/analysis/pilot0001.py` is the committed analysis — a
+  task-level permutation test and bootstrap, seeded, zero dependencies —
+  written and validated against synthetic trials with a known effect before any
+  real trial exists. Running it against synthetic nulls immediately falsified
+  two rules that had read as obviously sensible in prose. The first: STOP was
+  defined as "the interval includes zero and its upper bound is below δ\*",
+  which sends a real-but-too-small effect to INCONCLUSIVE when it is in fact
+  conclusive; STOP is now simply an upper bound below δ\*. The second: harm was
+  drafted as a gate at 20% of tasks regressing, but with single-digit
+  trials-per-arm one trial is worth more than δ\* of a per-task pass rate, so
+  30–40% of tasks regress by at least δ\* under a true null — the ceiling would
+  have fired on nothing at all, and on a genuine positive too. Harm is now
+  computed at the δ\* threshold, reported, and flagged for investigation, and
+  the protection against a treatment that lifts the mean while breaking tasks
+  comes from GO requiring the interval's lower bound to clear δ\*.
+  `PILOT-0001/SIZING.md` records what the analysis does on synthetic data and
+  states why every figure in it is optimistic; its useful finding is that tasks
+  buy more precision than trials do, because the task is the unit of analysis.
+  `PILOT-0001/REHEARSAL.md` and `PILOT-0001/RESULTS.template.md` complete the
+  operational set: exercise the machinery on excluded tasks and throw the
+  results away, then write the preregistered result before anything exploratory
+  by document order.
+
+- **The pilot had a frozen treatment and no committed study.** `TREATMENT.md`
+  said what would be administered; nothing said what would count as an effect,
+  which tasks would be committed, how many trials, what analysis, or what result
+  would stop the programme. `PILOT-0001/PREREGISTRATION.md` now does, and it is
+  frozen in two stages so that the parts M0.0 must not influence — endpoints,
+  analysis, δ\*, the stopping rule — are fixed before M0.0 runs, while the task
+  set and trial count are filled from its output. It declares its own screening
+  bias rather than leaving it to be discovered: selecting tasks on the control
+  arm's mid-range performance means the pilot estimates an effect on tasks a raw
+  agent finds neither trivial nor impossible, not on the suite. INCONCLUSIVE
+  is defined as not a soft GO, and a null is recorded as falsifying this
+  treatment and not the discipline, because the person-derived half is in no
+  arm. `PILOT-0001/RUNBOOK.md` makes the study executable without midstream
+  judgement: pre-run gates, the per-trial lifecycle ending in destruction, a
+  disposition table to look up rather than decide, and integrity checks ordered
+  before anyone looks at the difference. `evidence/preregistration.py` refuses to
+  digest a document with an open commitment, so the four values still awaiting a
+  decision — the task variance ceiling, δ\*, the reconnaissance budget, and the
+  harm-rate ceiling — block a confirmatory trial rather than defaulting quietly.
+
+- **Nothing said which benchmark tasks were allowed to be evidence.** Two kinds
+  of unqualified task bias a study rather than blurring it: one nothing can
+  solve scores zero in every arm and shrinks the effective sample while the task
+  count says otherwise, and one that passes without being solved scores one in
+  every arm and pulls a real effect toward zero. Both look ordinary in an
+  aggregate score. `experiment/TASK-QUALIFICATION.md` is the procedure — oracle
+  run five times because a 4/5 indicts the fixture rather than the solution, a
+  no-op agent run three times where a single pass disqualifies outright,
+  verifier type recorded, and a 20% infrastructure-flake cap because the
+  exclusions a flaky task produces are decisions made after the data is visible.
+  `experiment/evidence/qualification.py` derives the outcome from the counts and
+  refuses to let it be asserted, so a record edited to promote a rejected task
+  fails verification even with its digest recomputed. Judge-scored tasks come
+  out `research_only`: they inform the census and exploratory analysis and never
+  certify. Rejections stay in the record, because deleting them turns a
+  committed set into a selected one.
+
+- **The receipt was one frozen block and a list of field names.** Everything
+  the programme will claim is a projection over receipts, so a field the receipt
+  omits is evidence that does not exist — but only the resolution block had a
+  shape, and the rest was a bullet list in the roadmap.
+  `experiment/evidence/RECEIPT.md` is now the contract and
+  `experiment/evidence/receipt.py` enforces the checkable half. The invariants
+  are the ones that otherwise produce evidence that looks correct and is not:
+  certification is derived from verifier kind, analysis class, and result rather
+  than written, and is rechecked at verification time so a hand-edited receipt
+  fails even with its digest recomputed; `failure_class` is required exactly
+  when a trial did not measure the treatment and refused when it did, so an
+  inconvenient result cannot be refiled as infrastructure noise; a confirmatory
+  trial with no preregistration digest in force is refused; the H0 arm cannot
+  report reconnaissance and the treatment arms cannot report its absence;
+  trajectories and artifacts must be content addresses, since a path is a claim
+  about a machine that will be reformatted; and appends refuse an out-of-order
+  `run_sequence_index`, because interleaving is the defence against drift and it
+  is unverifiable from a log that accepted trials in any order. Corrections are
+  appended against a receipt's digest and never replace it. The contract also
+  states what it does not enforce — chiefly that no structural check can tell a
+  receipt saying `arm: h1` from a harness that ran H0.
+
+- **The envelope milestone described a probe nobody could run twice the same
+  way.** M−1 said to record peak VRAM, throughput, and offload events and to
+  freeze the winning configuration, which is a summary of a protocol rather than
+  one. `experiment/M-1/PROTOCOL.md` now states which factors vary and which are
+  held constant, defines stability *before* the probe runs (no offload
+  transition mid-run, no truncation, no hard failures, peak memory within 5%
+  across repeats, throughput CV ≤ 0.15), records determinism rather than
+  requiring it, derives hours-per-100-trials from end-to-end wall clock rather
+  than token rates, and names "no stable cell exists" as a result instead of a
+  reason to lower the bar. The probe set is drawn from tasks explicitly excluded
+  from the pilot, because tuning against tasks the pilot will score is selection
+  on the outcome. `evidence/organism.py` makes the output executable: the
+  fingerprint is computed from identity, configuration, and hardware, the
+  observed envelope is recorded but deliberately not hashed, and a lock file
+  with any field still a placeholder is refused — a fingerprint over an unfilled
+  form certifies nothing while looking exactly like one that does.
+
+- **The contribution rules had no lane the experiment could enter through.**
+  Attack, Fix, and Skill text all require a residual from real use, and rule 8
+  requires a trace that could not be served without the change — but producing
+  the first trace is what the measurement work exists to do, so every research
+  PR had to argue its way past rules written for a released discipline. A fourth
+  lane now carries its own: treatment before implementation, preregistration
+  before confirmatory data, raw evidence never rewritten, experimental code
+  never implying promotion, the payload boundary enforced by test rather than
+  asserted, and cross-boundary imports declared in the importing module with
+  their direction. The PR shape gains `experiment` as a layer and a `Promotes:`
+  line whose honest answer is almost always `no`.
+
+- **The experiment/release boundary was a claim in a document, not a fact about
+  the filesystem.** `ROADMAP.md` said `experiment/` is outside the installed
+  skill, but `install.py` copies all of `runtime/`, the pilot adapter lived at
+  `runtime/howdo/environment.py`, and `howdo.__init__` re-exported twelve pilot
+  symbols — so every install carried the adapter and the release surface
+  silently included it. The adapter moved to
+  `experiment/PILOT-0001/adapter/`, the exports are gone, and the boundary is
+  now enforced: `tests/test_release.py` installs into a temporary directory and
+  checks that no pilot module ships, that a clean interpreter importing the
+  installed `howdo` finds none of the pilot API, and that no payload file so
+  much as names the pilot. Kind-awareness stays in `context.py` because
+  `inspect_context()` needs it, and it is generic — it validates whichever kind
+  a file declares and names no consumer.
+
 - **A benchmark agent cannot honestly hold a person's context, so it gets a
   different kind.** `CONTEXT.template.md` says a pedagogy "cannot be generated"
   because it has no source but the person, and the required evidence sections
@@ -104,8 +243,8 @@ Versions are aligned across `plugin/SKILL.md`, `README.md`, `pyproject.toml`, `p
   not overlap, so relabelling one kind as the other fails on both, and each
   settlement helper refuses the other's file with `ContextKindError`. Lifetime
   and write authority are orthogonal to kind, so `environment` never silently
-  implies `ephemeral`. Under `experiment/PILOT-0001/`; nothing in the shipped
-  discipline refers to it and no version moved.
+  implies `ephemeral`. Nothing in the shipped discipline refers to it and no
+  version moved.
 
 - **A trial's resolution is the one thing a receipt cannot recompute.** The
   benchmark experiment derives everything it can from evidence — capability

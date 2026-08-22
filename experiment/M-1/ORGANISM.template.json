@@ -1,0 +1,64 @@
+{
+  "organism_version": 1,
+
+  "_comment": "M-1 output. Copy to ORGANISM.lock.json, fill every field, validate with evidence.load_organism(). The loader refuses placeholders. Written once; a changed machine means a new lock file and a new fingerprint, and receipts under two fingerprints are not pooled.",
+
+  "identity": {
+    "model_file": "<filename of the exact weight file>",
+    "model_sha256": "<sha256 of the weight file>",
+    "model_parameters": "<e.g. 12B>",
+    "quantization": "<Q4_K_M | Q8_0 | ...>",
+    "runtime_name": "<inference runtime>",
+    "runtime_version": "<release tag>",
+    "runtime_commit": "<commit sha>",
+    "runtime_build_flags": "<build flags, or 'default'>",
+    "harbor_version": "<harbor version or commit>",
+    "harness_config_digest": "<sha256 of the harness configuration>"
+  },
+
+  "configuration": {
+    "context_cap": 0,
+    "gpu_layers": 0,
+    "offload_split": "<e.g. all-gpu, or the split>",
+    "batch_size": 0,
+    "concurrency": 0,
+    "sampling": {
+      "temperature": 0,
+      "top_p": 0,
+      "top_k": 0,
+      "seed": 0,
+      "repeat_penalty": 0,
+      "greedy": false
+    }
+  },
+
+  "hardware": {
+    "gpu_model": "<gpu>",
+    "gpu_vram_total": 0,
+    "cpu_model": "<cpu>",
+    "system_ram_total": 0,
+    "os": "<os and version>",
+    "kernel": "<kernel version>",
+    "driver_version": "<gpu driver version>"
+  },
+
+  "envelope": {
+    "_comment": "Observed during the probe. Recorded, but deliberately NOT part of the fingerprint: these are observations about the organism and vary between repeats of the same one.",
+    "repeats": 0,
+    "peak_vram_bytes": 0,
+    "peak_system_ram_bytes": 0,
+    "prompt_tokens_per_second": 0,
+    "generation_tokens_per_second": 0,
+    "throughput_cv": 0,
+    "wall_clock_seconds_median": 0,
+    "wall_clock_seconds_p90": 0,
+    "hours_per_100_trials_median": 0,
+    "hours_per_100_trials_p90": 0,
+    "offload_transitions": 0,
+    "truncation_events": 0,
+    "failures": [],
+    "determinism_check": "not_run",
+    "probe_task_ids": [],
+    "accepted_on": "<date the cell was accepted as stable>"
+  }
+}

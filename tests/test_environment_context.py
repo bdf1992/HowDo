@@ -14,24 +14,33 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 PAYLOAD = ROOT / "plugin"
 sys.path.insert(0, str(PAYLOAD / "runtime"))
+# The adapter lives outside the payload now, and imports howdo.context across
+# that boundary. Both paths are needed, and which side of the line each is on
+# is the point.
+sys.path.insert(0, str(ROOT / "experiment" / "PILOT-0001"))
 
+# The split in these two imports is the packaging boundary. Kind-awareness is
+# generic and ships; the pilot adapter is reached through a path the installer
+# never copies.
 from howdo import (  # noqa: E402
     ContextKindError,
     KIND_ENVIRONMENT,
     KIND_PERSON,
+    complete_onboarding,
+    context_kind,
+    inspect_context,
+)
+from adapter import (  # noqa: E402
+    FrozenContextError,
     PilotAdmissibilityError,
     ReconReceipt,
     assert_pilot_admissible,
     close_trial_context,
-    complete_onboarding,
     complete_reconnaissance,
-    context_kind,
     describe_frozen,
     freeze_context,
-    inspect_context,
     open_trial_context,
 )
-from howdo.environment import FrozenContextError  # noqa: E402
 
 TEMPLATE = ROOT / "experiment" / "PILOT-0001" / "ENVIRONMENT.template.md"
 TREATMENT = ROOT / "experiment" / "PILOT-0001" / "TREATMENT.md"
