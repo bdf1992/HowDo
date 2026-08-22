@@ -37,7 +37,7 @@ registered name.
 | `skills/<name>/SKILL.md` invocation name | `/<plugin>:<skill>` — namespaced | headless probe returned `hd-b:how-do` |
 | Does the host identify a plugin by directory or manifest? | **Manifest.** Directory is ignored | Directory `divergent`, manifest `how-do` → loaded as `how-do@skills-dir` |
 | Does `bin/` reach the Bash `PATH`? | Yes | `command -v howdo-context` resolved inside the plugin root |
-| Does `plugin details` count a root-`SKILL.md` skill? | **No** — reports `Skills (0)`, `~0 tok`, though the skill loads fine | Observed on three separate probes |
+| Does `plugin details` count a root-`SKILL.md` skill? | **Route-dependent.** `Skills (0)`, `~0 tok` under `@skills-dir`; `Skills (1) how-do`, `~200 tok` always-on / `~8.5k` on-invoke under a marketplace install | Three probes for the first; one marketplace install for the second. Whether the host fixed it or the routes genuinely differ is unresolved — re-check `@skills-dir` before relying on either |
 | Does a plugin root named something other than the plugin still invoke bare? | **Yes.** `plugin/` loads as `/how-do` | Headless probe of `claude --plugin-dir plugin` returned `/how-do`; this is row 4 holding for the committed layout |
 | Is `version` required in a manifest? | **No, but its absence warns** | `claude plugin validate` on a versionless manifest: *Validation passed with warnings*. A committed manifest must carry one to keep the no-warnings bar |
 
@@ -254,6 +254,32 @@ python install.py --plugin dist/how-do --verify
 python install.py --target /tmp/skilldir && python install.py --target /tmp/skilldir --verify
 ```
 
+**End-to-end distribution, run rather than inferred** (`add` → `install` →
+probe → `uninstall` → `remove`, so it leaves no state):
+
+```bash
+claude plugin marketplace add .        # or bdf1992/HowDo once this is on main
+claude plugin install how-do@howdo     # expects: installed, Version 0.9.0, enabled
+claude plugin details how-do@howdo     # expects: Skills (1) how-do
+cd /tmp && claude -p 'Output ONLY the slash-command string that invokes the \
+  How Do skill. Nothing else.'         # expects: /how-do, from an unrelated directory
+ls ~/.claude/plugins/cache/howdo/how-do/*/   # expects: the payload, and nothing else
+claude plugin uninstall how-do@howdo && claude plugin marketplace remove howdo
+```
+
+That last check is the payload boundary observed rather than asserted: what a
+marketplace user receives is `SKILL.md`, `CONTEXT.template.md`, `QUICKSTART.md`,
+`LICENSE`, `references/`, `runtime/`, `examples/`, `bin/` and the manifest. No
+`tests/`, no `experiment/`, no `packaging/`, no `install.py`.
+
+**One thing this cannot show until the lane merges.** A marketplace resolves
+`bdf1992/HowDo` to the repository's *default branch*, and `plugin/` and
+`.claude-plugin/marketplace.json` exist only here. The flow above was run
+against a local path (`marketplace add .`). The README's
+`/plugin marketplace add bdf1992/HowDo` is therefore true of this branch and
+false of `main` until this merges — that is the one remaining gap between
+"works" and "shipped".
+
 The probe that keeps the invocation honest, and the one to re-run after any
 layout change:
 
@@ -277,8 +303,11 @@ claude plugin list
 
 ## Traps
 
-- **`plugin details` showing `Skills (0)` is expected.** Host reporting gap for
-  the root-`SKILL.md` layout. The skill loads. Do not restructure to fix it.
+- **`plugin details` reporting is route-dependent, and neither reading is a
+  reason to restructure.** `Skills (0)` was recorded under `@skills-dir`; a
+  marketplace install reports `Skills (1)` correctly. The skill loads either
+  way. Moving `SKILL.md` under `skills/` to make a number look right would
+  rename the skill — see the findings table.
 - **There is no expected skip any more.** Item 3's was the only one and #12
   closed it. The test that carried it is a tripwire that arms itself, so a skip
   reappearing means the pilot adapter is back in the payload. Do not delete the
