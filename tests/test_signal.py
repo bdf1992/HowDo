@@ -29,6 +29,8 @@ sys.path.insert(0, str(PAYLOAD / "runtime"))
 from howdo.context import complete_onboarding, ensure_context, set_signals  # noqa: E402
 from howdo.signal import (  # noqa: E402
     SIGNAL_BASENAME,
+    forget,
+    summarise,
     TOOL_PATH_KEYS,
     SIGNAL_VERSION,
     STAGES,
@@ -186,6 +188,78 @@ class LogTests(unittest.TestCase):
             self.assertEqual(stages.count("map"), 2)
             self.assertEqual(stages.count("check"), 1)
             self.assertNotIn("count", log.read_text(encoding="utf-8"))
+
+
+class InspectAndForgetTests(unittest.TestCase):
+    """Consenting to start is not the same as being able to see or stop.
+
+    A record somebody cannot read is one they cannot judge, and one they cannot
+    delete is one they never really opted into. Both are part of the opt-in
+    meaning anything.
+    """
+
+    def _log(self, tmp, *, count: int = 3, base: float = 1_000_000.0) -> Path:
+        log = Path(tmp) / SIGNAL_BASENAME
+        for i in range(count):
+            append(Signal(operation=f"op{i}", stage="do", path=f"a{i}.md",
+                          tool="Write", recorded_at=base + i, domain="a domain"), log)
+        return log
+
+    def test_a_person_can_read_what_was_recorded_without_reading_json(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            lines = "\n".join(summarise(self._log(tmp)))
+            self.assertIn("3 operation(s)", lines)
+            self.assertIn("a domain", lines)
+            self.assertIn("a0.md", lines, "the files it names are not shown")
+
+    def test_an_empty_record_says_so_plainly(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertIn("Nothing recorded",
+                          "\n".join(summarise(Path(tmp) / "absent.jsonl")))
+
+    def test_forgetting_removes_the_file_rather_than_emptying_it(self):
+        """"Nothing recorded" and "recorded nothing" should be one state."""
+        with tempfile.TemporaryDirectory() as tmp:
+            log = self._log(tmp)
+            self.assertEqual(forget(log), 3)
+            self.assertFalse(log.exists())
+
+    def test_forgetting_an_absent_record_is_not_an_error(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertEqual(forget(Path(tmp) / "absent.jsonl"), 0)
+
+    def test_pruning_keeps_what_is_newer_and_says_how_much_went(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            log = self._log(tmp, count=5, base=1_000_000.0)
+            removed = forget(log, older_than=1_000_003.0)
+            self.assertEqual(removed, 3)
+            kept = [r["operation"] for r in read(log)]
+            self.assertEqual(kept, ["op3", "op4"])
+
+    def test_pruning_everything_removes_the_file_too(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            log = self._log(tmp)
+            self.assertEqual(forget(log, older_than=2_000_000.0), 3)
+            self.assertFalse(log.exists())
+
+    def test_pruning_does_not_reorder_what_survives(self):
+        """Append order is the one ordering that cannot be forged; a prune that
+        shuffled it would destroy the property the file is kept for."""
+        with tempfile.TemporaryDirectory() as tmp:
+            log = self._log(tmp, count=6)
+            forget(log, older_than=1_000_002.0)
+            stamps = [r["recorded_at"] for r in read(log)]
+            self.assertEqual(stamps, sorted(stamps))
+
+    def test_nothing_forgets_on_its_own(self):
+        """No timer, no size cap. An append-only record that trims itself is
+        one whose history cannot be trusted, so forgetting is always asked for.
+        """
+        source = (PAYLOAD / "runtime" / "howdo" / "signal.py").read_text(encoding="utf-8")
+        hook = (PAYLOAD / "bin" / "howdo-signal").read_text(encoding="utf-8")
+        self.assertNotIn("forget(", hook, "the hook can delete the record")
+        for automatic in ("MAX_", "RETENTION", "_CAP"):
+            self.assertNotIn(automatic, source, f"{automatic} suggests automatic trimming")
 
 
 class HookTests(unittest.TestCase):

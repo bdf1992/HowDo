@@ -295,3 +295,88 @@ def read(log: str | Path) -> Iterator[dict[str, Any]]:
                 continue
             if isinstance(record, dict) and record.get("v") == SIGNAL_VERSION:
                 yield record
+
+
+def summarise(log: str | Path) -> list[str]:
+    """Describe, in a person's terms, what has been recorded about them.
+
+    Recording is opt-in, but consenting to start is not the same as being able
+    to see what accumulated. A log somebody cannot read is one they cannot
+    judge, and a person is entitled to look at a record kept about their own
+    work without reading JSON.
+
+    The vocabulary rule holds that machinery is not what a person reads back;
+    inspection is its stated exception, and this is inspection. So the file
+    paths and domains are shown as they are, rather than summarised into
+    something reassuring.
+    """
+    records = list(read(log))
+    if not records:
+        return [f"Nothing recorded. ({log})"]
+
+    stamps = [r["recorded_at"] for r in records if isinstance(r.get("recorded_at"), (int, float))]
+    artefacts = sorted({str(r.get("path", "")) for r in records if r.get("path")})
+    domains = sorted({str(r.get("domain", "")) for r in records if r.get("domain")})
+    sessions = {str(r.get("session", "")) for r in records}
+
+    lines = [
+        f"{len(records)} operation(s) recorded in {log}",
+        f"  across {len(sessions)} session(s) and {len(artefacts)} artefact(s)",
+    ]
+    if stamps:
+        import time  # noqa: PLC0415
+
+        span = "%s to %s" % (
+            time.strftime("%Y-%m-%d %H:%M", time.localtime(min(stamps))),
+            time.strftime("%Y-%m-%d %H:%M", time.localtime(max(stamps))),
+        )
+        lines.append(f"  {span}")
+    if domains:
+        lines.append(f"  domains named: {', '.join(domains)}")
+
+    lines.append("")
+    lines.append("Files it names:")
+    lines.extend(f"  {path}" for path in artefacts)
+    lines.append("")
+    lines.append("Each line also holds what the operation was, which stage of the loop")
+    lines.append("it belonged to, and when. Nothing else about you is recorded, and")
+    lines.append("nothing leaves this machine.")
+    return lines
+
+
+def forget(log: str | Path, *, older_than: float | None = None) -> int:
+    """Delete recorded signals. Returns how many were removed.
+
+    Deliberately not automatic. An append-only record that quietly trims itself
+    is one whose history cannot be trusted, so nothing here runs on a timer or
+    on a size cap -- forgetting happens because somebody asked for it.
+
+    With ``older_than`` as a cutoff timestamp, only lines recorded before it go
+    and the rest are rewritten in order. Without one, the file is removed
+    entirely rather than emptied, so "nothing recorded" and "recorded nothing"
+    stay the same state.
+    """
+    source = Path(log).expanduser()
+    if not source.is_file():
+        return 0
+
+    records = list(read(source))
+    if older_than is None:
+        source.unlink()
+        return len(records)
+
+    keep = [r for r in records if float(r.get("recorded_at", 0)) >= older_than]
+    removed = len(records) - len(keep)
+    if not keep:
+        source.unlink()
+        return removed
+
+    # Rewritten via a temporary file so an interrupted prune cannot leave the
+    # record half-erased -- the one operation here that is not append-only.
+    scratch = source.with_suffix(source.suffix + ".pruning")
+    with scratch.open("w", encoding="utf-8") as handle:
+        for record in keep:
+            handle.write(json.dumps(record, sort_keys=True, separators=(",", ":")) + "\n")
+    scratch.replace(source)
+    return removed
+

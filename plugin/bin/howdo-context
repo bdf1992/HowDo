@@ -11,6 +11,8 @@ while the plugin is enabled, so ``howdo-context`` is addressable from anywhere.
     howdo-context            report the store's state
     howdo-context --ensure   instantiate it from the template if it is missing
     howdo-context --path     print the resolved store path and nothing else
+    howdo-context --signals  show what has been recorded about this person's work
+    howdo-context --forget   delete that record; --older-than DAYS prunes part
 
 Exit status is 0 when the store is usable (including a deliberate decline or
 deferral) and 1 when it is invalid, forked, or absent under ``--path``.
@@ -54,12 +56,41 @@ def main(argv: list[str] | None = None) -> int:
                         help="instantiate from the shipped template if missing")
     parser.add_argument("--path", action="store_true",
                         help="print the resolved store path and exit")
+    parser.add_argument("--signals", action="store_true",
+                        help="show what has been recorded about this person's work")
+    parser.add_argument("--forget", action="store_true",
+                        help="delete the recorded signals; nothing else is touched")
+    parser.add_argument("--older-than", type=float, default=None, metavar="DAYS",
+                        help="with --forget, remove only entries older than DAYS")
     args = parser.parse_args(argv)
 
     store = resolve_context_path(args.context)
 
     if args.path:
         print(store)
+        return 0
+
+    if args.signals or args.forget:
+        # Imported here because the ordinary paths above never need them, and
+        # this script is also what the store report runs through.
+        from howdo.signal import forget, resolve_signal_log, summarise  # noqa: PLC0415
+
+        try:
+            log = resolve_signal_log(context_path=store)
+        except Exception as problem:
+            print(problem, file=sys.stderr)
+            return 1
+
+        if args.signals:
+            print("\n".join(summarise(log)))
+            return 0
+
+        import time  # noqa: PLC0415
+
+        cutoff = time.time() - args.older_than * 86400 if args.older_than else None
+        removed = forget(log, older_than=cutoff)
+        scope = f" older than {args.older_than} day(s)" if args.older_than else ""
+        print(f"removed {removed} recorded operation(s){scope} from {log}")
         return 0
 
     if args.ensure:

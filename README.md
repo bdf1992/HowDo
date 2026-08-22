@@ -114,6 +114,37 @@ or say *not now* (`onboarding: deferred`); both are recorded, and neither become
 learned context. The full interview, the runtime helpers, and the store and fork
 rules are in [`plugin/references/onboarding.md`](plugin/references/onboarding.md).
 
+## Recording, if you want it
+
+Off unless you turn it on. With it on, a hook notes each artefact the discipline
+writes — what the operation was, which stage of the loop, when — to a file
+beside your context. Nothing leaves your machine, and nothing is recorded about
+files How Do did not author.
+
+```bash
+howdo-context --signals              # everything recorded about your work, in plain terms
+howdo-context --forget               # delete all of it
+howdo-context --forget --older-than 30   # or just what is older than 30 days
+```
+
+Turn it on and off from the runtime:
+
+```python
+from howdo import set_signals
+set_signals(store, on=True)
+```
+
+Nothing prunes itself. There is no timer and no size cap, because a record that
+quietly trims itself is one whose history cannot be trusted — so it grows until
+you ask it not to, and `--signals` is how you decide whether you want it to keep
+going.
+
+What it is *for*: the four things onboarding establishes are hard to learn by
+asking, and easier to see in what actually happened. A `look` followed by a
+return to `do` says a check did not hold; a document that never needed the loop
+re-entered says the opposite. The `analyst` agent reads that record and reports
+what it supports — and, as importantly, what it does not.
+
 ## Agency modifier
 
 | form | actor context |
@@ -245,7 +276,11 @@ python plugin/examples/issue_domain_how.py   # run -> issue -> index -> ground -
 - `plugin/examples/issue_domain_how.py` — a run that leaves a durable, indexed artifact behind.
 - `tests/` — runtime and context contract tests.
 - `packaging/plugin.json` — the plugin manifest, minus a version the assembler derives.
-- `plugin/bin/howdo-context` — store inspection from anywhere; on `PATH` under a plugin host.
+- `plugin/bin/howdo-context` — store inspection, and `--signals` / `--forget` for the record; on `PATH` under a plugin host.
+- `plugin/bin/howdo-signal` — the `PostToolUse` hook that records; silent unless `signals: on`.
+- `plugin/hooks/hooks.json` — wires that hook to the writing tools.
+- `plugin/agents/analyst.md` — reads the record and reports findings; read-only, never settles.
+- `plugin/runtime/howdo/signal.py` — the record. `learn.py` — what it supports, and what it cannot.
 - `ADVERSARIAL.md` — enforced attacks and declared boundaries.
 - `CONTRIBUTING.md` — lanes, rules, PR shape. `CHANGELOG.md` — versions.
 - `experiment/` — the measurement work. Not installed; see below.
