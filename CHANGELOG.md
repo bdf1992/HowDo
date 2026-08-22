@@ -4,6 +4,30 @@ Versions are aligned across `SKILL.md`, `README.md`, `pyproject.toml`, and `CONT
 
 ## Unreleased
 
+- **Every module was unit-tested and the chain had never run.**
+  `tests/test_end_to_end.py` drives a synthetic Harbor jobs directory through
+  the walk, the blob store, ingestion, the append-only log, the schedule, the
+  audit, and the analysis, in the order a real run would. It found two defects
+  on its first execution, which is the whole argument for it. **Discovery order
+  is not run order**: Harbor names trial directories after the task, so a
+  filesystem walk returns them alphabetically while the study ran them
+  interleaved, and appending in walk order hit the log's sequence rule — the
+  refusal was correct but read like a corrupt log rather than like a caller
+  iterating wrongly. `harness/jobs.py` now separates `find_trials()`, which is
+  for inspection and says so, from `ordered_trials()`, which ingests in run
+  order and refuses any directory it cannot place; the runbook gains the
+  obligation that produced it, since nothing in Harbor's output records which
+  scheduled trial a directory was and without that mapping the interleaving is
+  unverifiable. The walk also identifies trials by content rather than depth,
+  because a job directory carries its own `result.json` beside the trials' and
+  the obvious glob picks it up as a phantom trial. The second defect was in a
+  test rather than the code: an assertion that terminal recordings are excluded
+  was written against total store size, which tar's 10 KB block padding
+  dominates, so it would have passed while storing them. It reads the archive
+  now. That padding is left alone and the reason is recorded in `blobs.py` — the
+  archive format is part of every digest addressing a tree, so it is free to
+  change today and not free once a single real trial exists.
+
 - **A correction that was itself wrong, and a real defect it was hiding.** An
   earlier entry claimed no `harbor-index` dataset exists. It does. The check had
   been a grep of the Harbor repository's `registry.json`, and absence from that
