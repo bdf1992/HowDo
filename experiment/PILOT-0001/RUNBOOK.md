@@ -54,6 +54,59 @@ Each of these gates has a mechanical answer. A `no` stops the run.
    content digest of the skill bytes the agent will actually load. A commit
    identifies a tree; a working tree can differ from it.
 
+## Harbor commands
+
+Verified against `harbor-framework/harbor@39b8587`. `harbor run` is an alias for
+`harbor job start`. The dataset spec is `name@version`, not `name==version`.
+
+The pool below is `terminal-bench@2.0` as a **placeholder**: the candidate pool
+is a Stage A decision that has not been made. See `SIZING.md` for the comparison
+against `harbor-index`, which is the other real option and which
+`registry.json` does not list because it is served from Harbor Hub.
+
+**Qualify the pool — no model inference, so do this first.** Every
+`terminal-bench` 2.0 task ships a `solution/solve.sh`, so the oracle agent can
+run across the whole pool in hours rather than the weeks a screening pass costs.
+
+```bash
+harbor run --dataset terminal-bench@2.0 --agent oracle  --n-attempts 5 --jobs-dir runs/qualify-oracle
+harbor run --dataset terminal-bench@2.0 --agent nop     --n-attempts 3 --jobs-dir runs/qualify-noop
+```
+
+Then fold the two into qualification records:
+
+```bash
+python -c "
+import sys; sys.path.insert(0, 'experiment')
+from harness import qualify_task
+# one call per task, oracle_results and noop_results read from the jobs dirs
+"
+```
+
+**A measured run.**
+
+```bash
+harbor run \
+  --dataset terminal-bench@2.0 \
+  --agent <scaffold> --model <organism> \
+  --n-attempts <trials per task> \
+  --agent-timeout-multiplier <declared> \
+  --n-concurrent <declared> \
+  --jobs-dir runs/<stage>
+```
+
+Two flags are treatment parameters rather than conveniences.
+`--agent-timeout-multiplier` scales every task's cap; declared once and
+identical across arms it is legitimate, changed mid-study it invalidates the
+arm. `--n-concurrent` must not exceed what M−1 accepted as stable.
+
+**Why the multiplier matters more than it looks.** Across the 89 tasks the agent
+timeout is median 15 min, p90 60 min, max 200 min — one worst-case sweep is 41.5
+hours. A failing agent does not stop early, it works until its cap, and the
+pilot's organism is expected to fail often. Cost is therefore timeout-bound
+rather than throughput-bound, and the multiplier is the largest single lever on
+how long the study takes.
+
 ## Per trial
 
 The lifecycle is fixed by the contamination law in `TREATMENT.md`. Every step
@@ -98,6 +151,13 @@ Notes on the steps that go wrong quietly:
   run continues the existing schedule rather than making a new one.
 - Persist the schedule beside the receipt log. A schedule that exists only in a
   process's memory cannot be checked against the receipts afterwards.
+- **Persist the trial-name → sequence-index mapping as each trial starts.**
+  Harbor names trial directories after the task, and a task appears once per
+  replicate per arm, so nothing in Harbor's output records which scheduled trial
+  a directory was. Without the mapping, ingestion after the fact can only guess
+  at the order — and the order is the sole evidence the arms were interleaved.
+  `harness.ordered_trials()` consumes it and refuses any directory it cannot
+  place.
 
 ## When something fails
 
@@ -117,6 +177,9 @@ Look up the disposition; do not decide it.
 
 1. **Do not look at the difference yet.** Run the integrity checks first, so
    that what they find cannot be influenced by knowing which way it cuts.
+   `harness.check_run()` is the whole of step 2 below in one call; it returns
+   findings rather than raising, so a malformed log lists every problem instead
+   of stopping at the first.
 
    ```bash
    python -c "

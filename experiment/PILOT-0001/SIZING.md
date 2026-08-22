@@ -69,9 +69,39 @@ the task definitions at `laude-institute/terminal-bench-2@69671fb`:
 | tasks with an oracle solution | 89 of 89 — qualification is executable for all |
 | container resources | median 1 CPU / 2 GB, max 4 CPU / 8 GB |
 
-There is **no `harbor-index` dataset.** Harbor's registry holds 80 *datasets*;
-the largest terminal-style ones are `terminal-bench` 2.0 (89 tasks),
-`terminal-bench-pro` 1.0 (200), and `terminal-bench-sample` 2.0 (10).
+### Correction: Harbor Index is real
+
+An earlier revision of this file claimed no `harbor-index` dataset exists. That
+was wrong, and the way it was wrong is worth recording: the check was a grep of
+`harbor-framework/harbor@39b8587`'s `registry.json`, which is the *local*
+registry. Harbor Index is served from Harbor Hub as
+`harbor-index/harbor-index`, and its tasks live in
+`harbor-framework/harbor-index`. Absence from one registry was read as absence.
+
+Measured from that repository:
+
+| | `terminal-bench` 2.0 | `harbor-index` |
+|---|---|---|
+| Tasks | 89 | 80 |
+| Deterministic verifier | **89** | **46** |
+| LLM-judged | 0 | 34 |
+| Difficulty | 4 easy / 55 medium / 30 hard | curated to defeat frontier agents |
+| Reported frontier ceiling | — | ~28% for the best agent |
+| Extra dependencies | none | an Anthropic API key for the judge |
+
+**`terminal-bench` 2.0 is the better candidate pool for this pilot, and not for
+the reason previously given.** Every one of its 89 tasks writes a binary reward
+from its own test suite, so every task can certify. Harbor Index reserves 34 of
+its 80 for an LLM judge, and `TASK-QUALIFICATION.md` makes judge-scored tasks
+`research_only` — they inform the census and never certify — so its confirmatory
+pool is 46 before any screening. It is also curated to be hard for *frontier*
+models, which on a 12B means near-total floor effects, and its judge turns a
+local study into one that needs a paid API and a judge configuration pinned
+across the run.
+
+None of that decides the pool. It is a Stage A commitment nobody has made, and
+`harbor-index` remains the right choice if the question ever becomes
+"does this help a frontier agent" rather than "does this help a small local one".
 
 This matters for power. The table above says 40 committed tasks give an MDE of
 about 0.074 and 20 give about 0.101 — at δ\* = 0.10, twenty tasks is already at
@@ -81,9 +111,10 @@ and no amount of extra trials fixes it. The response is a wider candidate pool
 declared before M0.0 — `terminal-bench-pro`, or an easier suite — which is a
 preregistration decision, not an implementation one.
 
-## Cost is timeout-bound, not throughput-bound
+## Cost is probably timeout-bound rather than throughput-bound
 
-A failing agent does not stop early; it works until its cap. The pilot's
+**This is an inference, not a measurement, and M−1 exists to settle it.** The
+argument: a failing agent does not stop early, it works until its cap. The pilot's
 organism is expected to fail often, so realized trial time sits much closer to
 the timeout than to anything the model's tokens-per-second predicts. Two Harbor
 flags are therefore the real cost levers, ahead of quantization:
@@ -93,9 +124,13 @@ flags are therefore the real cost levers, ahead of quantization:
   mid-study, it is a treatment change.
 - `--n-attempts` sets repeats per task.
 
-M−1 should therefore measure the **realized wall-clock distribution** on a
-sample stratified across the timeout buckets above, not just the memory
-envelope, and not on three arbitrary tasks.
+The argument could be wrong. A scaffold stops when the model says it is done,
+and a small model may well declare victory early and often — in which case
+realized time sits well below the cap and throughput matters after all. M−1
+settles it by measuring the **realized wall-clock distribution as a fraction of
+each task's cap**, on a sample stratified across the timeout buckets above.
+Until that number exists, treat every wall-clock figure in this file as an upper
+bound of unknown tightness.
 
 ## Why these numbers are optimistic
 

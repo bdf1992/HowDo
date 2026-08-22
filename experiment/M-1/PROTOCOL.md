@@ -55,15 +55,28 @@ Drawn from Harbor tasks that are **explicitly excluded from PILOT-0001**. A
 configuration tuned against tasks the pilot will later score is a configuration
 selected on the outcome.
 
-The set must include:
+The distribution is measured rather than assumed. Across `terminal-bench` 2.0
+the agent timeout is median 15 min, p90 60 min, max 200 min, so a probe on three
+arbitrary tasks would characterise the modal bucket and nothing else. Six tasks,
+stratified, from `laude-institute/terminal-bench-2@69671fb`:
 
-1. The longest-horizon candidate task available. A context cap that truncates
-   it turns `horizon: long` into a measurement of the cap rather than of the
-   model, and that failure is invisible in aggregate scores.
-2. At least one task that writes substantial output, so KV growth is exercised
-   in both directions.
-3. At least one task the model is expected to fail. Failure paths take
-   different execution routes and have their own resource profile.
+| Task | Cap | Difficulty | Why it is in the set |
+|---|---|---|---|
+| `build-pov-ray` | 200 min | medium | The longest horizon in the suite. A context cap that truncates it turns `horizon: long` into a measurement of the cap, and that failure is invisible in an aggregate score |
+| `sam-cell-seg` | 120 min | hard | Second-longest, and a data-science route rather than a build |
+| `bn-fit-modify` | 60 min | hard | The p90 bucket; expert estimate 480 min, so the organism is expected to fail it, and failure paths have their own resource profile |
+| `gpt2-codegolf` | 15 min | hard | The heaviest container in the suite at 8 GB, so host memory is exercised alongside the model's |
+| `crack-7z-hash` | 30 min | medium | Expert estimate 5 min — the one shape likely to *finish* early, which is the only way to see the difference between realized time and the cap |
+| `modernize-scientific-stack` | 10 min | medium | The shortest cap; sets the floor on per-trial overhead, where container setup dominates |
+
+All six are **excluded from PILOT-0001 by being named here.** Tuning against
+tasks the pilot will later score is selection on the outcome, and the exclusion
+has to be committed before the probe runs rather than after its results are
+seen.
+
+Together they span 10–200 min of cap, 2–8 GB of container memory, four
+categories, and both a task the organism should finish quickly and one it should
+not finish at all.
 
 ## What counts as stable
 
@@ -112,7 +125,12 @@ Every row carries all of it. A partial row is discarded rather than patched.
 **Observed**
 - `peak_vram_bytes`, `peak_system_ram_bytes`
 - `prompt_tokens_per_second`, `generation_tokens_per_second`
-- `wall_clock_seconds` per trial, recorded as a distribution and not a mean
+- `wall_clock_seconds` per trial, recorded as a distribution and not a mean,
+  **and as a fraction of that task's cap.** The ratio is the load-bearing number:
+  a failing agent runs until its timeout, and the pilot's organism is expected to
+  fail often, so cost is timeout-bound rather than throughput-bound. If the ratio
+  is near 1 across the probe set, tokens-per-second is nearly irrelevant to how
+  long the study takes and `--agent-timeout-multiplier` is the only real lever.
 - `offload_transitions` — count, with the trial index of each
 - `truncation_events` — count, with the trial index of each
 - `failures` — each one typed: `oom`, `runtime_crash`, `harness_timeout`,
