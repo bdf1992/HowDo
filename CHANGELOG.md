@@ -4,6 +4,23 @@ Versions are aligned across `SKILL.md`, `README.md`, `pyproject.toml`, and `CONT
 
 ## Unreleased
 
+- **Nothing said which benchmark tasks were allowed to be evidence.** Two kinds
+  of unqualified task bias a study rather than blurring it: one nothing can
+  solve scores zero in every arm and shrinks the effective sample while the task
+  count says otherwise, and one that passes without being solved scores one in
+  every arm and pulls a real effect toward zero. Both look ordinary in an
+  aggregate score. `experiment/TASK-QUALIFICATION.md` is the procedure — oracle
+  run five times because a 4/5 indicts the fixture rather than the solution, a
+  no-op agent run three times where a single pass disqualifies outright,
+  verifier type recorded, and a 20% infrastructure-flake cap because the
+  exclusions a flaky task produces are decisions made after the data is visible.
+  `experiment/evidence/qualification.py` derives the outcome from the counts and
+  refuses to let it be asserted, so a record edited to promote a rejected task
+  fails verification even with its digest recomputed. Judge-scored tasks come
+  out `research_only`: they inform the census and exploratory analysis and never
+  certify. Rejections stay in the record, because deleting them turns a
+  committed set into a selected one.
+
 - **The receipt was one frozen block and a list of field names.** Everything
   the programme will claim is a projection over receipts, so a field the receipt
   omits is evidence that does not exist — but only the resolution block had a

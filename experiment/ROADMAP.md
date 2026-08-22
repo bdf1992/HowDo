@@ -98,8 +98,11 @@ fingerprints. No XP, no levels, no skill graph.
       required; a confirmatory trial with no preregistration in force is
       refused, and the append refuses an out-of-order sequence index because
       interleaving is only checkable from the order actually recorded.
-- [x] **`task_qualification_digest` is a required field.** The procedure that
-      produces it is `TASK-QUALIFICATION.md`.
+- [x] **`task_qualification_digest` is a required field**, and the procedure
+      that produces it is written and executable — `TASK-QUALIFICATION.md`
+      plus `evidence/qualification.py`. Oracle 5×, no-op 3×, verifier type,
+      a 20% infrastructure-flake cap, and an outcome derived from the counts
+      rather than asserted.
 - [x] **Trajectories and artifacts are content addresses.** A path or an inline
       payload is refused; receipts are the hot path for every projection.
 - [x] **Certification is derived, not written.** Deterministic verifier,
