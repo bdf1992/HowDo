@@ -58,6 +58,23 @@ SIGNAL_ENV = "HOWDO_SIGNALS"
 HEADER_OPERATION = "howdo_operation"
 HEADER_STAGE = "howdo_stage"
 
+# Optional, and the difference between a usage log and something a person can
+# be learned from. Onboarding is explicit that a stated preference is a
+# hypothesis and only a prediction that was watched becomes evidence, so the
+# record has to carry the prediction and what became of it.
+#
+# `held` is the model's own verdict on its own work, which the discipline
+# refuses as evidence. It is recorded anyway, and never counted as observed:
+# holding it beside what actually happened on disk is what makes the model's
+# self-assessment itself measurable.
+HEADER_EXPECTS = "howdo_expects"   # at Check: what this commits to
+HEADER_HELD = "howdo_held"         # at Look: the model's verdict, declared
+HEADER_DOMAIN = "howdo_domain"     # which domain, for the anchor
+HEADER_SHAPE = "howdo_shape"       # instance-first or principle-first
+
+SHAPES = ("instance-first", "principle-first")
+HELD = {"yes": True, "no": False, "true": True, "false": False}
+
 # The loop is the fixed shell every install runs, so a stage outside it is a
 # typo rather than a new kind of work.
 STAGES = ("map", "path", "check", "do", "look", "update")
@@ -99,6 +116,10 @@ class Signal:
     tool: str
     recorded_at: float
     session: str = ""
+    expects: str = ""
+    held: bool | None = None
+    domain: str = ""
+    shape: str = ""
 
     def as_line(self) -> str:
         record: dict[str, Any] = {
@@ -111,6 +132,14 @@ class Signal:
         }
         if self.session:
             record["session"] = self.session
+        # Absent rather than empty: a reader distinguishes "not declared" from
+        # "declared as nothing", and only the first is a gap.
+        for key, value in (("expects", self.expects), ("domain", self.domain),
+                           ("shape", self.shape)):
+            if value:
+                record[key] = value
+        if self.held is not None:
+            record["held"] = self.held
         # Sorted keys and no spaces: a line that diffs cleanly and appends
         # identically regardless of who wrote it.
         return json.dumps(record, sort_keys=True, separators=(",", ":"))
@@ -162,6 +191,18 @@ def signal_from_header(
         raise SignalError(
             f"{path}: {HEADER_STAGE}={stage!r} is not one of {', '.join(STAGES)}"
         )
+    shape = header.get(HEADER_SHAPE, "").strip().lower()
+    if shape and shape not in SHAPES:
+        raise SignalError(
+            f"{path}: {HEADER_SHAPE}={shape!r} is not one of {', '.join(SHAPES)}"
+        )
+
+    declared = header.get(HEADER_HELD, "").strip().lower()
+    if declared and declared not in HELD:
+        raise SignalError(
+            f"{path}: {HEADER_HELD}={declared!r} is not one of {', '.join(sorted(HELD))}"
+        )
+
     return Signal(
         operation=operation,
         stage=stage,
@@ -169,6 +210,10 @@ def signal_from_header(
         tool=tool,
         recorded_at=recorded_at,
         session=session,
+        expects=header.get(HEADER_EXPECTS, "").strip(),
+        held=HELD.get(declared) if declared else None,
+        domain=header.get(HEADER_DOMAIN, "").strip(),
+        shape=shape,
     )
 
 

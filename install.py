@@ -89,7 +89,7 @@ MANIFEST_NAME = "plugin.json"
 # hook loader, so shipping these there would be dead weight -- but a plugin
 # host loads both, and the parity test treats anything in plugin/ that no
 # install path claims as a drift waiting to happen.
-PLUGIN_EXTRA = ("bin", "hooks")
+PLUGIN_EXTRA = ("bin", "hooks", "agents")
 
 
 def skill_name(skill_md: Path) -> str:
