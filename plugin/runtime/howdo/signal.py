@@ -1,16 +1,15 @@
 """Signals: one logged line per operation, appended and never rewritten.
 
-A signal is exactly what it sounds like -- a log entry with datums about an
-operation. It is deliberately not a receipt, not a score, and not a judgement.
-Whatever the graph eventually wants to say about a person's work is a
-*projection* over these lines, computed later and recomputable when the
-question changes. That is the same rule ``experiment/CROSSINGS.md`` states for
-the skill graph, applied one layer down: freeze what cannot be recovered,
-derive what can.
+A signal is what it sounds like -- a log entry with datums about an operation.
+It is not a receipt, not a score, and not a judgement. Whatever a graph
+eventually says about a person's work is a *projection* over these lines,
+computed later and recomputable when the question changes. That is the rule
+``experiment/CROSSINGS.md`` states for the skill graph, applied one layer down:
+freeze what cannot be recovered, derive what can.
 
 Two things produce a signal, and the pairing is the point:
 
-- the **model declares** what an operation was, in a small YAML header on the
+- the **model declares** what an operation was, in a small header on the
   artifact it wrote;
 - the **hook observes**, from outside the model's context, that a file with
   that header actually landed on disk.
@@ -19,31 +18,41 @@ Neither half is the model grading its own work. ``SKILL.md`` refuses to treat
 model output as independent evidence of its own success, and a declaration
 nobody checked would be exactly that. The artifact existing is the check.
 
-Signals are context-relevant, so they live beside the durable store rather than
-inside the payload -- the payload is replaced on update and would discard them
-with no error raised, which is the same trap ``CONTEXT.md`` is kept out of.
+Two things *are* frozen into each line, because they cannot be recovered
+afterwards. **When** an operation happened is not derivable from append order:
+several sessions append to one file concurrently, so position orders writes
+rather than events, and nothing relates a signal to a receipt or a run without
+a clock. And the **format version**, because the first change to the line shape
+would otherwise make every earlier line ambiguous -- with malformed-tolerant
+reading hiding the ambiguity instead of surfacing it. ``receipt.py`` carries
+``RECEIPT_VERSION`` for the same reason.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterator, Mapping
+from typing import Any, Iterator
 import json
-import os
-import re
+
+from .context import payload_root, read_frontmatter, resolve_context_path
 
 
-# The log sits next to the store it describes. `CONTEXT.md` is prose a person
-# settles; this is machine-appended lines about operations. Different shape and
-# different lifetime, so a different file -- but the same directory, because
-# they are about the same person and should travel together.
+# Bump when the line shape changes. Readers use it to skip dialects they do not
+# understand rather than silently mixing them.
+SIGNAL_VERSION = 1
+
+# The log sits beside the store it describes. ``CONTEXT.md`` is prose a person
+# settles; this is machine-appended lines about operations. Different shape,
+# different lifetime, so a different file -- same directory, because they are
+# about the same person and should travel together.
 SIGNAL_BASENAME = "signals.jsonl"
+SIGNAL_ENV = "HOWDO_SIGNALS"
 
-# The header a How Do operation writes onto an artifact. Kept to two fields on
-# purpose: what the operation was, and which stage of the loop it belongs to.
-# Anything else is a projection waiting to be computed, not a datum that has to
-# be frozen at write time.
+# The header a How Do operation writes onto an artifact. Two fields on purpose:
+# what the operation was, and which stage of the loop it belongs to. Anything
+# else is a projection waiting to be computed, not a datum to freeze at write
+# time.
 HEADER_OPERATION = "howdo_operation"
 HEADER_STAGE = "howdo_stage"
 
@@ -51,8 +60,21 @@ HEADER_STAGE = "howdo_stage"
 # typo rather than a new kind of work.
 STAGES = ("map", "path", "check", "do", "look", "update")
 
-_FRONTMATTER = re.compile(r"(?s)\A\s*---\s*\n(.*?)\n---\s*(?:\n|\Z)")
-_FIELD = re.compile(r"(?m)^([A-Za-z_][A-Za-z0-9_]*):\s*(.*?)\s*$")
+# Which payload key holds the path each writing tool actually wrote. This is a
+# table rather than one inline lookup because the tools disagree: NotebookEdit
+# reports ``notebook_path`` where the others report ``file_path``, and a hook
+# that assumed otherwise would be wired up and permanently silent for it.
+TOOL_PATH_KEYS = {
+    "Write": "file_path",
+    "Edit": "file_path",
+    "MultiEdit": "file_path",
+    "NotebookEdit": "notebook_path",
+}
+
+# A header is two short lines at the top of a file. Reading more than this to
+# find it is wasted work on a path taken for every edit in every session, and
+# an unbounded read is also what makes a malformed file expensive.
+HEADER_BYTES = 4096
 
 
 class SignalError(ValueError):
@@ -61,54 +83,59 @@ class SignalError(ValueError):
 
 @dataclass(frozen=True)
 class Signal:
-    """One operation, as observed.
-
-    ``recorded_at`` is absent on purpose. A timestamp is the caller's to supply
-    if it wants ordering by clock; the file itself already orders by append,
-    which is the ordering that cannot be forged after the fact.
-    """
+    """One operation, as observed."""
 
     operation: str
     stage: str
     path: str
-    tool: str = "unknown"
+    tool: str
+    recorded_at: float
     session: str = ""
-    datums: Mapping[str, Any] = field(default_factory=dict)
 
     def as_line(self) -> str:
         record: dict[str, Any] = {
+            "v": SIGNAL_VERSION,
             "operation": self.operation,
             "stage": self.stage,
             "path": self.path,
             "tool": self.tool,
+            "recorded_at": round(self.recorded_at, 3),
         }
         if self.session:
             record["session"] = self.session
-        if self.datums:
-            record["datums"] = dict(self.datums)
         # Sorted keys and no spaces: a line that diffs cleanly and appends
         # identically regardless of who wrote it.
         return json.dumps(record, sort_keys=True, separators=(",", ":"))
 
 
-def read_header(text: str) -> dict[str, str]:
-    """Return the YAML header fields, or an empty mapping if there is none.
+def written_path(payload: dict[str, Any]) -> str | None:
+    """The path a writing tool reported, or ``None`` if this tool wrote nothing.
 
-    This is a deliberately small reader rather than a YAML parser: the header
-    is two scalar fields by contract, the runtime is zero-dependency, and a
-    hook that imports a parser is a hook that fails on someone's machine.
+    A signal is about an artifact existing, so a tool with no artifact -- a
+    read, a search -- has nothing to record.
     """
-    match = _FRONTMATTER.match(text)
-    if not match:
-        return {}
-    return {key: value.strip().strip("\"'") for key, value in _FIELD.findall(match.group(1))}
+    key = TOOL_PATH_KEYS.get(str(payload.get("tool_name", "")))
+    if key is None:
+        return None
+    written = (payload.get("tool_input") or {}).get(key)
+    return str(written) if written else None
+
+
+def read_header(text: str) -> dict[str, str]:
+    """Return the artifact's header fields, or an empty mapping if there is none.
+
+    Delegates to the one frontmatter parser this project has. A second dialect
+    would diverge from it on exactly the malformed files nobody tests with.
+    """
+    return read_frontmatter(text)
 
 
 def signal_from_header(
     text: str,
     *,
     path: str,
-    tool: str = "unknown",
+    tool: str,
+    recorded_at: float,
     session: str = "",
 ) -> Signal | None:
     """Form a signal from an artifact's header, or ``None`` if it declares none.
@@ -127,12 +154,47 @@ def signal_from_header(
         raise SignalError(
             f"{path}: {HEADER_STAGE}={stage!r} is not one of {', '.join(STAGES)}"
         )
-    return Signal(operation=operation, stage=stage, path=path, tool=tool, session=session)
+    return Signal(
+        operation=operation,
+        stage=stage,
+        path=path,
+        tool=tool,
+        recorded_at=recorded_at,
+        session=session,
+    )
 
 
-def signal_log_path(store: str | Path) -> Path:
-    """Where signals go, given the durable store's location."""
-    return Path(store).expanduser().parent / SIGNAL_BASENAME
+def resolve_signal_log(
+    explicit: str | Path | None = None,
+    *,
+    env: Any = None,
+    context_path: str | Path | None = None,
+) -> Path:
+    """Where signals go. Beside the store, overridable, never in the payload.
+
+    The payload refusal is not defensive tidiness. ``install.py --shared`` puts
+    the store *inside* the payload on purpose, and an append-only log that
+    followed it there would be deleted by the next update with no error raised
+    -- which is the exact trap this module claims to keep the log out of.
+    """
+    if explicit is not None:
+        return Path(explicit).expanduser()
+
+    import os  # noqa: PLC0415 - only needed when no path was handed in
+
+    environ = os.environ if env is None else env
+    configured = environ.get(SIGNAL_ENV)
+    if configured:
+        return Path(configured).expanduser()
+
+    store = Path(context_path) if context_path is not None else resolve_context_path()
+    candidate = store.expanduser().parent / SIGNAL_BASENAME
+    if payload_root(candidate) is not None:
+        raise SignalError(
+            f"{candidate} is inside a skill payload; an update would discard it. "
+            f"Point {SIGNAL_ENV} somewhere outside the install."
+        )
+    return candidate
 
 
 def append(signal: Signal, log: str | Path) -> Path:
@@ -143,18 +205,28 @@ def append(signal: Signal, log: str | Path) -> Path:
     of their histories to a last-writer-wins truncation would be silent.
     """
     destination = Path(log).expanduser()
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    with destination.open("a", encoding="utf-8") as handle:
-        handle.write(signal.as_line() + "\n")
+    line = signal.as_line() + "\n"
+    try:
+        with destination.open("a", encoding="utf-8") as handle:
+            handle.write(line)
+    except FileNotFoundError:
+        # The directory is the store's own parent and so exists in every
+        # ordinary case. Creating it on the exception rather than on every
+        # append keeps a syscall off the recording path.
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        with destination.open("a", encoding="utf-8") as handle:
+            handle.write(line)
     return destination
 
 
 def read(log: str | Path) -> Iterator[dict[str, Any]]:
     """Yield the signals in the order they were appended.
 
-    A malformed line is skipped rather than fatal. This file is appended by
-    hooks on machines we do not control, and one truncated write during a
-    crash should not make the whole history unreadable.
+    A malformed line is skipped rather than fatal: this file is appended by
+    hooks on machines we do not control, and one truncated write during a crash
+    should not make the whole history unreadable. A line from a dialect this
+    version does not know is skipped for the same reason -- better absent than
+    silently misread as the current shape.
     """
     source = Path(log).expanduser()
     if not source.is_file():
@@ -168,19 +240,5 @@ def read(log: str | Path) -> Iterator[dict[str, Any]]:
                 record = json.loads(line)
             except json.JSONDecodeError:
                 continue
-            if isinstance(record, dict):
+            if isinstance(record, dict) and record.get("v") == SIGNAL_VERSION:
                 yield record
-
-
-def by_stage(log: str | Path) -> dict[str, int]:
-    """The smallest useful projection: how many operations per loop stage.
-
-    It exists to make the point that projections are computed from the lines
-    rather than maintained alongside them. Nothing stores this count.
-    """
-    counts = {stage: 0 for stage in STAGES}
-    for record in read(log):
-        stage = record.get("stage")
-        if stage in counts:
-            counts[stage] += 1
-    return counts

@@ -185,7 +185,9 @@ def assemble_plugin(destination: Path, *, dry_run: bool) -> list[str]:
         # copytree preserves the mode, but a checkout on a filesystem without
         # a permission bit does not. A bin/ entry that is not executable is
         # silently absent from PATH rather than broken, so set it here.
-        for path in target.iterdir():
+        # Only bin/ holds executables. hooks/ is configuration the host reads,
+        # and marking it +x was the tuple's two meanings leaking into one rule.
+        for path in target.iterdir() if item == "bin" else ():
             if path.is_file():
                 path.chmod(path.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
 

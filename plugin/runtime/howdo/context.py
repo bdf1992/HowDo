@@ -51,6 +51,15 @@ AUTHORITY_READONLY = "readonly"
 _AUTHORITIES = (AUTHORITY_WRITABLE, AUTHORITY_READONLY)
 _AUTHORITY_KEY = "write_authority"
 
+# Whether this install records signals. Off unless a person says otherwise, so
+# the absence of the key is the default rather than an omission to repair. It
+# is named for what it switches -- signal recording -- rather than for
+# onboarding, which is settled by a different key and a different machine.
+SIGNALS_ON = "on"
+SIGNALS_OFF = "off"
+_SIGNALS_KEY = "signals"
+_SIGNALS_TRUE = {"on", "true", "yes", "1", "enabled"}
+
 _TRIAL_KEY = "trial_id"
 _UNSET = {None, "", "pending", "none"}
 
@@ -314,6 +323,28 @@ def context_lifetime(metadata: Mapping[str, str]) -> str:
 def write_authority(metadata: Mapping[str, str]) -> str:
     """Return the declared write authority. Absent means ``writable``."""
     return str(metadata.get(_AUTHORITY_KEY, AUTHORITY_WRITABLE)).strip().lower()
+
+
+def read_frontmatter(text: str) -> dict[str, str]:
+    """Parse the flat frontmatter this project uses, for callers outside it.
+
+    The parser is private because its internals may change; the *format* is
+    not, and more than one module needs to read it. Exposing this is what
+    keeps a second dialect from growing elsewhere in the payload -- two
+    parsers for one format diverge on exactly the malformed files nobody
+    tests with.
+    """
+    return _frontmatter(text)
+
+
+def signals_enabled(metadata: Mapping[str, str]) -> bool:
+    """Whether this install records signals. Absent means no.
+
+    Off by default is the whole basis on which an observation surface is
+    admissible at all: one a person switched on is not the ambience
+    ``SKILL.md`` refuses, and one that arrived by default would be.
+    """
+    return str(metadata.get(_SIGNALS_KEY, "")).strip().lower() in _SIGNALS_TRUE
 
 
 def payload_root(path: str | Path) -> Path | None:
@@ -786,6 +817,32 @@ def defer_onboarding(path: str | Path, *, allow_payload: bool = False) -> Path:
             "context_file": p.name,
             "onboarding": "deferred",
         },
+    )
+    p.write_text(text, encoding="utf-8")
+    return p
+
+
+def set_signals(path: str | Path, *, on: bool, allow_payload: bool = False) -> Path:
+    """Turn signal recording on or off, with the guards every setting gets.
+
+    A setting with a reader and no writer is one only a person willing to hand
+    edit YAML can use, and the sibling transitions -- completing, declining,
+    deferring -- all refuse the template and refuse a payload-resident store.
+    This is the same refusal for the same reason: the write would succeed and
+    the next update would discard it, silently.
+
+    Unlike those, this is reversible and carries no evidence, so it does not
+    touch the lineage or the onboarding state. It flips one key.
+    """
+    p = Path(path)
+    if not p.exists():
+        raise FileNotFoundError(p)
+    _refuse_template_settlement(p)
+    _refuse_payload_settlement(p, allow_payload=allow_payload)
+
+    text = _set_frontmatter(
+        p.read_text(encoding="utf-8"),
+        {_SIGNALS_KEY: SIGNALS_ON if on else SIGNALS_OFF},
     )
     p.write_text(text, encoding="utf-8")
     return p

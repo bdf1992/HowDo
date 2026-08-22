@@ -24,22 +24,10 @@ import sys
 from pathlib import Path
 
 
-def _plugin_root() -> Path:
-    """Locate the payload this executable was shipped inside.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _howdo_bootstrap import add_runtime  # noqa: E402
 
-    ``CLAUDE_PLUGIN_ROOT`` is authoritative when a host sets it. Falling back
-    to the executable's own parent keeps the script working under
-    ``--plugin-dir``, a direct checkout, and a plain skills directory, none of
-    which are guaranteed to export it.
-    """
-    declared = os.environ.get("CLAUDE_PLUGIN_ROOT")
-    if declared:
-        return Path(declared).expanduser().resolve()
-    return Path(__file__).resolve().parent.parent
-
-
-ROOT = _plugin_root()
-sys.path.insert(0, str(ROOT / "runtime"))
+ROOT = add_runtime(__file__)
 
 try:
     from howdo.context import (  # noqa: E402

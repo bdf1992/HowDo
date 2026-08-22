@@ -5,69 +5,43 @@ Reads a hook payload on stdin, finds the file the session just wrote, and if
 that file carries a How Do header, appends one signal line beside the durable
 store.
 
-It is off unless the person turned it on. `automated_onboarding: on` in the
-store's frontmatter is the switch, and its absence means off -- so an install
-that never opts in never records anything, and the observation surface cannot
-arrive by surprise. That opt-in is also what makes this admissible at all: a
-hook that watched without being asked would be the ambience `SKILL.md` refuses,
-and one the person switched on is not.
+It is off unless the person turned it on. `signals: on` in the store's
+frontmatter is the switch, and its absence means off -- so an install that
+never opts in never records, and the observation surface cannot arrive by
+surprise. That opt-in is what makes this admissible at all: a hook that watched
+without being asked would be the ambience `SKILL.md` refuses; one somebody
+switched on is not.
 
-Silence is the default in every direction. Most files a session writes have
-nothing to do with How Do; most sessions have the switch off. A hook that
-spoke up for either would be noise on every edit.
+This runs on every file write in every session, so the work is ordered by how
+likely each check is to end it. Everything past the switch -- including the
+imports that recording needs -- is deferred until the switch is known to be on.
+Silence is the overwhelmingly common outcome and it must be cheap.
 """
 
 from __future__ import annotations
 
 import json
-import os
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _howdo_bootstrap import add_runtime  # noqa: E402
 
-def _plugin_root() -> Path:
-    declared = os.environ.get("CLAUDE_PLUGIN_ROOT")
-    if declared:
-        return Path(declared).expanduser().resolve()
-    return Path(__file__).resolve().parent.parent
-
-
-ROOT = _plugin_root()
-sys.path.insert(0, str(ROOT / "runtime"))
+ROOT = add_runtime(__file__)
 
 # Recording is a side errand on someone else's tool call. Anything unexpected
 # here must cost them nothing, so every failure below exits 0 in silence.
 try:
-    from howdo.context import inspect_context, resolve_context_path
-    from howdo.signal import (
-        SignalError,
-        append,
-        signal_from_header,
-        signal_log_path,
-    )
+    from howdo.context import inspect_context, resolve_context_path, signals_enabled
+    from howdo.signal import TOOL_PATH_KEYS
 except Exception:  # pragma: no cover - depends how the payload was copied
     raise SystemExit(0)
 
 
-SWITCH = "automated_onboarding"
-ON = {"on", "true", "yes", "1", "enabled"}
-
-# Only tools that put bytes on disk. A signal is about an artifact existing;
-# a read or a search has no artifact to confirm.
-WRITING_TOOLS = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
-
-
-def enabled(store: Path) -> bool:
-    """Whether this person switched the observation surface on."""
-    try:
-        from howdo.context import _frontmatter  # noqa: PLC0415
-
-        if not store.is_file():
-            return False
-        metadata = _frontmatter(store.read_text(encoding="utf-8"))
-    except Exception:
-        return False
-    return metadata.get(SWITCH, "").strip().lower() in ON
+# States in which nothing may be recorded. A template is not a lineage, a fork
+# is unresolved, an invalid store is not a store -- and a declined context must
+# not be accumulated against, which `SKILL.md` names directly.
+UNRECORDABLE = {"template", "invalid", "fork_required", "declined", "missing"}
 
 
 def main() -> int:
@@ -78,31 +52,53 @@ def main() -> int:
     if not isinstance(payload, dict):
         return 0
 
-    tool = payload.get("tool_name", "")
-    if tool not in WRITING_TOOLS:
+    tool = str(payload.get("tool_name", ""))
+    if tool not in TOOL_PATH_KEYS:
         return 0
 
-    written = (payload.get("tool_input") or {}).get("file_path")
+    # Imported here rather than at module scope: on the common path the switch
+    # is off, and these cost regex compiles and a dataclass build for a branch
+    # that is never reached.
+    from howdo.signal import (  # noqa: PLC0415
+        HEADER_BYTES,
+        SignalError,
+        append,
+        resolve_signal_log,
+        signal_from_header,
+        written_path,
+    )
+
+    written = written_path(payload)
     if not written:
         return 0
 
     store = resolve_context_path(None)
-    if not enabled(store):
+    try:
+        status = inspect_context(store)
+    except Exception:
+        return 0
+    if status.state in UNRECORDABLE or not signals_enabled(status.metadata):
         return 0
 
     target = Path(written)
     try:
-        text = target.read_text(encoding="utf-8", errors="ignore")
+        # Bounded: a header is two lines at the top, and reading a whole file
+        # to find them is wasted work that grows with the file.
+        with target.open("rb") as handle:
+            head = handle.read(HEADER_BYTES).decode("utf-8", "ignore")
     except OSError:
         # The file the tool reported is gone or unreadable. Nothing to confirm,
         # so nothing to record -- the absence is the observation.
         return 0
 
+    import time  # noqa: PLC0415
+
     try:
         signal = signal_from_header(
-            text,
+            head,
             path=str(target),
             tool=tool,
+            recorded_at=time.time(),
             session=str(payload.get("session_id", "")),
         )
     except SignalError:
@@ -114,8 +110,8 @@ def main() -> int:
         return 0
 
     try:
-        append(signal, signal_log_path(store))
-    except OSError:
+        append(signal, resolve_signal_log(context_path=store))
+    except (OSError, SignalError):
         return 0
     return 0
 

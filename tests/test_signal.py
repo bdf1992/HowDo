@@ -26,21 +26,44 @@ ROOT = Path(__file__).resolve().parents[1]
 PAYLOAD = ROOT / "plugin"
 sys.path.insert(0, str(PAYLOAD / "runtime"))
 
-from howdo.context import ensure_context  # noqa: E402
+from howdo.context import complete_onboarding, ensure_context, set_signals  # noqa: E402
 from howdo.signal import (  # noqa: E402
     SIGNAL_BASENAME,
+    TOOL_PATH_KEYS,
+    SIGNAL_VERSION,
     STAGES,
     Signal,
     SignalError,
     append,
-    by_stage,
     read,
     read_header,
+    resolve_signal_log,
     signal_from_header,
-    signal_log_path,
+    written_path,
 )
 
 HOOK = PAYLOAD / "bin" / "howdo-signal"
+
+
+def _clean_env() -> dict:
+    """Strip the variables an enclosing session sets, which would otherwise
+    point the hook at a different store or a different runtime."""
+    environment = dict(os.environ)
+    for name in ("HOWDO_CONTEXT", "HOWDO_SIGNALS", "CLAUDE_PLUGIN_DATA", "CLAUDE_PLUGIN_ROOT"):
+        environment.pop(name, None)
+    return environment
+
+
+def _form(text: str):
+    """Form a signal with the fields the hook always supplies."""
+    return signal_from_header(text, path="a.md", tool="Write", recorded_at=0.0)
+
+
+def _signal(**overrides) -> Signal:
+    fields = {"operation": "op", "stage": "do", "path": "a.md",
+              "tool": "Write", "recorded_at": 0.0}
+    fields.update(overrides)
+    return Signal(**fields)
 
 HEADER = """---
 howdo_operation: {operation}
@@ -55,9 +78,7 @@ class HeaderTests(unittest.TestCase):
     """The header is the model's half of the pair."""
 
     def test_it_reads_the_two_fields_it_contracts_for(self):
-        signal = signal_from_header(
-            HEADER.format(operation="map the call site", stage="map"), path="a.md"
-        )
+        signal = _form(HEADER.format(operation="map the call site", stage="map"))
         self.assertEqual(signal.operation, "map the call site")
         self.assertEqual(signal.stage, "map")
 
@@ -69,10 +90,10 @@ class HeaderTests(unittest.TestCase):
         """
         for text in ("", "just some code\n", "# a heading\n\nprose\n"):
             with self.subTest(text=text[:20]):
-                self.assertIsNone(signal_from_header(text, path="a.md"))
+                self.assertIsNone(_form(text))
 
     def test_a_header_without_an_operation_declares_nothing(self):
-        self.assertIsNone(signal_from_header("---\nhowdo_stage: map\n---\n", path="a.md"))
+        self.assertIsNone(_form("---\nhowdo_stage: map\n---\n"))
 
     def test_a_stage_outside_the_loop_is_refused(self):
         """The loop is the fixed shell, so an unknown stage is a typo.
@@ -81,21 +102,17 @@ class HeaderTests(unittest.TestCase):
         interpret, which is worse than not recording the operation at all.
         """
         with self.assertRaises(SignalError):
-            signal_from_header(
-                HEADER.format(operation="x", stage="ponder"), path="a.md"
-            )
+            _form(HEADER.format(operation="x", stage="ponder"))
 
     def test_every_loop_stage_is_accepted(self):
         for stage in STAGES:
             with self.subTest(stage=stage):
-                signal = signal_from_header(
-                    HEADER.format(operation="x", stage=stage.upper()), path="a.md"
-                )
+                signal = _form(HEADER.format(operation="x", stage=stage.upper()))
                 self.assertEqual(signal.stage, stage)
 
     def test_quotes_around_a_value_are_not_part_of_it(self):
         header = '---\nhowdo_operation: "map it"\nhowdo_stage: \'map\'\n---\n'
-        signal = signal_from_header(header, path="a.md")
+        signal = _form(header)
         self.assertEqual(signal.operation, "map it")
         self.assertEqual(signal.stage, "map")
 
@@ -112,7 +129,7 @@ class LogTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             log = Path(tmp) / SIGNAL_BASENAME
             for i in range(3):
-                append(Signal(operation=f"op{i}", stage="do", path="a.md"), log)
+                append(_signal(operation=f"op{i}"), log)
             recorded = list(read(log))
             self.assertEqual([r["operation"] for r in recorded], ["op0", "op1", "op2"])
 
@@ -121,31 +138,53 @@ class LogTests(unittest.TestCase):
         must not make every earlier signal unreadable."""
         with tempfile.TemporaryDirectory() as tmp:
             log = Path(tmp) / SIGNAL_BASENAME
-            append(Signal(operation="first", stage="map", path="a.md"), log)
+            append(_signal(operation="first", stage="map"), log)
             with log.open("a", encoding="utf-8") as handle:
                 handle.write('{"operation":"half-writ\n')
-            append(Signal(operation="third", stage="do", path="a.md"), log)
+            append(_signal(operation="third"), log)
             self.assertEqual([r["operation"] for r in read(log)], ["first", "third"])
+
+    def test_a_line_from_another_dialect_is_skipped(self):
+        """Without a version in the line, the first format change makes every
+        earlier line ambiguous -- and malformed-tolerant reading hides it."""
+        with tempfile.TemporaryDirectory() as tmp:
+            log = Path(tmp) / SIGNAL_BASENAME
+            append(_signal(operation="known"), log)
+            with log.open("a", encoding="utf-8") as handle:
+                handle.write(json.dumps({"v": SIGNAL_VERSION + 1, "operation": "future"}) + "\n")
+            self.assertEqual([r["operation"] for r in read(log)], ["known"])
 
     def test_reading_an_absent_log_yields_nothing(self):
         with tempfile.TemporaryDirectory() as tmp:
             self.assertEqual(list(read(Path(tmp) / "absent.jsonl")), [])
 
-    def test_the_log_sits_beside_the_store_not_inside_the_payload(self):
-        """The payload is replaced on update and would discard these with no
-        error raised -- the same trap the durable context is kept out of."""
-        log = signal_log_path("/home/someone/.howdo/CONTEXT.md")
+    def test_the_log_sits_beside_the_store(self):
+        log = resolve_signal_log(context_path="/home/someone/.howdo/CONTEXT.md", env={})
         self.assertEqual(log, Path("/home/someone/.howdo") / SIGNAL_BASENAME)
 
+    def test_a_log_inside_the_payload_is_refused(self):
+        """`install.py --shared` legitimately puts the store in the payload.
+
+        A log that followed it there would be deleted by the next update with
+        no error raised -- the exact trap this module claims to avoid, which
+        makes silence here the worst possible behaviour.
+        """
+        with self.assertRaises(SignalError):
+            resolve_signal_log(context_path=PAYLOAD / "CONTEXT.md", env={})
+
+    def test_an_override_is_honoured(self):
+        log = resolve_signal_log(env={"HOWDO_SIGNALS": "/elsewhere/mine.jsonl"})
+        self.assertEqual(log, Path("/elsewhere/mine.jsonl"))
+
     def test_a_projection_is_computed_rather_than_stored(self):
+        """Counting is done by a reader. Nothing maintains a count on disk."""
         with tempfile.TemporaryDirectory() as tmp:
             log = Path(tmp) / SIGNAL_BASENAME
             for stage in ("map", "map", "check"):
-                append(Signal(operation="x", stage=stage, path="a.md"), log)
-            counts = by_stage(log)
-            self.assertEqual(counts["map"], 2)
-            self.assertEqual(counts["check"], 1)
-            self.assertEqual(counts["do"], 0)
+                append(_signal(stage=stage), log)
+            stages = [record["stage"] for record in read(log)]
+            self.assertEqual(stages.count("map"), 2)
+            self.assertEqual(stages.count("check"), 1)
             self.assertNotIn("count", log.read_text(encoding="utf-8"))
 
 
@@ -155,12 +194,12 @@ class HookTests(unittest.TestCase):
     def _store(self, tmp, *, switched_on: bool) -> Path:
         store = Path(tmp) / "CONTEXT.md"
         ensure_context(store, template=PAYLOAD / "CONTEXT.template.md")
+        complete_onboarding(
+            store, calibration_domain="a domain", representation_observation="an observation",
+            landed_example="landed", rejected_example="rejected",
+        )
         if switched_on:
-            text = store.read_text(encoding="utf-8")
-            store.write_text(
-                text.replace("howdo_context:", "automated_onboarding: on\nhowdo_context:", 1),
-                encoding="utf-8",
-            )
+            set_signals(store, on=True)
         return store
 
     def _fire(self, store: Path, *, tool: str, written: Path) -> None:
@@ -171,7 +210,7 @@ class HookTests(unittest.TestCase):
         })
         subprocess.run(
             [sys.executable, str(HOOK)], input=payload, capture_output=True, text=True,
-            env={**os.environ, "HOWDO_CONTEXT": str(store)},
+            env={**_clean_env(), "HOWDO_CONTEXT": str(store)},
         )
 
     def _artifact(self, tmp, *, stage: str = "map") -> Path:
@@ -185,14 +224,14 @@ class HookTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             store = self._store(tmp, switched_on=False)
             self._fire(store, tool="Write", written=self._artifact(tmp))
-            self.assertFalse(signal_log_path(store).exists(),
+            self.assertFalse(resolve_signal_log(context_path=store, env={}).exists(),
                              "the hook recorded without being switched on")
 
     def test_switching_it_on_records_the_operation(self):
         with tempfile.TemporaryDirectory() as tmp:
             store = self._store(tmp, switched_on=True)
             self._fire(store, tool="Write", written=self._artifact(tmp))
-            recorded = list(read(signal_log_path(store)))
+            recorded = list(read(resolve_signal_log(context_path=store, env={})))
             self.assertEqual(len(recorded), 1)
             self.assertEqual(recorded[0]["operation"], "an operation")
             self.assertEqual(recorded[0]["stage"], "map")
@@ -205,14 +244,14 @@ class HookTests(unittest.TestCase):
             plain = Path(tmp) / "plain.py"
             plain.write_text("x = 1\n", encoding="utf-8")
             self._fire(store, tool="Write", written=plain)
-            self.assertFalse(signal_log_path(store).exists())
+            self.assertFalse(resolve_signal_log(context_path=store, env={}).exists())
 
     def test_a_tool_that_writes_nothing_is_not_recorded(self):
         """A signal is about an artifact existing. A read has no artifact."""
         with tempfile.TemporaryDirectory() as tmp:
             store = self._store(tmp, switched_on=True)
             self._fire(store, tool="Read", written=self._artifact(tmp))
-            self.assertFalse(signal_log_path(store).exists())
+            self.assertFalse(resolve_signal_log(context_path=store, env={}).exists())
 
     def test_a_declaration_with_no_artifact_records_nothing(self):
         """The hook's whole job is confirming the file landed. If the path the
@@ -220,13 +259,13 @@ class HookTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             store = self._store(tmp, switched_on=True)
             self._fire(store, tool="Write", written=Path(tmp) / "never-written.md")
-            self.assertFalse(signal_log_path(store).exists())
+            self.assertFalse(resolve_signal_log(context_path=store, env={}).exists())
 
     def test_a_bad_header_costs_the_session_nothing(self):
         with tempfile.TemporaryDirectory() as tmp:
             store = self._store(tmp, switched_on=True)
             self._fire(store, tool="Write", written=self._artifact(tmp, stage="ponder"))
-            self.assertFalse(signal_log_path(store).exists())
+            self.assertFalse(resolve_signal_log(context_path=store, env={}).exists())
 
     def test_garbage_on_stdin_costs_the_session_nothing(self):
         """This runs as a side errand on someone else's tool call. Every
@@ -238,6 +277,71 @@ class HookTests(unittest.TestCase):
                     capture_output=True, text=True,
                 )
                 self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_every_wired_tool_can_actually_fire(self):
+        """The defect this catches: a tool wired up and permanently silent.
+
+        The writing tools disagree about which payload key holds the path.
+        NotebookEdit reports ``notebook_path`` where the others report
+        ``file_path``, so a hook that assumed one shape would sit in the
+        matcher recording nothing, forever, with no error anywhere.
+        """
+        for tool, key in TOOL_PATH_KEYS.items():
+            with self.subTest(tool=tool), tempfile.TemporaryDirectory() as tmp:
+                store = self._store(tmp, switched_on=True)
+                written = Path(tmp) / "artifact.md"
+                written.write_text(HEADER.format(operation="op", stage="do"),
+                                   encoding="utf-8")
+                payload = json.dumps({
+                    "tool_name": tool, "session_id": "s",
+                    "tool_input": {key: str(written)},
+                })
+                subprocess.run([sys.executable, str(HOOK)], input=payload,
+                               capture_output=True, text=True,
+                               env={**_clean_env(), "HOWDO_CONTEXT": str(store)})
+                recorded = list(read(resolve_signal_log(context_path=store, env={})))
+                self.assertEqual(len(recorded), 1, f"{tool} recorded nothing")
+                self.assertEqual(recorded[0]["tool"], tool)
+
+    def test_the_matcher_and_the_table_cannot_drift_apart(self):
+        """Wired in one place and not the other is silent in both directions."""
+        config = json.loads((PAYLOAD / "hooks" / "hooks.json").read_text(encoding="utf-8"))
+        matched = set()
+        for entry in config["hooks"]["PostToolUse"]:
+            matched.update(entry.get("matcher", "").split("|"))
+        self.assertEqual(matched - {""}, set(TOOL_PATH_KEYS))
+
+    def test_a_store_that_may_not_be_recorded_against_is_not(self):
+        """`SKILL.md` names treating a declined context as learned context.
+
+        Accumulating against one is that, and a template is not a lineage at
+        all -- so the switch alone is not enough to authorise recording.
+        """
+        from howdo.context import decline_onboarding  # noqa: PLC0415
+
+        with tempfile.TemporaryDirectory() as tmp:
+            store = Path(tmp) / "CONTEXT.md"
+            ensure_context(store, template=PAYLOAD / "CONTEXT.template.md")
+            set_signals(store, on=True)
+            decline_onboarding(store)
+            self._fire(store, tool="Write", written=self._artifact(tmp))
+            self.assertFalse(resolve_signal_log(context_path=store, env={}).exists(),
+                             "recorded against a declined context")
+
+    def test_the_shipped_template_is_never_recorded_against(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self._fire(PAYLOAD / "CONTEXT.template.md", tool="Write",
+                       written=self._artifact(tmp))
+            self.assertFalse((PAYLOAD / SIGNAL_BASENAME).exists(),
+                             "a log appeared inside the payload")
+
+    def test_a_windows_shim_ships_beside_the_hook(self):
+        """The hook is invoked by path from hooks.json. Without this it simply
+        does not run on Windows -- the sibling executable has had one since it
+        shipped, and this one was written without."""
+        shim = PAYLOAD / "bin" / "howdo-signal.cmd"
+        self.assertTrue(shim.is_file(), "no Windows shim beside bin/howdo-signal")
+        self.assertIn("howdo-signal", shim.read_text(encoding="utf-8"))
 
     def test_the_hook_is_wired_to_the_tools_that_write(self):
         config = json.loads((PAYLOAD / "hooks" / "hooks.json").read_text(encoding="utf-8"))
