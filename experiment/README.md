@@ -1,5 +1,11 @@
 # Benchmark experiment
 
+**This lane lives on the `experiment` branch.** `main` no longer carries this
+directory: the experiment programme (#8–#11, PILOT-0001) develops here, and its
+tests run here. Merging `main` into this branch keeps the runtime it depends on
+current; nothing merges the other way without the promotion evidence
+`CONTRIBUTING.md` demands.
+
 Not part of How Do. Nothing here is installed, nothing here is released, and
 nothing here has earned a place in the skill. `install.py` copies `runtime/` and
 never this directory; `tests/test_release.py` enforces that an ordinary install
