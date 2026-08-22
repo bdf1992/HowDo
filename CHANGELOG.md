@@ -4,6 +4,25 @@ Versions are aligned across `plugin/SKILL.md`, `README.md`, `pyproject.toml`, an
 
 ## 0.10.0
 
+- **The one escape hatch in the payload guard described a trade the plugin route
+  does not offer.** `_refuse_payload_settlement` lets a store through when it
+  declares `scope: shared`, on the stated grounds that whoever declared it
+  "accepted that a wholesale reinstall discards it". That is true of a skill
+  directory, which is replaced in place. It is false of a plugin: hosts install
+  under a directory named for the release, so an update does not touch the old
+  one — it creates a new one beside it and reads from there. The store is not
+  discarded, it is **orphaned**: still on disk, still readable, and no longer the
+  file anything loads. Nothing raises and nothing goes missing, which makes it
+  strictly worse than deletion for a durable context and impossible to opt into
+  knowingly. `is_plugin_payload()` now tells the two kinds apart by the manifest
+  a plugin root ships and a skill directory never does, and a `scope: shared`
+  settlement inside a plugin payload raises instead, naming
+  `$CLAUDE_PLUGIN_DATA` as where the store belongs. A skill directory is
+  unchanged, and an explicit `allow_payload=True` still overrides — a caller who
+  states the risk is not the accident being guarded against. This strengthens an
+  existing guarantee rather than weakening one, per rule 1, and the new row in
+  `ADVERSARIAL.md` says so.
+
 - **Four of seven version strings were unchecked, and a release is what would
   have found that out.** `test_release_versions_are_aligned` verified
   `SKILL.md`, `README.md`, `pyproject.toml`, `CONTEXT.template.md` and

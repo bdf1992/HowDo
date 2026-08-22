@@ -123,6 +123,11 @@ _CONTEXT_BASENAME = "CONTEXT.md"
 # under it is replaced wholesale on reinstall or update.
 _PAYLOAD_MARKER = "SKILL.md"
 _PAYLOAD_SEARCH_DEPTH = 6
+# A plugin root ships its manifest; an ordinary skill directory never does,
+# because the installer's PAYLOAD deliberately excludes it. That makes the
+# manifest the one reliable way to tell the two payload kinds apart from a path
+# alone -- no host directory layout is assumed, and nothing is parsed.
+_PLUGIN_MANIFEST = (".claude-plugin", "plugin.json")
 
 
 class TemplateContextError(ValueError):
@@ -333,6 +338,24 @@ def payload_root(path: str | Path) -> Path | None:
     return None
 
 
+def is_plugin_payload(root: str | Path) -> bool:
+    """True when a payload directory is a *plugin* root rather than a skill directory.
+
+    The distinction is not cosmetic, and it is the reason this exists: the two
+    kinds fail differently on update. A skill directory is replaced in place, so
+    a file inside it is overwritten and gone. A plugin payload is version-scoped
+    -- hosts install it under a directory named for the release -- so an update
+    does not touch the old directory at all. It creates a new one beside it and
+    reads from there.
+
+    A file left in the old directory is therefore not discarded. It is
+    *orphaned*: still on disk, still readable, and no longer the file anything
+    loads. That is strictly worse than deletion for a durable context, because
+    nothing raises and nothing is missing from the filesystem's point of view.
+    """
+    return (Path(root).joinpath(*_PLUGIN_MANIFEST)).is_file()
+
+
 def default_store_path(
     *,
     env: Mapping[str, str] | None = None,
@@ -469,11 +492,28 @@ def _refuse_payload_settlement(path: Path, *, allow_payload: bool) -> None:
     root = payload_root(path)
     if root is None:
         return
-    # A store that declares scope: shared was placed here deliberately, by
-    # someone who accepted that a wholesale reinstall discards it. That is an
-    # opted-into trade, not the accident this refusal exists to catch.
-    if is_shared(_frontmatter(path.read_text(encoding="utf-8"))):
+    shared = is_shared(_frontmatter(path.read_text(encoding="utf-8")))
+    if shared and not is_plugin_payload(root):
+        # A store that declares scope: shared was placed here deliberately, by
+        # someone who accepted that a wholesale reinstall discards it. That is
+        # an opted-into trade, not the accident this refusal exists to catch.
         return
+    if shared:
+        # The same declaration under a plugin buys a different trade than the
+        # one it describes. A version-scoped payload is not replaced on update,
+        # so the store is not discarded -- it is left in the previous version's
+        # directory while the skill reads from the new one. Nobody opts into
+        # that, because nothing announces it: no error, no missing file, just a
+        # context that silently stops being the one in use.
+        raise PayloadContextError(
+            f"{path} declares scope: shared inside a *plugin* payload at {root}. "
+            f"A plugin payload is version-scoped, so the next release reads from "
+            f"a new directory and this file is orphaned rather than replaced. "
+            f"Put the shared store where the host does not version it -- the "
+            f"directory named by ${_STORE_PLUGIN_DATA_ENV}, or a path in "
+            f"${_STORE_ENV} -- and mark it scope: shared there. "
+            f"resolve_context_path() already returns such a path"
+        )
     raise PayloadContextError(
         f"{path} is inside the skill payload at {root}; settle the store "
         f"returned by resolve_context_path() instead, mark it scope: shared to "

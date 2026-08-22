@@ -200,8 +200,12 @@ under a directory named for the release — so a shared store settled inside it 
 discarded by the next version, not merely overwritten. Under a plugin, point
 `$HOWDO_CONTEXT` at a path the host does not replace, or use the directory the
 host names in `$CLAUDE_PLUGIN_DATA`, and mark the store `scope: shared` there.
-`howdo-context --path` reports where resolution currently lands. Never settle a
-shared store inside a plugin payload.
+`howdo-context --path` reports where resolution currently lands.
+
+Settling a shared store inside a plugin payload is **refused**, not merely
+discouraged: the runtime raises rather than letting a context be written
+somewhere the next release stops reading. The refusal names the directory to use
+instead.
 
 ## Fork / rename rule
 
