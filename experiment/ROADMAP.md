@@ -22,9 +22,10 @@ measurement downstream is uninterpretable without them.
 
 | # | Action | Kind | Unblocks | State |
 |---|---|---|---|---|
-| 1 | Declare δ\* — the smallest effect worth acting on | decision | M0.0 power gate, M0.1 endpoint | undeclared |
-| 2 | Declare the reconnaissance budget cap | decision | H1/H2 arm definition | undeclared |
-| 3 | Write `PILOT-0001/PREREGISTRATION.md` | writing | the Gate; `preregistration_digest` in M0 | not started |
+| 1 | Declare δ\* — the smallest effect worth acting on | decision | M0.0 power gate, M0.1 endpoint | proposed 0.10, awaiting sign-off |
+| 2 | Declare the reconnaissance budget cap | decision | H1/H2 arm definition | proposed 8k tokens / 12 calls, awaiting sign-off |
+| 2b | Declare the task variance ceiling and the harm-rate ceiling | decision | Stage A freeze | proposed, awaiting sign-off |
+| 3 | Write `PILOT-0001/PREREGISTRATION.md` | writing | the Gate; `preregistration_digest` in M0 | written; unfrozen pending 1, 2, 2b |
 | 4 | Run the M−1 envelope probe | hardware | M0.0, M0.1, hours-per-100-trials | protocol written; probe not run |
 | 5 | Rest of the receipt schema (M0) | code | M0.1 ingestion | done except Harbor ingestion |
 | 6 | Settle the payload asymmetry | decision | release hygiene at 0.9 | open |
@@ -132,13 +133,23 @@ across-task variance, infrastructure error rate, cost, duration.
 H0 (raw) against H1 (HowDo + per-trial reconnaissance), same organism, same
 budget, interleaved.
 
-- [ ] Write `PILOT-0001/PREREGISTRATION.md`: question, primary endpoint,
-      secondary endpoints, committed task ids, trials per task per condition,
-      treatment commit SHA, control, organism fingerprint, analysis method,
-      δ\*, and **GO / STOP / INCONCLUSIVE**. Written before any treatment
-      result is seen.
-- [ ] Declare the reconnaissance budget cap. Unbounded recon makes the
-      treatment mean something different on every task.
+- [x] **`PILOT-0001/PREREGISTRATION.md` is written** — question, hypotheses,
+      one primary endpoint, four secondary endpoints, task-selection rule with
+      its screening bias declared, randomization and interleaving, analysis
+      method with seeds, exclusions with a ceiling, a deviations register, and
+      **GO / STOP / INCONCLUSIVE** where INCONCLUSIVE is explicitly not a soft
+      GO. Frozen in two stages: everything M0.0 must not influence is Stage A;
+      the task set and trial count are Stage B, filled from M0.0's output.
+- [x] **`PILOT-0001/RUNBOOK.md` is written** — pre-run gates, the per-trial
+      lifecycle, arm scheduling, a disposition table to look up rather than
+      decide, and post-collection checks ordered so integrity is verified
+      before the difference is looked at.
+- [ ] **Declare the four open values.** The preregistration carries each as a
+      marked block with a proposal and its reasoning, and
+      `evidence/preregistration.py` refuses to digest the document while any
+      remains — so no confirmatory trial can cite it until a person decides:
+      the task variance ceiling, δ\*, the reconnaissance budget, and the
+      harm-rate ceiling.
 - [ ] Collect **fresh** trials for both arms. M0.0's runs screened the task
       set; reusing them as the control is selection bias that manufactures
       lift.
@@ -208,9 +219,10 @@ These came out of the design and apply across milestones.
 
 ## Open decisions
 
-- Reconnaissance budget cap — undeclared.
-- δ\* — undeclared; must be set before M0.0's power gate can be applied.
-- Pilot task set — uncommitted; depends on M0.0 screening.
+- Reconnaissance budget cap — proposed in `PILOT-0001/PREREGISTRATION.md`, not signed off.
+- δ\* — proposed at 0.10, not signed off; must be set before M0.0's power gate.
+- Task variance ceiling and harm-rate ceiling — proposed, not signed off.
+- Pilot task set — uncommitted; Stage B, depends on M0.0 screening.
 - Whether the environment adapter's kind-awareness in `runtime/howdo/context.py`
   should move fully out of the payload. Currently the hook ships and the
   implementation does not.

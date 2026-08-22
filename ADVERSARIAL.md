@@ -71,6 +71,18 @@ surface.
 | persistent accumulating context used in a pilot trial | `PilotAdmissibilityError`; later trials would inherit earlier trials' information |
 | person context carried into a benchmark trial | `PilotAdmissibilityError`; no arm of the pilot carries a pedagogy |
 | reconnaissance marker flipped with sections left blank | `reconnaissance_required` |
+| receipt asserts `certifies: true` on a judge-scored trial | refused at write time and rechecked at verification, so a recomputed digest does not help |
+| result refiled as infrastructure noise after the fact | `failure_class` is refused on `pass` and `fail` and required on `error` and `excluded` |
+| confirmatory trial cites no preregistration | refused; it is an exploratory trial wearing the word |
+| trial log accepts receipts in any order | `append_receipt()` refuses a non-increasing `run_sequence_index` per experiment |
+| a wrong receipt edited or deleted | corrections append against its digest; the original is never touched |
+| trajectory stored as a filesystem path or inline text | refused; custody references must be sha256 content addresses |
+| control arm reports reconnaissance, or a treatment arm reports none | refused; the arm and the recon outcome must agree |
+| qualification record edited to promote a rejected task | `verify_qualification()` recomputes the outcome, not just the digest |
+| judge-scored task certifies capability | derived outcome is `research_only`; certification is unreachable |
+| preregistration digested while a commitment is still a proposal | refused, and the refusal lists what is open |
+| organism lock fingerprinted from an unfilled template | refused; every required field is checked, not just the first |
+| observed envelope changes the organism fingerprint | it is excluded from the hashed payload by construction |
 | `Skill(foo) + Environment(bar)` digested as `Environment(foo) + Skill(bar)` | different digests; role and kind are committed separately |
 | two-operand resolution digested as a three-operand one | different digests; arity is committed |
 | operand identity crafted to impersonate the serialization | different digests; every value is a quoted string in a typed structure |

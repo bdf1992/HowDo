@@ -12,6 +12,11 @@ from .organism import (
     organism_fields,
     verify_organism,
 )
+from .preregistration import (
+    PreregistrationError,
+    preregistration_digest,
+    undeclared_markers,
+)
 from .qualification import (
     MAX_INFRASTRUCTURE_ERROR_RATE,
     NOOP_ATTEMPTS,
@@ -56,6 +61,7 @@ __all__ = [
     "ORGANISM_VERSION",
     "OUTCOMES",
     "OrganismError",
+    "PreregistrationError",
     "Qualification",
     "QualificationError",
     "OrganismLock",
@@ -73,6 +79,7 @@ __all__ = [
     "corrections_for",
     "load_organism",
     "organism_fields",
+    "preregistration_digest",
     "qualification_fields",
     "read_receipts",
     "resolution_fields",
@@ -80,4 +87,5 @@ __all__ = [
     "verify_organism",
     "verify_qualification",
     "verify_resolution",
+    "undeclared_markers",
 ]

@@ -4,6 +4,26 @@ Versions are aligned across `SKILL.md`, `README.md`, `pyproject.toml`, and `CONT
 
 ## Unreleased
 
+- **The pilot had a frozen treatment and no committed study.** `TREATMENT.md`
+  said what would be administered; nothing said what would count as an effect,
+  which tasks would be committed, how many trials, what analysis, or what result
+  would stop the programme. `PILOT-0001/PREREGISTRATION.md` now does, and it is
+  frozen in two stages so that the parts M0.0 must not influence — endpoints,
+  analysis, δ\*, the stopping rule — are fixed before M0.0 runs, while the task
+  set and trial count are filled from its output. It declares its own screening
+  bias rather than leaving it to be discovered: selecting tasks on the control
+  arm's mid-range performance means the pilot estimates an effect on tasks a raw
+  agent finds neither trivial nor impossible, not on Harbor Index. INCONCLUSIVE
+  is defined as not a soft GO, and a null is recorded as falsifying this
+  treatment and not the discipline, because the person-derived half is in no
+  arm. `PILOT-0001/RUNBOOK.md` makes the study executable without midstream
+  judgement: pre-run gates, the per-trial lifecycle ending in destruction, a
+  disposition table to look up rather than decide, and integrity checks ordered
+  before anyone looks at the difference. `evidence/preregistration.py` refuses to
+  digest a document with an open commitment, so the four values still awaiting a
+  decision — the task variance ceiling, δ\*, the reconnaissance budget, and the
+  harm-rate ceiling — block a confirmatory trial rather than defaulting quietly.
+
 - **Nothing said which benchmark tasks were allowed to be evidence.** Two kinds
   of unqualified task bias a study rather than blurring it: one nothing can
   solve scores zero in every arm and shrinks the effective sample while the task
