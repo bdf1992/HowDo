@@ -153,6 +153,48 @@ class GapTests(unittest.TestCase):
             self.assertEqual(len(reading.gaps), len(DIMENSIONS))
 
 
+class DeclarationTests(unittest.TestCase):
+    """The record only fills up if the skill is told to declare.
+
+    Everything else here is machinery that works on data nobody produces
+    unless `SKILL.md` asks for it, so the asking is a contract too.
+    """
+
+    def _skill(self) -> str:
+        return _flatten((PAYLOAD / "SKILL.md").read_text(encoding="utf-8"))
+
+    def test_the_skill_is_told_which_fields_to_declare(self):
+        skill = self._skill()
+        for field in ("howdo_operation", "howdo_stage", "howdo_expects",
+                      "howdo_held", "howdo_domain", "howdo_shape"):
+            with self.subTest(field=field):
+                self.assertIn(field, skill, f"nothing ever writes {field}")
+
+    def test_declaring_is_gated_on_the_switch(self):
+        """An instruction to header every artefact regardless would make the
+        record arrive whether or not anyone asked for it."""
+        self.assertIn("signals: on", self._skill())
+        self.assertIn("off unless the person set it", self._skill())
+
+    def test_headers_are_scoped_to_artefacts_the_discipline_authors(self):
+        """Putting bookkeeping in someone's source file is vandalism, and the
+        vocabulary rule already says machinery is not what a person reads."""
+        skill = self._skill()
+        self.assertIn("artifacts this discipline authors", skill)
+        self.assertIn("vandalism", skill)
+
+    def test_the_declaration_is_named_as_a_claim_not_a_result(self):
+        """A declaration nobody checked is the model grading itself. The skill
+        has to say so where it asks for one, not only in a module docstring."""
+        skill = self._skill()
+        self.assertIn("your declaration is a claim", skill)
+        self.assertIn("the file existing is the check", skill)
+
+    def test_declaring_a_check_held_dishonestly_is_refused(self):
+        refuses = self._skill()[self._skill().index("## refuses"):]
+        self.assertIn("because the work should have worked", refuses)
+
+
 class AnalystTests(unittest.TestCase):
     """The agent is the judgement half; what it must not do is the contract."""
 
