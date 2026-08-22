@@ -67,6 +67,29 @@ jobs:
           EOF
           python install.py
           python install.py --verify
+      - name: Upgrading must remove files the release no longer ships
+        shell: bash
+        run: |
+          python - <<'EOF'
+          import pathlib
+          payload = pathlib.Path.home() / ".claude" / "skills" / "how-do"
+          (payload / "references" / "legacy.md").write_text("shipped by a previous release")
+          (payload / "runtime" / "howdo" / "old_module.py").write_text("x = 1")
+          print("planted stale payload files")
+          EOF
+          python install.py
+          python - <<'EOF'
+          import pathlib, sys
+          payload = pathlib.Path.home() / ".claude" / "skills" / "how-do"
+          stale = [p for p in ("references/legacy.md", "runtime/howdo/old_module.py") if (payload / p).exists()]
+          assert not stale, f"stale payload files survived the upgrade: {stale}"
+          sys.path.insert(0, "plugin/runtime")
+          from howdo.context import inspect_context, resolve_context_path
+          state = inspect_context(resolve_context_path(None)).state
+          assert state == "ready", f"the durable store did not survive the upgrade: {state}"
+          print("stale files pruned; store untouched")
+          EOF
+          python install.py --verify
 
   plugin:
     # The plugin path is a second way to install the same payload, and the way

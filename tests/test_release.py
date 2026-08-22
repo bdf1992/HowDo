@@ -592,6 +592,87 @@ class PayloadHygieneTests(unittest.TestCase):
             self.assertEqual(strays, [], f"install shipped build noise: {strays}")
 
 
+class UpgradeReplacementTests(unittest.TestCase):
+    """The payload is replaceable release state; an upgrade replaces it exactly.
+
+    An overlay copy can leave a file the previous release shipped -- deleted or
+    renamed since -- present and loadable indefinitely. The install model says
+    payload and store split by durability, so the payload must come out equal
+    to the current release and the store must come out untouched.
+    """
+
+    def _install(self):
+        sys.path.insert(0, str(ROOT))
+        import install  # noqa: PLC0415
+
+        return install
+
+    def test_a_removed_release_file_does_not_survive_an_upgrade(self):
+        install = self._install()
+        with tempfile.TemporaryDirectory() as tmp:
+            destination = Path(tmp) / "how-do"
+            install.copy_payload(destination, dry_run=False)
+            # A previous release shipped these; the current one does not.
+            (destination / "references" / "legacy.md").write_text("gone in this release")
+            (destination / "runtime" / "howdo" / "old_module.py").write_text("x = 1")
+            (destination / "orphan-dir").mkdir()
+            (destination / "orphan-dir" / "leftover.txt").write_text("stray")
+
+            install.copy_payload(destination, dry_run=False)
+
+            self.assertFalse((destination / "references" / "legacy.md").exists())
+            self.assertFalse((destination / "runtime" / "howdo" / "old_module.py").exists())
+            self.assertFalse((destination / "orphan-dir").exists())
+            # and the payload it lays down is still complete
+            for item in install.PAYLOAD:
+                self.assertTrue((destination / item).exists(), item)
+
+    def test_the_shared_store_survives_exact_replacement(self):
+        install = self._install()
+        with tempfile.TemporaryDirectory() as tmp:
+            destination = Path(tmp) / "how-do"
+            install.copy_payload(destination, dry_run=False)
+            store = destination / "CONTEXT.md"
+            settled = "---\nsettled: store\n---\nnot release state\n"
+            store.write_text(settled, encoding="utf-8")
+
+            install.copy_payload(destination, dry_run=False)
+
+            self.assertEqual(store.read_text(encoding="utf-8"), settled)
+
+    def test_dry_run_describes_removals_without_removing(self):
+        install = self._install()
+        with tempfile.TemporaryDirectory() as tmp:
+            destination = Path(tmp) / "how-do"
+            install.copy_payload(destination, dry_run=False)
+            stray = destination / "references" / "legacy.md"
+            stray.write_text("gone in this release")
+
+            actions = install.copy_payload(destination, dry_run=True)
+
+            self.assertTrue(stray.exists(), "--dry-run removed a file")
+            removals = [a for a in actions if a.startswith("remove ")]
+            self.assertTrue(
+                any("legacy.md" in a for a in removals),
+                f"dry-run did not describe the removal: {actions}",
+            )
+
+    def test_plugin_reassembly_keeps_its_own_release_state_and_prunes_strays(self):
+        install = self._install()
+        with tempfile.TemporaryDirectory() as tmp:
+            destination = Path(tmp) / "how-do"
+            install.assemble_plugin(destination, dry_run=False)
+            (destination / "stray.py").write_text("x = 1")
+
+            install.assemble_plugin(destination, dry_run=False)
+
+            self.assertFalse((destination / "stray.py").exists())
+            self.assertTrue((destination / "bin" / "howdo-context").is_file())
+            self.assertTrue(
+                (destination / install.MANIFEST_DIR / install.MANIFEST_NAME).is_file()
+            )
+
+
 class ExperimentBoundaryTests(unittest.TestCase):
     """The boundary between the skill and the research around it is a fact
     about the filesystem, not a claim in a document.

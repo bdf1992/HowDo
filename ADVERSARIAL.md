@@ -146,6 +146,8 @@ Publishing installs something someone may later invoke. These hold for
 | two sessions instantiating one fresh store | the loser keeps the winner's lineage rather than replacing it |
 | build noise present in the working tree at install time | excluded from the payload |
 | install directory name drifts from the skill's declared `name:` | `--verify` fails |
+| file from a previous release survives a skill-directory upgrade | the payload is replaced exactly: whatever the current release does not ship is pruned, and `--dry-run` reports the removals |
+| pruning reaches the shared store at the payload root | spared by name; the store is durable state, not release state |
 
 ## Enforced context-kind invariants
 
