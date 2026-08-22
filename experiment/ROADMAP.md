@@ -69,6 +69,9 @@ study.
       `evidence/organism.py`. The fingerprint is computed from the
       configuration and refuses a lock with any field left unfilled; the
       observed envelope is recorded but excluded from the digest.
+- [x] **Probe set chosen** — six named tasks stratified across the measured
+      timeout distribution (10–200 min cap, 2–8 GB container, four categories),
+      committed as excluded from the pilot before the probe runs.
 - [ ] Probe Q4_K_M and Q8_0 across 8k/16k/32k+ context; record peak VRAM, RAM,
       tok/s, prompt throughput, offload events, failures.
 - [ ] Emit **hours per 100 trials** as a first-class output. It sizes every
@@ -127,6 +130,16 @@ fingerprints. No XP, no levels, no skill graph.
       `TrialResult` to a receipt, `blobs.py` is the content-addressed store,
       `qualify.py` folds oracle and no-op runs into a qualification record. No
       runner was rebuilt: Harbor owns execution and this is the seam.
+- [x] **Trial schedule** — `harness/schedule.py`. Round-based rather than a
+      flat shuffle, so the arms are balanced after every round and drift across
+      the run hits both equally. Generated once, persisted with a digest,
+      resumable by sequence index, and refusing both an overwrite and a resume
+      under changed parameters.
+- [x] **Post-collection checks** — `harness/checks.py`. The runbook's step 2 as
+      code: every receipt verifies, one organism and one preregistration
+      throughout, no stray analysis class, unique sequence indices, exclusions
+      under the ceiling per arm, only committed tasks, every receipt matching
+      the trial the schedule planned, and no dangling correction.
 - [ ] Wire the seam to a real Harbor job on the target machine (needs M−1).
 
 ## M0.0 — Noise floor · `blocked` on M−1 · [#10](https://github.com/bdf1992/HowDo/issues/10)

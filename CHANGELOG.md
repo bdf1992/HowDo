@@ -4,6 +4,27 @@ Versions are aligned across `SKILL.md`, `README.md`, `pyproject.toml`, and `CONT
 
 ## Unreleased
 
+- **The runbook described a scheduler and an audit that did not exist.** Both
+  were prose steps for a person to carry out on a run that will take weeks, which
+  is exactly when a checklist gets walked through quickly.
+  `experiment/harness/schedule.py` makes the trial order an artifact: round-based
+  rather than a flat shuffle, because interleaving only defends against drift if
+  the arms are balanced *over time* and a flat shuffle balances only in
+  expectation — after every round each task has the same count in every arm. It
+  is generated once, persisted with a digest, resumed by sequence index rather
+  than by (task, arm) since two entries in a round are otherwise
+  indistinguishable, and it refuses both an overwrite and a resume under changed
+  parameters, because a regenerated schedule is a different study continued under
+  the same name. `experiment/harness/checks.py` turns the post-collection audit
+  into one pass that returns findings and never raises: unverifiable receipts,
+  two organisms or two preregistrations in one log, a stray rehearsal receipt,
+  duplicate sequence indices, per-arm exclusions over the ceiling, tasks outside
+  the committed set, and any receipt that ran a different trial from the one
+  scheduled — the last being structurally perfect and still wrong. M−1's probe
+  set is now six named tasks stratified across the measured timeout distribution
+  rather than a description of what to pick, and naming them commits their
+  exclusion from the pilot before the probe runs.
+
 - **The evidence layer had no way to receive evidence.** Everything up to here
   was contracts and validators; nothing read a trial. `experiment/harness/` is
   the seam to Harbor, and only that — Harbor owns execution, and the roadmap

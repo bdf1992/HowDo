@@ -7,6 +7,17 @@ it into receipts, and stores trajectories where a digest can find them.
 """
 
 from .blobs import BlobError, BlobStore
+from .checks import Finding, RunReport, check_run
+from .schedule import (
+    ScheduleError,
+    ScheduledTrial,
+    TrialSchedule,
+    build_or_load,
+    build_schedule,
+    load_schedule,
+    remaining,
+    save_schedule,
+)
 from .qualify import (
     QualificationCounts,
     count_runs,
@@ -17,9 +28,20 @@ from .ingest import IngestError, ingest_trial, read_trial_result, wall_clock_sec
 __all__ = [
     "BlobError",
     "BlobStore",
+    "Finding",
+    "RunReport",
+    "ScheduleError",
+    "ScheduledTrial",
+    "TrialSchedule",
     "IngestError",
     "QualificationCounts",
+    "build_or_load",
+    "build_schedule",
+    "check_run",
     "count_runs",
+    "load_schedule",
+    "remaining",
+    "save_schedule",
     "ingest_trial",
     "qualify_task",
     "read_trial_result",
