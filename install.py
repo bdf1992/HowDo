@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 """Install How Do as a skill directory, keeping the durable context out of it.
 
+This is one of two routes and no longer the usual one. ``plugin/`` is a plugin
+root committed in the repository, so a marketplace installs How Do without this
+file running at all. What remains here is the skill-directory install, the
+assembler that lays the same payload out somewhere else, and ``--verify``.
+
 Two things live in different places on purpose:
 
     template  <skills-dir>/how-do/CONTEXT.template.md   shipped artifact; replaced on update

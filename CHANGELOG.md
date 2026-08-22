@@ -2,7 +2,40 @@
 
 Versions are aligned across `plugin/SKILL.md`, `README.md`, `pyproject.toml`, and `plugin/CONTEXT.template.md`; `tests/test_release.py` enforces it.
 
-## Unreleased
+## 0.10.0
+
+- **Four of seven version strings were unchecked, and a release is what would
+  have found that out.** `test_release_versions_are_aligned` verified
+  `SKILL.md`, `README.md`, `pyproject.toml`, `CONTEXT.template.md` and
+  `CHANGELOG.md`. It never checked `runtime/howdo/context.py`, whose
+  `SKILL_VERSION` stamps `skill_version` into every context the runtime writes
+  — a constant CONTRIBUTING rule 4 already listed as one that must move with the
+  rest, so the rule was right and only the test was behind — nor the quickstart
+  title. A bump could reach four places, pass CI, and ship contexts stamped with
+  the previous release. The test now pins the release in one literal and checks
+  all seven against it. The plugin manifest is checked separately because it is
+  derived rather than typed, and `.claude-plugin/marketplace.json` now carries
+  no version at all: a marketplace catalog versions itself, not the plugin
+  inside it, and a number there asserted a coupling nothing maintained.
+
+- **Two shipped documents told the reader to run a file the plugin does not
+  ship.** `QUICKSTART.md` and `references/onboarding.md` both pointed at
+  `python install.py --shared` to opt into a generic store. For a marketplace
+  user that command does not exist, and the advice was worse than unreachable:
+  a plugin payload is *version-scoped*, so a shared store settled inside it is
+  discarded by the next release rather than merely replaced — precisely the loss
+  the store design exists to prevent. Both now say how the opt-in differs by
+  install route, and that under a plugin the store belongs at a path the host
+  does not replace. A test fails on any shipped document that carries a runnable
+  `install.py` command, because naming the other route in prose is fine and
+  handing someone a command to copy is not.
+
+- **Packaging was a lane in practice and absent from the rules.** It has a
+  handoff, a CI job, a directory boundary and its own findings, while
+  `CONTRIBUTING.md` named four lanes and offered no `Layer:` value for it — so
+  every packaging change had to misfile itself as docs. It is now the fifth
+  lane, with the rule that makes it different: the boundary is the directory,
+  and anything inside `plugin/` reaches every user by every route.
 
 - **A plugin nobody can install is not packaged.** The plugin root was
   generated into `dist/`, which is gitignored, so `/plugin install` had nothing
@@ -344,8 +377,6 @@ Versions are aligned across `plugin/SKILL.md`, `README.md`, `pyproject.toml`, an
   whatever host ran it, and stayed green on Linux-only CI while proving nothing
   about Windows. All three branches are now asserted through `subTest` with
   `platform` pinned per case.
-
-## Unreleased
 
 - **Every skill the emitter produced was unloadable, and so was this one.** A
   plain YAML scalar may not contain `": "`, and a generated description always

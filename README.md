@@ -1,4 +1,4 @@
-# How Do v0.9.0 + Runtime Toolkit
+# How Do v0.10.0 + Runtime Toolkit
 
 **How Do** is a small discipline for understanding-before-acting.
 
@@ -256,10 +256,10 @@ How Do has no measurement yet: it is a discipline, a reference runtime, and
 tests that prove the documents keep their promises, none of which shows that the
 discipline changes what an agent does. `experiment/` holds the work that would
 find out, starting from `experiment/ROADMAP.md`. **None of it is part of the
-installed skill or the 0.8.0 release.** `experiment/` sits outside `plugin/`,
+installed skill or the 0.10.0 release.** `experiment/` sits outside `plugin/`,
 so nothing in it can reach an install, and `tests/test_release.py` checks that
 an ordinary install contains no experiment code. If the measurement fails, the directory is deleted
-and 0.8.0 is unaffected.
+and 0.10.0 is unaffected.
 
 ## QA
 
@@ -273,7 +273,7 @@ claude plugin validate plugin --strict
 claude plugin validate .claude-plugin/marketplace.json --strict
 ```
 
-The bundle and Python package share release version `0.9.0`, so package identity
+The bundle and Python package share release version `0.10.0`, so package identity
 does not drift from the skill release.
 
 ## License

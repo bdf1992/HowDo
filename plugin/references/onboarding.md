@@ -188,10 +188,20 @@ named above, then onboard it.
 
 `scope: user` is the default: this context records how one person takes
 explanations. `scope: shared` marks a generic store for everyone using one
-install — opted into via `install.py --shared`, never inferred, and the only kind
-admitted inside the payload. A shared store calibrates to whoever onboarded
-first: treat its observations as weaker evidence, never as a claim about the
-current user.
+install — never inferred, always opted into, and the only kind admitted inside
+the payload. A shared store calibrates to whoever onboarded first: treat its
+observations as weaker evidence, never as a claim about the current user.
+
+**How it is opted into depends on how the skill was installed, and under a
+plugin the payload is the wrong place for it.** A skill directory is replaced wholesale on
+update, which is why its installer carries a `--shared` opt-in at all, and why
+it is explicit rather than inferred. A plugin's payload is *version-scoped* — it sits
+under a directory named for the release — so a shared store settled inside it is
+discarded by the next version, not merely overwritten. Under a plugin, point
+`$HOWDO_CONTEXT` at a path the host does not replace, or use the directory the
+host names in `$CLAUDE_PLUGIN_DATA`, and mark the store `scope: shared` there.
+`howdo-context --path` reports where resolution currently lands. Never settle a
+shared store inside a plugin payload.
 
 ## Fork / rename rule
 

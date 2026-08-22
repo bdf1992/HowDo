@@ -1,3 +1,4 @@
+import json
 import os
 import re
 import shutil
@@ -24,18 +25,80 @@ def _flatten(text: str) -> str:
 
 
 
+#: The release, pinned once and deliberately. Reading it from one of the files
+#: below would make the check self-fulfilling: every place could drift together
+#: and still agree. Editing this literal is what a release *is*.
+RELEASE = "0.10.0"
+
+
 class ReleaseContractTests(unittest.TestCase):
     def test_release_versions_are_aligned(self):
-        skill = (PAYLOAD / "SKILL.md").read_text(encoding="utf-8")
-        readme = (ROOT / "README.md").read_text(encoding="utf-8")
-        pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
-        context = (PAYLOAD / "CONTEXT.template.md").read_text(encoding="utf-8")
-        self.assertIn('version: "0.9.0"', skill)
-        self.assertIn("How Do v0.9.0", readme)
-        self.assertIn('version = "0.9.0"', pyproject)
-        self.assertIn('skill_version: "0.9.0"', context)
-        changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
-        self.assertIn("## 0.9.0", changelog)
+        """Seven places, not four.
+
+        Three of these went unchecked until a release exposed them: the runtime
+        constant that stamps `skill_version` into every context it writes, the
+        quickstart title, and the manifest a marketplace reads. CONTRIBUTING
+        rule 4 already listed the first as one that must move with the rest, so
+        the rule was right and only the test was behind. A release that bumped
+        four of seven and passed CI is the failure this now prevents.
+        """
+        places = {
+            "plugin/SKILL.md": (
+                (PAYLOAD / "SKILL.md").read_text(encoding="utf-8"),
+                f'version: "{RELEASE}"',
+            ),
+            "README.md": (
+                (ROOT / "README.md").read_text(encoding="utf-8"),
+                f"How Do v{RELEASE}",
+            ),
+            "pyproject.toml": (
+                (ROOT / "pyproject.toml").read_text(encoding="utf-8"),
+                f'version = "{RELEASE}"',
+            ),
+            "plugin/CONTEXT.template.md": (
+                (PAYLOAD / "CONTEXT.template.md").read_text(encoding="utf-8"),
+                f'skill_version: "{RELEASE}"',
+            ),
+            "CHANGELOG.md": (
+                (ROOT / "CHANGELOG.md").read_text(encoding="utf-8"),
+                f"## {RELEASE}",
+            ),
+            "plugin/runtime/howdo/context.py": (
+                (PAYLOAD / "runtime" / "howdo" / "context.py").read_text(encoding="utf-8"),
+                f'SKILL_VERSION = "{RELEASE}"',
+            ),
+            "plugin/QUICKSTART.md": (
+                (PAYLOAD / "QUICKSTART.md").read_text(encoding="utf-8"),
+                f"How Do v{RELEASE}",
+            ),
+        }
+        for name, (text, expected) in places.items():
+            with self.subTest(place=name):
+                self.assertIn(expected, text, f"{name} does not carry {RELEASE}")
+
+    def test_the_plugin_manifest_carries_the_release_too(self):
+        """It is derived, so this checks the derivation ran, not that someone typed it."""
+        manifest = json.loads(
+            (PAYLOAD / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(manifest["version"], RELEASE)
+
+    def test_the_marketplace_catalog_pins_no_release(self):
+        """An eighth place to edit, and the one nothing would derive.
+
+        A marketplace manifest versions the *catalog*, not the plugin in it, and
+        the plugin's own version is already stated in its own manifest. A number
+        here that happened to match the release would assert a coupling nothing
+        maintains, and would go stale on the first bump that forgot it.
+        """
+        catalog = json.loads(
+            (ROOT / ".claude-plugin" / "marketplace.json").read_text(encoding="utf-8")
+        )
+        self.assertNotIn("version", catalog, "the catalog pins a version")
+        self.assertNotIn(
+            "version", catalog.get("metadata", {}),
+            "the catalog's metadata pins a version; the plugin manifest states it",
+        )
 
     def test_tracked_context_is_the_template_not_a_settled_context(self):
         # Personal contexts are never committed; only the template is tracked.

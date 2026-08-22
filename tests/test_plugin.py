@@ -152,6 +152,29 @@ class DistributionTests(unittest.TestCase):
             "plugin/LICENSE has drifted from the repository LICENSE",
         )
 
+    def test_no_shipped_document_tells_the_reader_to_run_the_installer(self):
+        """The payload cannot instruct someone to run a file it does not ship.
+
+        `QUICKSTART.md` and `references/onboarding.md` both told the reader to
+        run `python install.py --shared` to opt into a generic store. A
+        marketplace user has no `install.py`, and the advice was worse than
+        unreachable: a plugin payload is version-scoped, so a shared store
+        settled inside it is discarded by the next release rather than merely
+        replaced -- the exact loss the store design exists to prevent.
+
+        Naming the other install route in prose is fine and sometimes
+        necessary. A runnable command is not, because that is the form a reader
+        copies.
+        """
+        offenders = []
+        for path in sorted(install.PAYLOAD_ROOT.rglob("*.md")):
+            if "python install.py" in path.read_text(encoding="utf-8"):
+                offenders.append(str(path.relative_to(install.PAYLOAD_ROOT)))
+        self.assertEqual(
+            offenders, [],
+            "shipped documents tell the reader to run install.py, which the payload does not ship",
+        )
+
     def test_the_marketplace_points_at_the_committed_plugin_root(self):
         entries = self._marketplace()["plugins"]
         sources = {entry["name"]: entry["source"] for entry in entries}

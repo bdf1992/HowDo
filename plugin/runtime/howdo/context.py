@@ -89,7 +89,7 @@ _REQUIRED_SECTIONS = _REQUIRED_SECTIONS_BY_KIND[KIND_PERSON]
 _PLACEHOLDERS = {"", "pending", "none", "none yet", "- pending", "- none yet"}
 _PLACEHOLDER_PREFIXES = ("pending", "none yet")
 
-SKILL_VERSION = "0.9.0"
+SKILL_VERSION = "0.10.0"
 
 _TEMPLATE_KEY = "template"
 _TEMPLATE_TRUE = {"true", "yes", "1"}
