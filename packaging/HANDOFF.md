@@ -113,40 +113,56 @@ skill-text change with a trace, per `CONTRIBUTING.md`.
 ### 3. The plugin ships PILOT-0001 — blocked on PR #12
 
 `tests/test_plugin.py::ParityTests::test_the_plugin_names_no_experiment` is
-**skipped, not passing.** `runtime/howdo/environment.py` is the pilot adapter
-and `howdo/__init__.py` re-exports its API, so every install path — plugin and
-ordinary alike — carries the experiment.
+**skipped, not passing.** `plugin/runtime/howdo/environment.py` is the pilot
+adapter and `plugin/runtime/howdo/__init__.py` re-exports its API.
+
+The move made this sharper rather than fixing it. The adapter used to be
+copied into an install by an assembler; it is now **tracked inside the
+directory that ships verbatim**. Same defect, more visible, and no longer
+something a build step could be taught to filter — which is the correct
+pressure, since the answer was always to move the file out rather than to
+filter it.
 
 Nothing to do here. The skip condition is
-`(ROOT / "runtime" / "howdo" / "environment.py").exists()`, which clears itself
-when PR #12 moves the adapter to `experiment/PILOT-0001/adapter/`. Verified
-that it activates: with the adapter removed the test runs and correctly flags
-the remaining `__init__.py` re-exports, so it also catches a partial fix.
-
----
+`(PAYLOAD / "runtime" / "howdo" / "environment.py").exists()`, which clears
+when #12 moves the adapter to `experiment/PILOT-0001/adapter/`. Verified that
+it activates: with the adapter removed the test runs and correctly flags the
+remaining `__init__.py` re-exports, so it also catches a partial fix. See the
+collision map for the exact merge resolution.
 
 ## Collision map
 
-Dry-run merges as of `9c86850`, against `origin/main` at `f8b9236`:
+Dry-run merges as of `15bfee2`, against `origin/main` after #13 and #15:
 
-| in flight | branch | conflicts with this lane |
-|---|---|---|
-| **#12** experiment/packaging boundary | `claude/skill-graph-benchmark-index-s1vxax` | **none — clean** |
-| — | `experiment/m0-harbor-runner` | `CHANGELOG.md` |
+| in flight | conflicts with this lane |
+|---|---|
+| **#12** `claude/skill-graph-benchmark-index-s1vxax` | `environment.py` (rename/rename), `tests/test_environment_context.py` |
+| `experiment/m0-harbor-runner` | the same, plus `CHANGELOG.md` |
 
-**#13 merged** (release 0.9.0) and this lane has merged main in. The two
-conflicts it caused were both additive and are resolved: a changelog block and
-a QA-command list entry. Nothing in `install.py`, `runtime/howdo/context.py`,
-`SKILL.md`, `tests/`, or `.github/workflows/tests.yml` was ever contested.
+**This got worse when the payload moved, and it was worth it.** Both branches
+move `runtime/howdo/environment.py`, to different places: this lane took it to
+`plugin/runtime/howdo/environment.py` along with the rest of the payload, and
+#12 takes it to `experiment/PILOT-0001/adapter/environment.py`. Git reports a
+rename/rename conflict on three paths at once.
 
-The 0.9.0 bump needed **no edit here**: the manifest derives its version from
-`SKILL.md`, so `--plugin` emitted 0.9.0 on its own. That is the design working;
-do not add a version to `packaging/plugin.json` to "keep them in sync".
+**The resolution is not a judgement call — #12 is right.** That file is the
+pilot adapter and does not belong in the payload at all. When merging:
+
+```bash
+git rm plugin/runtime/howdo/environment.py          # ours: wrong home
+git add experiment/PILOT-0001/adapter/environment.py # theirs: correct home
+# then drop the pilot re-exports from plugin/runtime/howdo/__init__.py,
+# taking #12's version of that hunk
+```
+
+Then `tests/test_environment_context.py` takes #12's version, repointed at
+`PAYLOAD` where it references payload files. After that,
+`test_the_plugin_names_no_experiment` stops skipping — see item 3.
 
 `howdo/payload-store-split` is empty against main. Stale; ignore.
 
-**Suggested order.** #12 next — item 3 closes for free and it merges clean
-today. Then item 1, which is now unblocked.
+**Suggested order.** #12 next: it closes item 3 and the conflict above is
+mechanical once you know which side wins.
 
 To re-check collisions after anything moves:
 
