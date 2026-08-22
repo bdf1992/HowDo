@@ -26,9 +26,9 @@ jobs:
         run: python -m unittest discover -s tests -t . -v
       - name: Examples
         run: |
-          python examples/jira_workflow.py
-          python examples/portable_contract.py
-          python examples/issue_domain_how.py
+          python plugin/examples/jira_workflow.py
+          python plugin/examples/portable_contract.py
+          python plugin/examples/issue_domain_how.py
 
   install:
     # The suite exercises the library; this exercises what a person actually
@@ -53,7 +53,7 @@ jobs:
         shell: bash
         run: |
           python - <<'EOF'
-          import sys; sys.path.insert(0, "runtime")
+          import sys; sys.path.insert(0, "plugin/runtime")
           from howdo.context import complete_onboarding, inspect_context, resolve_context_path
           p = resolve_context_path(None)
           complete_onboarding(

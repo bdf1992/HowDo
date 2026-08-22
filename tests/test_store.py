@@ -4,7 +4,8 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "runtime"))
+PAYLOAD = ROOT / "plugin"
+sys.path.insert(0, str(PAYLOAD / "runtime"))
 
 from howdo import (  # noqa: E402
     PayloadContextError,
@@ -21,7 +22,7 @@ from howdo import (  # noqa: E402
     resolve_context_path,
 )
 
-SHIPPED_TEMPLATE = ROOT / "CONTEXT.template.md"
+SHIPPED_TEMPLATE = PAYLOAD / "CONTEXT.template.md"
 
 EVIDENCE = {
     "calibration_domain": "distributed queues; runs incident review",

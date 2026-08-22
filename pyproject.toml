@@ -9,7 +9,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-package-dir = {"" = "runtime"}
+package-dir = {"" = "plugin/runtime"}
 
 [tool.setuptools.packages.find]
-where = ["runtime"]
+where = ["plugin/runtime"]

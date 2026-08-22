@@ -20,7 +20,8 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "runtime"))
+PAYLOAD = ROOT / "plugin"
+sys.path.insert(0, str(PAYLOAD / "runtime"))
 sys.path.insert(0, str(ROOT))
 
 import install  # noqa: E402
@@ -49,7 +50,7 @@ class ManifestTests(unittest.TestCase):
         skill description promises that string and a release test asserts it,
         which makes this the load-bearing field in the file.
         """
-        self.assertEqual(self._source()["name"], install.skill_name(ROOT / "SKILL.md"))
+        self.assertEqual(self._source()["name"], install.skill_name(PAYLOAD / "SKILL.md"))
 
     def test_the_manifest_source_pins_no_version(self):
         """Six places to edit on release is five too many.
@@ -72,10 +73,105 @@ class ManifestTests(unittest.TestCase):
                 (destination / install.MANIFEST_DIR / install.MANIFEST_NAME)
                 .read_text(encoding="utf-8")
             )
-        self.assertEqual(manifest["version"], install.skill_version(ROOT / "SKILL.md"))
+        self.assertEqual(manifest["version"], install.skill_version(PAYLOAD / "SKILL.md"))
 
     def test_skill_version_reads_the_frontmatter_it_claims_to(self):
-        self.assertRegex(install.skill_version(ROOT / "SKILL.md"), r"^\d+\.\d+\.\d+$")
+        self.assertRegex(install.skill_version(PAYLOAD / "SKILL.md"), r"^\d+\.\d+\.\d+$")
+
+
+class DistributionTests(unittest.TestCase):
+    """A marketplace clones a repository; it cannot run the assembler first.
+
+    ``plugin/`` is therefore a real plugin root in the tree, manifest and all,
+    and the repository root carries a marketplace entry pointing at it. That
+    makes the payload boundary a filesystem fact: what ships is what is in one
+    directory, rather than what a function remembered to copy.
+
+    A committed derived file is the risk this trades for, so the derivation is
+    still the authority and these tests are what stop the copy going stale.
+    """
+
+    def _committed(self) -> Path:
+        return install.PAYLOAD_ROOT / install.MANIFEST_DIR / install.MANIFEST_NAME
+
+    def _marketplace(self) -> dict:
+        return json.loads(
+            (ROOT / ".claude-plugin" / "marketplace.json").read_text(encoding="utf-8")
+        )
+
+    def test_the_committed_manifest_is_byte_identical_to_the_derived_one(self):
+        """Not merely equivalent. Byte-identical, so refreshing it is mechanical.
+
+        ``install.manifest_bytes()`` is the single authority. Comparing parsed
+        dictionaries would pass while the file drifted in key order or
+        indentation, and then the fix for a failure here would be a judgement
+        call instead of overwriting the file with what this function returns.
+        """
+        self.assertEqual(
+            self._committed().read_text(encoding="utf-8"),
+            install.manifest_bytes(),
+            "plugin/.claude-plugin/plugin.json is stale; rewrite it from "
+            "install.manifest_bytes()",
+        )
+
+    def test_the_committed_manifest_carries_the_skill_version(self):
+        """The version is still derived; committing the result does not pin it."""
+        manifest = json.loads(self._committed().read_text(encoding="utf-8"))
+        self.assertEqual(manifest["version"], install.skill_version(PAYLOAD / "SKILL.md"))
+
+    def test_the_payload_root_holds_nothing_an_install_would_leave_behind(self):
+        """The directory is the boundary now, so the directory is what is checked.
+
+        Anything added to ``plugin/`` that is not in ``PAYLOAD`` ships to a
+        marketplace user and is silently missing from an ordinary install --
+        exactly the two-paths drift the parity tests exist to catch, arriving
+        by a new route.
+        """
+        allowed = set(install.PAYLOAD) | set(install.PLUGIN_EXTRA) | {install.MANIFEST_DIR}
+        present = {
+            entry.name for entry in install.PAYLOAD_ROOT.iterdir()
+            if entry.name != "__pycache__"
+        }
+        self.assertEqual(
+            present - allowed, set(),
+            "plugin/ holds files no install path ships; add them to PAYLOAD or move them out",
+        )
+
+    def test_the_shipped_license_is_the_repository_license(self):
+        """The payload ships a licence, and a repository root needs one too.
+
+        Two copies is the cost of the payload being a subdirectory: a licence
+        outside ``plugin/`` never reaches an installed skill, and one only
+        inside it is invisible to anything reading the repository. They are
+        checked equal rather than trusted equal, and a symlink is not an option
+        because a Windows checkout would ship the link text as the licence.
+        """
+        self.assertEqual(
+            (PAYLOAD / "LICENSE").read_text(encoding="utf-8"),
+            (ROOT / "LICENSE").read_text(encoding="utf-8"),
+            "plugin/LICENSE has drifted from the repository LICENSE",
+        )
+
+    def test_the_marketplace_points_at_the_committed_plugin_root(self):
+        entries = self._marketplace()["plugins"]
+        sources = {entry["name"]: entry["source"] for entry in entries}
+        manifest = json.loads(self._committed().read_text(encoding="utf-8"))
+        self.assertIn(
+            manifest["name"], sources,
+            "the marketplace lists no plugin under the manifest's own name",
+        )
+        target = (ROOT / sources[manifest["name"]]).resolve()
+        self.assertEqual(target, install.PAYLOAD_ROOT.resolve())
+
+    def test_the_marketplace_source_is_a_plugin_root(self):
+        """A source that does not resolve to a manifest installs nothing."""
+        for entry in self._marketplace()["plugins"]:
+            with self.subTest(plugin=entry["name"]):
+                root = (ROOT / entry["source"]).resolve()
+                self.assertTrue(
+                    (root / install.MANIFEST_DIR / install.MANIFEST_NAME).is_file(),
+                    f"{entry['source']} has no {install.MANIFEST_DIR}/{install.MANIFEST_NAME}",
+                )
 
 
 class LayoutTests(unittest.TestCase):
@@ -227,7 +323,7 @@ class ParityTests(unittest.TestCase):
             self.assertEqual(strays, [], f"the plugin ships repository concerns: {strays}")
 
     @unittest.skipIf(
-        (ROOT / "runtime" / "howdo" / "environment.py").exists(),
+        (PAYLOAD / "runtime" / "howdo" / "environment.py").exists(),
         "the PILOT-0001 adapter still lives in runtime/, so every install "
         "path ships it; this check activates when it moves out of the payload",
     )

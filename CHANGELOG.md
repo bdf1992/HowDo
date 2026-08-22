@@ -1,8 +1,37 @@
 # Changelog
 
-Versions are aligned across `SKILL.md`, `README.md`, `pyproject.toml`, and `CONTEXT.template.md`; `tests/test_release.py` enforces it.
+Versions are aligned across `plugin/SKILL.md`, `README.md`, `pyproject.toml`, and `plugin/CONTEXT.template.md`; `tests/test_release.py` enforces it.
 
 ## Unreleased
+
+- **A plugin nobody can install is not packaged.** The plugin root was
+  generated into `dist/`, which is gitignored, so `/plugin install` had nothing
+  to clone and the packaging lane could not close parity. The payload now lives
+  at `plugin/` as a committed plugin root — `SKILL.md`, `CONTEXT.template.md`,
+  `QUICKSTART.md`, `LICENSE`, `references/`, `runtime/`, `examples/` and `bin/`,
+  with `.claude-plugin/plugin.json` in it and `.claude-plugin/marketplace.json`
+  at the repository root pointing there. The move is what makes the boundary
+  real rather than remembered: `experiment/`, `tests/`, `packaging/` and the
+  contributor docs sit outside the payload directory and cannot reach a user by
+  any route, where before they were kept out by an assembler consulting a list.
+  `install.py` gains `PAYLOAD_ROOT` and nothing else changes about it; `PAYLOAD`
+  still names what an *ordinary skill directory* receives, which is the plugin
+  root minus `bin/` and the manifest, because a skill directory is not a plugin
+  and a host that found a manifest in one would be right to be confused. The
+  invocation is unchanged and that was verified rather than assumed: a headless
+  probe of `claude --plugin-dir plugin` returns `/how-do`, so a directory named
+  `plugin` still loads under the name its manifest declares.
+
+- **A committed derived file is a file that can go stale.** The manifest is now
+  in the tree, but `packaging/plugin.json` still carries no version and
+  `SKILL.md` is still the only place a version is authored. `install.py`
+  exposes the derivation as `manifest_bytes()`, and a test compares the
+  committed manifest to it byte-for-byte rather than field-by-field, so the fix
+  for a failure is mechanical — overwrite the file with what the function
+  returns — instead of a judgement call about which of two plausible files is
+  right. The same reasoning covers `plugin/LICENSE`, which a payload needs and a
+  repository root also needs: two real copies checked equal by test, because a
+  symlink would ship its own link text as the licence on a Windows checkout.
 
 - **The host already guarantees what `install.py` was built by hand to
   provide.** Almost all of the installer exists to keep `CONTEXT.md` out of the

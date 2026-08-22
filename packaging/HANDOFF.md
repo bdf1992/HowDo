@@ -14,9 +14,10 @@ ambient. That restraint is not conservatism, it is the roadmap's gate — see
 *Deliberately not done* below before adding a component.
 
 **The branch does not merge until parity is closed.** Three items were open and
-none could be closed from inside this lane alone. **Item 3 is now closed** — #12
-landed as `4c2f5e5` and this lane merged it. Two remain, listed with what
-unblocks each.
+none could be closed from inside this lane alone. **Two are now closed:** #12
+landed and took item 3 with it; item 1 is closed by moving the payload under
+`plugin/`. **Item 2 is the only one left**, and it is a skill-text decision
+rather than a packaging one — see below.
 
 ---
 
@@ -37,6 +38,8 @@ registered name.
 | Does the host identify a plugin by directory or manifest? | **Manifest.** Directory is ignored | Directory `divergent`, manifest `how-do` → loaded as `how-do@skills-dir` |
 | Does `bin/` reach the Bash `PATH`? | Yes | `command -v howdo-context` resolved inside the plugin root |
 | Does `plugin details` count a root-`SKILL.md` skill? | **No** — reports `Skills (0)`, `~0 tok`, though the skill loads fine | Observed on three separate probes |
+| Does a plugin root named something other than the plugin still invoke bare? | **Yes.** `plugin/` loads as `/how-do` | Headless probe of `claude --plugin-dir plugin` returned `/how-do`; this is row 4 holding for the committed layout |
+| Is `version` required in a manifest? | **No, but its absence warns** | `claude plugin validate` on a versionless manifest: *Validation passed with warnings*. A committed manifest must carry one to keep the no-warnings bar |
 
 The docs claim the opposite of rows 1 and 4. The last row is a host-side
 reporting gap, not ours: anyone inspecting the plugin sees an empty inventory
@@ -75,35 +78,52 @@ root layout for exactly this reason.
   against `copy_payload`'s output rather than a second file list.
 - CI `plugin:` job — appended at the end of `tests.yml` deliberately, so it
   cannot conflict with in-flight edits to the `suite:` job.
+- `plugin/` — the payload as a committed plugin root, with
+  `.claude-plugin/plugin.json` in it and `.claude-plugin/marketplace.json` at
+  the repository root pointing there. This is item 1's close; see it below for
+  what the move does and does not change.
 
 ---
 
 ## Open work items
 
-### 1. Not distributable — blocks parity
+### 1. ~~Not distributable~~ — CLOSED by moving the payload under `plugin/`
 
 A marketplace clones a repository and treats a directory as the plugin root.
-Ours is *generated* into `dist/` (gitignored), so `/plugin install` cannot
-reach it. Local use works today (`--plugin-dir`, or assemble into a skills
-directory); distribution does not.
+The payload was *generated* into `dist/` (gitignored), so `/plugin install`
+could not reach it. Two routes were on the table; the preferred one is taken.
 
-Two ways to close it, both cheap once the branches below have landed:
+`SKILL.md`, `CONTEXT.template.md`, `QUICKSTART.md`, `LICENSE`, `references/`,
+`runtime/`, `examples/` and `bin/` now live under `plugin/`, which carries a
+committed `.claude-plugin/plugin.json`. `.claude-plugin/marketplace.json` at
+the repository root points at it. Both validate under `--strict` with no
+warnings.
 
-- **Move the payload under `plugin/`** and point a marketplace entry at that
-  subdirectory. Cleanest end state — the boundary becomes a filesystem fact
-  rather than an assembler behaviour. Deferred only because moving `SKILL.md`,
-  `runtime/`, and `references/` now would conflict violently with both open
-  PRs.
-- **Publish a built branch from CI** — run `install.py --plugin` on every push
-  to main and push the result to a `plugin` branch that the marketplace points
-  at. No file moves, but the boundary stays a property of the assembler.
+**The boundary is now a filesystem fact.** `experiment/`, `tests/`,
+`packaging/` and the contributor docs sit outside `plugin/` and cannot reach a
+user by any route, rather than by an assembler remembering a list.
+`install.py` reads `PAYLOAD_ROOT`; `PAYLOAD` still names what an ordinary
+skill directory gets, which is the plugin root minus `bin/` and the manifest —
+a skill directory is not a plugin and a host finding a manifest there would be
+right to be confused.
 
-Prefer the first once the tree is quiet. #13 has landed, so its half of the
-gate is gone; the tree is still not quiet. PR #12 moves
-`runtime/howdo/environment.py` out of the payload and PR #15 edits
-`runtime/howdo/emit.py`, and moving `runtime/` under `plugin/` collides with
-both by construction. The decision has not changed — only the gate has
-narrowed to those two.
+**Verified against the runtime, as the findings table demands.** A headless
+probe of `claude --plugin-dir plugin` returns `/how-do`: the invocation stays
+un-namespaced from a directory named `plugin`, because the manifest names the
+plugin and the directory does not. That is finding 4 holding under the new
+layout, and it is what makes the move safe.
+
+The rejected route — publishing a built branch from CI — is recorded because it
+is the fallback if a host ever refuses a subdirectory plugin root: run
+`install.py --plugin` on push to main and push the result to a `plugin` branch.
+Nothing depends on it today.
+
+**The committed manifest is derived, not authored.** `packaging/plugin.json`
+still carries no version, `install.manifest_bytes()` is still the one authority,
+and `tests/test_plugin.py::DistributionTests` compares the committed file to it
+byte-for-byte. A release that bumps `SKILL.md` and forgets the manifest fails
+CI rather than shipping a stale version. The trap below stands unchanged: do
+not put a version in `packaging/plugin.json`.
 
 ### 2. `CONFIGURATION_NOTE` never reaches a plugin user — blocks parity
 
@@ -191,14 +211,25 @@ git merge --abort; git checkout <this-branch>; git branch -D probe
 ## Verifying this lane
 
 ```bash
-python -m unittest discover -s tests -v        # 465 tests, zero skips
-python examples/jira_workflow.py
-python examples/portable_contract.py
-python examples/issue_domain_how.py
+python -m unittest discover -s tests -v        # 471 tests, zero skips
+python plugin/examples/jira_workflow.py
+python plugin/examples/portable_contract.py
+python plugin/examples/issue_domain_how.py
+claude plugin validate plugin --strict                        # the committed root
+claude plugin validate .claude-plugin/marketplace.json --strict
 python install.py --plugin dist/how-do
 claude plugin validate dist/how-do             # expects: Validation passed, no warnings
 python install.py --plugin dist/how-do --verify
 python install.py --target /tmp/skilldir && python install.py --target /tmp/skilldir --verify
+```
+
+The probe that keeps the invocation honest, and the one to re-run after any
+layout change:
+
+```bash
+claude --plugin-dir plugin -p 'Output ONLY the slash-command string that \
+  invokes the How Do skill, exactly as a user would type it. Nothing else.'
+# expects: /how-do   -- namespaced output means the layout renamed the skill
 ```
 
 Any skip means something regressed. The one sanctioned skip was item 3 and it
@@ -229,6 +260,17 @@ claude plugin list
 - **`bin/` is not in `PAYLOAD`.** It ships only via `PLUGIN_EXTRA` in the
   plugin path. If you add anything to `bin/`, the ordinary install will not
   carry it — that is intentional, but check it is what you meant.
+- **Anything you put in `plugin/` ships.** That is the point of the move, and
+  it cuts both ways: a file added there that `PAYLOAD` does not name reaches a
+  marketplace user while being silently absent from an ordinary install. A test
+  fails on it rather than letting the two paths drift. Repository concerns go
+  outside `plugin/`.
+- **`plugin/LICENSE` is a copy of the root `LICENSE`, checked equal by test.**
+  Not a symlink: a Windows checkout without symlink support would ship the link
+  text as the licence. Edit both, or edit the root one and copy.
+- **`plugin/.claude-plugin/plugin.json` is generated and committed.** Refresh it
+  with `install.manifest_bytes()`, never by hand. The test compares bytes, so a
+  hand edit that is merely equivalent still fails.
 - **Windows.** `bin/howdo-context` is extensionless with a shebang, so
   `howdo-context.cmd` beside it is what makes the affordance real there. The CI
   `plugin:` job runs on `windows-latest` for this reason. Keep both.

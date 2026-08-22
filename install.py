@@ -35,7 +35,15 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent
-sys.path.insert(0, str(REPO / "runtime"))
+
+# The payload is a committed directory, not a set of root files gathered at
+# assembly time. ``plugin/`` *is* the plugin root -- manifest, bin/ and all --
+# so a marketplace can clone this repository and point at a subdirectory, which
+# a generated ``dist/`` could never offer. The boundary that keeps ``tests/``
+# and ``experiment/`` out of an install is now a filesystem fact rather than a
+# property of the code below.
+PAYLOAD_ROOT = REPO / "plugin"
+sys.path.insert(0, str(PAYLOAD_ROOT / "runtime"))
 
 from howdo.context import (  # noqa: E402
     default_store_path,
@@ -49,6 +57,10 @@ DEFAULT_SKILLS_DIR = Path.home() / ".claude" / "skills"
 
 # The payload is what a host loads. Tests, packaging, and contributor docs are
 # repository concerns and are deliberately not shipped into the skill directory.
+# Relative to PAYLOAD_ROOT. This is what an *ordinary skill directory* gets:
+# the plugin root's own `bin/` and `.claude-plugin/` are deliberately absent,
+# because a skill directory is not a plugin and a host that found a manifest
+# there would be right to be confused.
 PAYLOAD = ("SKILL.md", "CONTEXT.template.md", "QUICKSTART.md", "LICENSE",
            "references", "runtime", "examples")
 
@@ -87,7 +99,7 @@ def skill_name(skill_md: Path) -> str:
 def copy_payload(destination: Path, *, dry_run: bool) -> list[str]:
     actions = []
     for item in PAYLOAD:
-        source = REPO / item
+        source = PAYLOAD_ROOT / item
         if not source.exists():
             raise FileNotFoundError(source)
         target = destination / item
@@ -120,6 +132,27 @@ def skill_version(skill_md: Path) -> str:
     return match.group(1).strip()
 
 
+def plugin_manifest() -> dict:
+    """The manifest as it must appear in a plugin root.
+
+    ``packaging/plugin.json`` still carries no version and the version still
+    comes from ``SKILL.md``, so release alignment stays where it was. What
+    changed is that the result is committed at ``plugin/.claude-plugin/`` rather
+    than existing only inside an assembled directory -- a marketplace has to be
+    able to read it out of a clone. A committed derived file can go stale, so
+    ``tests/test_plugin.py`` compares the committed bytes against this function
+    and fails if they differ. Derived and checked, not duplicated.
+    """
+    manifest = json.loads(MANIFEST_SOURCE.read_text(encoding="utf-8"))
+    manifest["version"] = skill_version(PAYLOAD_ROOT / "SKILL.md")
+    return manifest
+
+
+def manifest_bytes() -> str:
+    """The exact text of the committed manifest, so a test can compare bytes."""
+    return json.dumps(plugin_manifest(), indent=2) + "\n"
+
+
 def assemble_plugin(destination: Path, *, dry_run: bool) -> list[str]:
     """Lay the payload out as a plugin root.
 
@@ -132,7 +165,7 @@ def assemble_plugin(destination: Path, *, dry_run: bool) -> list[str]:
     actions = copy_payload(destination, dry_run=dry_run)
 
     for item in PLUGIN_EXTRA:
-        source = REPO / item
+        source = PAYLOAD_ROOT / item
         if not source.exists():
             raise FileNotFoundError(source)
         target = destination / item
@@ -147,8 +180,7 @@ def assemble_plugin(destination: Path, *, dry_run: bool) -> list[str]:
             if path.is_file():
                 path.chmod(path.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
 
-    manifest = json.loads(MANIFEST_SOURCE.read_text(encoding="utf-8"))
-    manifest["version"] = skill_version(REPO / "SKILL.md")
+    manifest = plugin_manifest()
     written = destination / MANIFEST_DIR / MANIFEST_NAME
     actions.append(f"write {MANIFEST_DIR}/{MANIFEST_NAME} -> {written}")
     if not dry_run:
@@ -259,7 +291,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--dry-run", action="store_true", help="print planned actions only")
     args = parser.parse_args(argv)
 
-    name = skill_name(REPO / "SKILL.md")
+    name = skill_name(PAYLOAD_ROOT / "SKILL.md")
     # A plugin root is named by the manifest, not by the skill frontmatter, and
     # it is a complete directory rather than one entry inside a skills dir --
     # so --plugin names the destination outright instead of a parent to nest in.
