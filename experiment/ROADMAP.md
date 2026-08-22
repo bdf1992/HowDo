@@ -14,6 +14,45 @@ Status legend: `done` · `partial` · `next` · `blocked` · `later`
 
 ---
 
+## Next actions — ordered
+
+Prioritised by what unblocks the most, not by what is most interesting. The
+first three need no hardware and no compute; they are declarations, and every
+measurement downstream is uninterpretable without them.
+
+| # | Action | Kind | Unblocks | State |
+|---|---|---|---|---|
+| 1 | Declare δ\* — the smallest effect worth acting on | decision | M0.0 power gate, M0.1 endpoint | undeclared |
+| 2 | Declare the reconnaissance budget cap | decision | H1/H2 arm definition | undeclared |
+| 3 | Write `PILOT-0001/PREREGISTRATION.md` | writing | the Gate; `preregistration_digest` in M0 | not started |
+| 4 | Run the M−1 envelope probe | hardware | M0.0, M0.1, hours-per-100-trials | next |
+| 5 | Rest of the receipt schema (M0) | code | M0.1 ingestion | partial |
+| 6 | Settle the payload asymmetry | decision | release hygiene at 0.9 | open |
+
+Why this order:
+
+1. **δ\* before anything measures.** The power gate is a comparison against
+   δ\*, so an undeclared δ\* means M0.0 cannot return a verdict — only a
+   variance number with no decision attached. Declaring it after seeing the
+   variance is how an underpowered study becomes a positive result.
+2. **The recon cap is part of the treatment, not a runtime setting.** Uncapped
+   reconnaissance makes H1 mean something different on every task, and the
+   frozen `TREATMENT.md` cannot describe an arm whose size is decided at run
+   time.
+3. **Pre-registration is the artifact the Gate reads.** It costs no compute and
+   is the single largest reduction in the program's degrees of freedom. Its
+   binding field is `STOP`. It must also carry the qualifier that a null here
+   falsifies this treatment and not the discipline, because no arm carries the
+   person-derived half.
+4. **The envelope probe is the true blocking pre-requisite for measurement**,
+   and the only item on this list that requires the local machine.
+
+Items 1–3 are prerequisites for 4 being worth running: an envelope probe whose
+hours-per-100-trials cannot be checked against a committed trial count only
+measures the machine.
+
+---
+
 ## M−1 — Execution envelope · `next`
 
 Prove one exact local configuration can repeatedly run representative Harbor
