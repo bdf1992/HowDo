@@ -180,7 +180,27 @@ class Outcome:
     reported: Mapping[str, Any]
     started_at: float
     finished_at: float
+    # Set when the executor raised instead of returning. Like `reported`, it is
+    # a report and never proof of resulting world state: an executor can fail
+    # after a partial or complete external effect, so the next safe move is
+    # usually Look.
+    error: str | None = None
     outcome_id: str = field(default_factory=lambda: _id("outcome"))
+
+
+class ExecutionError(RuntimeError):
+    """An admitted operation's executor raised.
+
+    The admission was consumed and the operation may have crossed the world
+    boundary before failing, so the attempt cannot disappear from the protocol:
+    the `Outcome` carried here records it, and `observe()` accepts it exactly
+    like a returned one. The original exception is chained as ``__cause__``.
+    No rollback is implied or attempted.
+    """
+
+    def __init__(self, outcome: "Outcome", cause: BaseException) -> None:
+        super().__init__(f"executor raised after admission: {cause!r}")
+        self.outcome = outcome
 
 
 @dataclass(frozen=True)
@@ -332,11 +352,26 @@ def operate(admission: Admission, executor: Executor) -> Outcome:
 
     The returned mapping is a report, not proof that the world changed.
     An admission is single-use: a second operate() on the same admission raises.
+
+    An executor that raises does not erase the attempt: the admission stays
+    consumed and an `ExecutionError` carrying an attributable `Outcome` is
+    raised, so observation can still run against the world. "Executor raised"
+    is not evidence that nothing happened.
     """
 
     admission._consume()
     started = time.time()
-    reported = executor(admission.resolution)
+    try:
+        reported = executor(admission.resolution)
+    except Exception as exc:
+        outcome = Outcome(
+            admission=admission,
+            reported={},
+            started_at=started,
+            finished_at=time.time(),
+            error=repr(exc),
+        )
+        raise ExecutionError(outcome, exc) from exc
     finished = time.time()
     return Outcome(
         admission=admission,

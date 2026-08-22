@@ -8,6 +8,7 @@ sys.path.insert(0, str(PAYLOAD / "runtime"))
 
 from howdo import (
     Check,
+    ExecutionError,
     Fizzle,
     GateEvidence,
     Paradigm,
@@ -335,6 +336,55 @@ class CoreHardeningTests(unittest.TestCase):
         result = admit(resolution, p, GateEvidence(state={}, source="test"))
         self.assertIsInstance(result, Fizzle)
         self.assertEqual(result.failed_checks, ("needs_key",))
+
+    def test_executor_failure_cannot_erase_the_admitted_attempt(self):
+        world = {"x": 1}
+        p, admission = self._admitted()
+
+        def half_done_then_raise(_r):
+            world["x"] = 2  # the boundary was crossed before the failure
+            raise OSError("connection reset")
+
+        with self.assertRaises(ExecutionError) as caught:
+            operate(admission, half_done_then_raise)
+
+        outcome = caught.exception.outcome
+        self.assertEqual(outcome.admission.admission_id, admission.admission_id)
+        self.assertIn("connection reset", outcome.error)
+        self.assertEqual(dict(outcome.reported), {})
+        self.assertIsInstance(caught.exception.__cause__, OSError)
+
+    def test_admission_stays_single_use_after_executor_failure(self):
+        p, admission = self._admitted()
+        with self.assertRaises(ExecutionError):
+            operate(admission, lambda _r: (_ for _ in ()).throw(RuntimeError("boom")))
+        with self.assertRaisesRegex(ValueError, "already consumed"):
+            operate(admission, lambda _r: {})
+
+    def test_observation_runs_after_executor_failure(self):
+        # The executor raised, but the world may have changed anyway; Look is
+        # the arbiter, not the exception.
+        world = {"x": 1}
+        p, admission = self._admitted()
+
+        def effect_then_raise(_r):
+            world["x"] = 2
+            raise RuntimeError("timeout waiting for confirmation")
+
+        with self.assertRaises(ExecutionError) as caught:
+            operate(admission, effect_then_raise)
+
+        _obs, residual = observe(
+            caught.exception.outcome,
+            lambda context: {"x": context.world["x"]},
+            world=world,
+        )
+        # The expected state {"x": 2} is observed despite the raise: the
+        # exception was not proof that nothing happened.
+        self.assertTrue(residual.matched)
+        s = settle(p, residual, accept=True)
+        self.assertTrue(s.accepted)
+        self.assertFalse(s.changed)
 
     def test_matched_observation_cannot_license_state_rewrite(self):
         p, admission = self._admitted()

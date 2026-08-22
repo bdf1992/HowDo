@@ -15,6 +15,8 @@ The runtime is a small protocol kernel, not a complete trust system. v0.9 makes 
 | matched observation used to license a paradigm rewrite | `settle` refuses a patch on a residual that carries no discrepancy |
 | check raises | fails closed |
 | one admission used twice | second `operate()` raises |
+| admitted executor raises after touching the world | `ExecutionError` carries an attributable failed `Outcome`; the admission stays consumed and `observe()` still runs against the world |
+| executor exception read as proof that nothing happened | the error outcome's report is empty and never reaches the observer; Look decides from observed state |
 | observer self-verifies from executor report argument | observer never receives `Outcome.reported` |
 | invariant false before operation | admission fizzles |
 | invariant false after operation | residual routes to `invariant` |
@@ -177,6 +179,7 @@ These are semantic invariants rather than Python NLP rules:
 - A vacuous precondition can still be supplied by a dishonest caller.
 - A caller-supplied comparator can still lie.
 - Gate evidence provenance is recorded, not authenticated or freshness-enforced.
+- **An executor failure is observable, never reversible.** `ExecutionError` keeps the admitted attempt in the protocol so Look can run; nothing rolls back whatever partial effect the executor caused, and nothing could.
 - Python closures can capture state outside the narrow observer argument; isolation belongs to the host.
 - **Store lifetime is the host's, not the module's.** `payload_root()` decides a *location* question — is this file in the part of the install that gets replaced — which is decidable in one session. Whether a store outside the payload survives a reboot, a container reset, or an ephemeral home directory is not observable from inside the process that writes it: a successful write to a discarded filesystem is byte-identical to a durable one. A host whose entire filesystem is scratch will pass every check here and still lose the context. That is declared, not enforced.
 - Context completion proves a **structural receipt**, not the truth of a learning claim. LongHow + user settlement remain the semantic boundary.
