@@ -132,6 +132,15 @@ when PR #12 moves the adapter to `experiment/PILOT-0001/adapter/`. Verified
 that it activates: with the adapter removed the test runs and correctly flags
 the remaining `__init__.py` re-exports, so it also catches a partial fix.
 
+**Confirmed against the real #12, not a hand-made removal.** Dry merge of
+`origin/claude/skill-graph-benchmark-index-s1vxax` into this lane at `cb641b7`:
+one conflict, the expected additive `CHANGELOG.md` block, and then **450 tests,
+zero skips, all passing** — `test_the_plugin_names_no_experiment` among them.
+That is the stronger reading of the tripwire: #12 moves the adapter *and*
+clears the `howdo/__init__.py` re-exports, so the test does not merely un-skip,
+it goes green. Item 3 closes the moment #12 lands, with no follow-up owed by
+this lane. The probe was discarded; nothing here depends on it.
+
 ---
 
 ## Collision map
