@@ -96,25 +96,39 @@ def _sessions(records: Iterable[dict[str, Any]]) -> dict[str, list[dict[str, Any
     return grouped
 
 
-def _revisions_after_look(records: Sequence[dict[str, Any]]) -> list[str]:
-    """Paths written again after they were looked at, within one session.
+# The loop is ordered, and that order is what tells a residual from progress.
+# Map, Path, Check, Do, Look, Update: moving forward through it is the
+# discipline working. Moving *backwards* -- returning to Do after a Look, or
+# restating a Check that was already looked at -- is the earlier stage having
+# failed to hold.
+_ORDER = {"map": 0, "path": 1, "check": 2, "do": 3, "look": 4, "update": 5}
 
-    This is the only residual the current record can produce without taking the
-    model's word for anything. Look runs the test Check wrote; a file rewritten
-    afterwards is that test having failed, observed from outside rather than
-    reported from inside.
+
+def _regressions(records: Sequence[dict[str, Any]]) -> list[str]:
+    """Artefacts the work returned to an earlier stage on.
+
+    This replaces a cruder reading -- "written again after Look" -- which was
+    wrong in the most ordinary case there is. `Look` is followed by `Update` in
+    every complete pass of the loop, so counting any later write as a failure
+    scored the discipline working correctly as the check having failed.
+
+    Going backwards is different. Nothing in the loop sends you from Look to Do
+    except the Do not having satisfied the Check, and that is observed from the
+    sequence rather than reported by anyone.
     """
-    looked: set[str] = set()
-    revised: list[str] = []
+    furthest: dict[str, int] = {}
+    regressed: list[str] = []
     for record in records:
         path = str(record.get("path", ""))
-        stage = record.get("stage")
-        if stage == "look":
-            looked.add(path)
-        elif path in looked:
-            revised.append(path)
-            looked.discard(path)
-    return revised
+        stage = _ORDER.get(str(record.get("stage", "")))
+        if stage is None:
+            continue
+        if path in furthest and stage < furthest[path]:
+            regressed.append(path)
+            furthest[path] = stage
+        else:
+            furthest[path] = max(stage, furthest.get(path, stage))
+    return regressed
 
 
 def _abandoned(records: Sequence[dict[str, Any]]) -> int:
@@ -124,31 +138,45 @@ def _abandoned(records: Sequence[dict[str, Any]]) -> int:
 
 
 def _calibration(sessions: dict[str, list[dict[str, Any]]]) -> tuple[int, int]:
-    """How often the model said a check held, and how often disk disagreed."""
+    """How often the model said a check held, and how often the loop disagreed.
+
+    Disagreement means the work went *back* afterwards, not merely that the
+    artefact was touched again. Settling an Update after a Look is the pass
+    completing, and counting it as a contradiction made a well-run loop look
+    like a failed one.
+    """
     claimed = contradicted = 0
     for group in sessions.values():
-        revised = set(_revisions_after_look(group))
+        regressed = set(_regressions(group))
         for record in group:
             if record.get("stage") == "look" and record.get("held") is True:
                 claimed += 1
-                if str(record.get("path", "")) in revised:
+                if str(record.get("path", "")) in regressed:
                     contradicted += 1
     return claimed, contradicted
 
 
 def _shapes(records: Sequence[dict[str, Any]]) -> list[tuple[str, int, int]]:
-    """Per declared shape: how many landed, out of how many used it."""
-    by_shape: dict[str, list[int]] = defaultdict(lambda: [0, 0])
+    """Per declared shape: how many artefacts landed, out of how many used it.
+
+    Counted by artefact rather than by signal. Drafting a document saves it
+    several times, and counting saves turned one explanation into three -- which
+    inflated every support number the report showed, in the direction that makes
+    thin evidence look sturdy.
+    """
+    by_shape: dict[str, dict[str, bool]] = defaultdict(dict)
     grouped = _sessions(records)
-    revised = {p for group in grouped.values() for p in _revisions_after_look(group)}
+    regressed = {p for group in grouped.values() for p in _regressions(group)}
     for record in records:
         shape = str(record.get("shape", ""))
-        if not shape:
+        path = str(record.get("path", ""))
+        if not shape or not path:
             continue
-        by_shape[shape][1] += 1
-        if str(record.get("path", "")) not in revised:
-            by_shape[shape][0] += 1
-    return [(shape, landed, total) for shape, (landed, total) in sorted(by_shape.items())]
+        by_shape[shape][path] = path not in regressed
+    return [
+        (shape, sum(paths.values()), len(paths))
+        for shape, paths in sorted(by_shape.items())
+    ]
 
 
 def observe(log: str | Path) -> Reading:
@@ -162,13 +190,13 @@ def observe(log: str | Path) -> Reading:
     observations: list[Observation] = []
 
     sessions = _sessions(records)
-    revised = [p for group in sessions.values() for p in _revisions_after_look(group)]
-    if revised:
+    regressed = {p for group in sessions.values() for p in _regressions(group)}
+    if regressed:
         observations.append(Observation(
             dimension=UNDERSTOOD,
-            reading="checks stated so far have not survived Look",
-            basis=f"{len(revised)} artefact(s) rewritten after being looked at",
-            support=len(revised),
+            reading="work has returned to an earlier stage rather than settling",
+            basis=f"{len(regressed)} artefact(s) went back down the loop after reaching a later stage",
+            support=len(regressed),
             grade=OBSERVED,
         ))
 
@@ -182,7 +210,7 @@ def observe(log: str | Path) -> Reading:
             dimension=UNDERSTOOD,
             reading=(
                 f"{contradicted} of {claimed} checks the model called satisfied "
-                f"were rewritten afterwards"
+                f"were followed by the work going back down the loop"
                 if contradicted else
                 f"all {claimed} checks the model called satisfied survived"
             ),
@@ -195,7 +223,7 @@ def observe(log: str | Path) -> Reading:
         observations.append(Observation(
             dimension=BUILD_DIRECTION,
             reading=f"{shape} held in {landed} of {total} explanations that used it",
-            basis="declared shape, scored by whether the artefact was rewritten after Look",
+            basis="declared shape, scored by whether the artefact needed the loop re-entered",
             support=total,
             grade=OBSERVED if total > 1 else DECLARED,
         ))

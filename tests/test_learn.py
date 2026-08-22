@@ -61,9 +61,9 @@ def _s(stage: str, path: str = "a.md", *, at: float = 0.0, **extra) -> Signal:
 class EvidenceGradeTests(unittest.TestCase):
     """The distinction the whole module exists to hold."""
 
-    def test_a_rewrite_after_look_is_observed_evidence(self):
-        """Look runs the test Check wrote. A file rewritten afterwards is that
-        test failing, witnessed from outside rather than reported from inside."""
+    def test_going_back_down_the_loop_is_observed_evidence(self):
+        """Look runs the test Check wrote. Returning to Do afterwards is that
+        test failing, witnessed from the sequence rather than reported."""
         with tempfile.TemporaryDirectory() as tmp:
             log = _log(tmp, _s("check"), _s("look", at=1), _s("do", at=2))
             found = [o for o in observe(log).observations if o.dimension == UNDERSTOOD]
@@ -81,13 +81,51 @@ class EvidenceGradeTests(unittest.TestCase):
                 self.assertIn("declared outcome compared", observation.basis,
                               "a self-reported verdict became a finding unchallenged")
 
-    def test_a_verdict_the_disk_contradicts_is_counted(self):
-        """The one use for a declared value: something can prove it wrong."""
+    def test_a_verdict_the_loop_contradicts_is_counted(self):
+        """The one use for a declared value: something can prove it wrong.
+
+        Returning to Do after a Look is the contradiction. Nothing sends you
+        backwards through the loop except the earlier stage not having held.
+        """
         with tempfile.TemporaryDirectory() as tmp:
             log = _log(tmp, _s("look", held=True), _s("do", at=1))
             readings = [o.reading for o in observe(log).observations]
-            self.assertTrue(any("1 of 1" in r and "rewritten" in r for r in readings),
+            self.assertTrue(any("1 of 1" in r and "going back" in r for r in readings),
                             f"the contradiction was not caught: {readings}")
+
+    def test_completing_the_loop_is_not_a_contradiction(self):
+        """Look then Update is the pass finishing, and it was scored as a
+        failure. The most ordinary sequence there is read as the check having
+        failed, which made a well-run loop look like a broken one.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            log = _log(tmp, _s("look", held=True), _s("update", at=1))
+            readings = [o.reading for o in observe(log).observations]
+            self.assertTrue(any("survived" in r for r in readings), readings)
+            self.assertFalse(any("going back" in r for r in readings),
+                             f"a completed loop was scored as a residual: {readings}")
+
+    def test_saving_one_artefact_repeatedly_is_one_artefact(self):
+        """Drafting saves a file several times. Counting saves turned one
+        explanation into three, inflating every support number in the direction
+        that makes thin evidence look sturdy.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            log = _log(tmp, *[_s("check", at=i, shape="instance-first") for i in range(3)])
+            shapes = [o for o in observe(log).observations
+                      if o.dimension == BUILD_DIRECTION]
+            self.assertTrue(shapes)
+            self.assertEqual(shapes[0].support, 1,
+                             f"three saves counted as {shapes[0].support} explanations")
+
+    def test_distinct_artefacts_do_count_separately(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            log = _log(tmp,
+                       _s("check", path="a.md", shape="instance-first"),
+                       _s("check", path="b.md", at=1, shape="instance-first"))
+            shapes = [o for o in observe(log).observations
+                      if o.dimension == BUILD_DIRECTION]
+            self.assertEqual(shapes[0].support, 2)
 
     def test_a_verdict_the_disk_supports_is_also_counted(self):
         with tempfile.TemporaryDirectory() as tmp:
