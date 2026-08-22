@@ -220,9 +220,19 @@ What is left in flight is `experiment/m0-harbor-runner`, which lives entirely
 under `experiment/` and touches `CHANGELOG.md` alone. **The tree is quiet**, so
 item 1's gate is open.
 
-The 0.9.0 bump needed **no edit here**: the manifest derives its version from
-`SKILL.md`, so `--plugin` emitted 0.9.0 on its own. That is the design working;
-do not add a version to `packaging/plugin.json` to "keep them in sync".
+Two releases have now passed through without a manual manifest edit: the
+manifest derives its version from `SKILL.md`, so `--plugin` emitted 0.9.0 and
+then 0.10.0 on its own. That is the design working; do not add a version to
+`packaging/plugin.json` to "keep them in sync".
+
+The 0.10.0 bump did surface something the earlier one hid. Four of the seven
+places that carry the release were never checked by a test, including
+`runtime/howdo/context.py`'s `SKILL_VERSION`, which stamps `skill_version` into
+every context the runtime writes. A bump could reach four places, pass CI, and
+ship contexts labelled with the previous release. `test_release.py` now pins the
+release in one literal and checks all seven. `.claude-plugin/marketplace.json`
+deliberately carries **no** version: a catalog versions itself, not the plugin
+inside it, and a test keeps it that way.
 
 `howdo/payload-store-split` is empty against main. Stale; ignore.
 
@@ -259,7 +269,7 @@ probe → `uninstall` → `remove`, so it leaves no state):
 
 ```bash
 claude plugin marketplace add .        # or bdf1992/HowDo once this is on main
-claude plugin install how-do@howdo     # expects: installed, Version 0.9.0, enabled
+claude plugin install how-do@howdo     # expects: installed, Version 0.10.0, enabled
 claude plugin details how-do@howdo     # expects: Skills (1) how-do
 cd /tmp && claude -p 'Output ONLY the slash-command string that invokes the \
   How Do skill. Nothing else.'         # expects: /how-do, from an unrelated directory
@@ -271,6 +281,13 @@ That last check is the payload boundary observed rather than asserted: what a
 marketplace user receives is `SKILL.md`, `CONTEXT.template.md`, `QUICKSTART.md`,
 `LICENSE`, `references/`, `runtime/`, `examples/`, `bin/` and the manifest. No
 `tests/`, no `experiment/`, no `packaging/`, no `install.py`.
+
+It also shows the thing most easily forgotten about a plugin payload: the cache
+path is `how-do/<version>/`, and installing 0.10.0 over 0.9.0 leaves both
+directories side by side. **The payload is version-scoped**, so anything settled
+inside it is stranded by the next release rather than replaced — which is why no
+shipped document may direct a plugin user to put a store there, and why a test
+now fails on any payload document carrying a runnable `install.py` command.
 
 **One thing this cannot show until the lane merges.** A marketplace resolves
 `bdf1992/HowDo` to the repository's *default branch*, and `plugin/` and
