@@ -25,6 +25,10 @@ Route = Literal[
     "rendering",
     "hidden_postcondition",
     "invariant",
+    # The observation cannot be compared to the prediction at all: the shapes
+    # disagree. That indicts the declared interface, not the operation's
+    # effect, so it must not be reported as a postcondition residual.
+    "contract",
 ]
 Predicate = Callable[[Mapping[str, Any]], bool]
 Executor = Callable[["Resolution"], Mapping[str, Any]]
@@ -67,6 +71,16 @@ class Request:
     # Consequential by default: a caller must opt OUT of contracts, not in.
     mutates: bool = True
     crosses_boundary: bool = False
+    # What the operation reads. Without a declared channel, arguments travel
+    # in `intent` as prose or inside an executor closure, and the operation's
+    # input is describable but not inspectable.
+    inputs: Mapping[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        # Snapshot for the same reason GateEvidence does: a caller that keeps
+        # mutating the mapping must not be able to change, after the fact,
+        # what the operation was asked to read.
+        object.__setattr__(self, "inputs", copy.deepcopy(dict(self.inputs)))
 
 
 @dataclass(frozen=True)

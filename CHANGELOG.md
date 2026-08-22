@@ -4,6 +4,27 @@ Versions are aligned across `SKILL.md`, `README.md`, `pyproject.toml`, and `CONT
 
 ## Unreleased
 
+- **A request's I/O was implied, so it was neither checkable nor portable.** The
+  kernel refuses a consequential operation with no expected state and no
+  precondition, but it never knew what that expected state was *shaped* like,
+  what the operation read, or what a host had to be able to do before the
+  operation was runnable there at all. Those three lived in the caller's head
+  and in Python closures, which meant they could not be checked and could not
+  leave the process. `runtime/howdo/contract.py` states them as data: `accepts`
+  (declared inputs, now carried on `Request.inputs` and reaching the executor on
+  the resolution instead of through a closure), `expects` (the shape of the
+  observable result), `rules` (checks as clauses over a closed operator set,
+  compiling into ordinary `Check` objects so the gate is the same one), and
+  `requires` (capabilities a host must offer). A contract round-trips through
+  JSON and digests to a stable identity, and `bind(contract, host)` answers
+  *can this run here* before anything resolves. A consequential contract must
+  carry its own precondition and its own result shape, because a gate the host
+  happened to supply is not part of what shipped. One new route: an observation
+  that does not match the declared shape is a `contract` residual, not a
+  `postcondition` one — a result that cannot be compared is a different fault
+  from one that came out wrong, and filing it as the latter claims a test ran
+  that did not. Optional, additive, and no invariant above it moved.
+
 - **Writing the analysis before the data caught two defects in the stopping
   rule.** `experiment/analysis/pilot0001.py` is the committed analysis — a
   task-level permutation test and bootstrap, seeded, zero dependencies —
@@ -205,6 +226,69 @@ Versions are aligned across `SKILL.md`, `README.md`, `pyproject.toml`, and `CONT
   whatever host ran it, and stayed green on Linux-only CI while proving nothing
   about Windows. All three branches are now asserted through `subTest` with
   `platform` pinned per case.
+
+## 0.9.0
+
+Two capabilities, one arc: a request's declared I/O becomes portable, and a run
+that used it can leave a durable artifact behind. A deliberate goalpost move —
+`CONTRIBUTING.md` rule 8 asks for a trace before a persistence subsystem, and
+this one was requested rather than earned that way. Recorded here as the rule
+requires.
+
+- **A request's I/O was implied, so it was neither checkable nor portable.** The
+  kernel refuses a consequential operation with no expected state and no
+  precondition, but it never knew what that expected state was *shaped* like,
+  what the operation read, or what a host had to be able to do before the
+  operation was runnable there at all. Those three lived in the caller's head
+  and in Python closures: uncheckable, and unable to leave the process.
+  `runtime/howdo/contract.py` states them as data — `accepts` (declared inputs,
+  now carried on `Request.inputs` and reaching the executor on the resolution
+  instead of through a closure), `expects` (the shape of the observable result),
+  `rules` (checks as clauses over a closed operator set, compiling into ordinary
+  `Check` objects so the gate is the same one), and `requires` (capabilities a
+  host must offer). A contract round-trips through JSON, digests to a stable
+  identity, and `bind(contract, host)` answers *can this run here* before
+  anything resolves. A consequential contract must carry its own precondition
+  and result shape, because a gate the host happened to supply is not part of
+  what shipped. One new route: an observation that does not match the declared
+  shape is a `contract` residual, not a `postcondition` one — a result that
+  cannot be compared is a different fault from one that came out wrong.
+
+- **The discipline described its artifacts and minted only a pedagogy.**
+  `SKILL.md` has always promised a domain-how — "one file per recurring concern:
+  map, path, consequential contracts, invariants, one worked example, and
+  revision" — and nothing ever wrote one. `CONTEXT.md` was the sole durable
+  artifact, and it is explicitly barred from carrying domain facts, so a
+  person's domain work left no trace at all. `runtime/howdo/domain.py` issues
+  that file and indexes it. It is minted from a run that happened rather than
+  from a plan; it stays `untested` until a residual that *matched* grounds it;
+  a revision drops the grounding its predecessor earned, so an edited map cannot
+  inherit evidence about the old one; and the index is rebuilt from the
+  artifacts it describes rather than trusted as a second authority, following
+  the rule `experiment/CROSSINGS.md` already set for the skill graph. Artifacts
+  live beside `CONTEXT.md` in the store, outside the payload, because a
+  domain-how settled inside the skill is discarded by the next install with no
+  error raised — the failure the context lifecycle already had, one level down.
+  `staleness()` closes the gap the kernel cannot: `admit` fizzles a stale
+  resolution, but that protection ends at the process boundary, so a grounded
+  artifact records the paradigm revision it was observed against.
+
+- **An artifact nothing can load is still only a description.** A domain-how is
+  durable and indexed, but a host loads Agent Skills and workflow scripts, not
+  JSON in a store. `runtime/howdo/emit.py` renders an issued artifact into
+  either: a `SKILL.md` bundle conforming to the Agent Skills specification
+  (name projected to the legal charset and capped, description capped and
+  written so the generated skill is requested rather than ambient, frontmatter
+  stripped of angle brackets), or a dynamic-workflow script for
+  `.claude/workflows/` whose structure is the loop — `Check` establishes the
+  gate and fizzles if it cannot, `Do` runs the path as phases, `Look` observes
+  the world instead of reading back the acting agents' reports. Values are
+  emitted as JSON literals so a map containing quotes, backticks or `${...}`
+  cannot break the script, and the suite parses the output with `node --check`.
+  Emission is stateless and derived: re-emit rather than editing what came out.
+  An untested artifact is refused without an explicit override, and the override
+  stamps the output, because an installed skill pre-loads every later session on
+  that concern.
 
 ## 0.8.0
 
