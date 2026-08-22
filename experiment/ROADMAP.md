@@ -26,7 +26,7 @@ measurement downstream is uninterpretable without them.
 | 2 | Declare the reconnaissance budget cap | decision | H1/H2 arm definition | undeclared |
 | 3 | Write `PILOT-0001/PREREGISTRATION.md` | writing | the Gate; `preregistration_digest` in M0 | not started |
 | 4 | Run the M−1 envelope probe | hardware | M0.0, M0.1, hours-per-100-trials | protocol written; probe not run |
-| 5 | Rest of the receipt schema (M0) | code | M0.1 ingestion | partial |
+| 5 | Rest of the receipt schema (M0) | code | M0.1 ingestion | done except Harbor ingestion |
 | 6 | Settle the payload asymmetry | decision | release hygiene at 0.9 | open |
 
 Why this order:
@@ -88,17 +88,26 @@ fingerprints. No XP, no levels, no skill graph.
       Ordered operands, resolver attribution, canonicalization version,
       collision-resistant digest. See `CROSSINGS.md` for why this is the only
       part of a crossing that gets stored.
-- [ ] The rest of the receipt: benchmark identity, environment identity,
-      organism, harness, behavioural substrate, trial, judged evidence,
-      resources, analysis.
-- [ ] `experiment_id` + `preregistration_digest` + `condition_label` +
-      `run_sequence_index`. Without these, confirmatory and exploratory trials
-      are indistinguishable later, and the interleaving cannot be checked.
-- [ ] `task_qualification_digest` — the oracle-5x / no-op result that granted a
-      task authority. A benchmark earns authority the way a skill earns
-      capability.
-- [ ] Trajectories and artifacts as content-addressed digests into a blob
-      store, not inline. Receipts are the hot path for every projection.
+- [x] **The contract is written** — `evidence/RECEIPT.md`. Nine sections, the
+      reason each field cannot be recomputed, and an explicit list of what the
+      code does *not* enforce so the gap is visible rather than assumed closed.
+- [x] **The rest of the receipt** — `evidence/receipt.py`. Experiment,
+      benchmark, environment, organism, treatment, resolution, outcome,
+      resources, custody. `experiment_id`, `preregistration_digest`,
+      `analysis_class`, `condition_label` and `run_sequence_index` are
+      required; a confirmatory trial with no preregistration in force is
+      refused, and the append refuses an out-of-order sequence index because
+      interleaving is only checkable from the order actually recorded.
+- [x] **`task_qualification_digest` is a required field.** The procedure that
+      produces it is `TASK-QUALIFICATION.md`.
+- [x] **Trajectories and artifacts are content addresses.** A path or an inline
+      payload is refused; receipts are the hot path for every projection.
+- [x] **Certification is derived, not written.** Deterministic verifier,
+      confirmatory run, passing result — recomputed at verification time, so a
+      hand-edited receipt fails even with its digest recomputed to match.
+- [x] **Corrections append.** A wrong receipt is corrected by an entry naming
+      its digest and the reason; the original stays.
+- [ ] `organism` block wired from a real `ORGANISM.lock.json` (needs M−1).
 - [ ] Harbor ingestion. Do not rebuild a runner; Harbor already owns execution.
 
 ## M0.0 — Noise floor · `blocked` on M−1

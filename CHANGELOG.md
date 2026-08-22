@@ -4,6 +4,28 @@ Versions are aligned across `SKILL.md`, `README.md`, `pyproject.toml`, and `CONT
 
 ## Unreleased
 
+- **The receipt was one frozen block and a list of field names.** Everything
+  the programme will claim is a projection over receipts, so a field the receipt
+  omits is evidence that does not exist — but only the resolution block had a
+  shape, and the rest was a bullet list in the roadmap.
+  `experiment/evidence/RECEIPT.md` is now the contract and
+  `experiment/evidence/receipt.py` enforces the checkable half. The invariants
+  are the ones that otherwise produce evidence that looks correct and is not:
+  certification is derived from verifier kind, analysis class, and result rather
+  than written, and is rechecked at verification time so a hand-edited receipt
+  fails even with its digest recomputed; `failure_class` is required exactly
+  when a trial did not measure the treatment and refused when it did, so an
+  inconvenient result cannot be refiled as infrastructure noise; a confirmatory
+  trial with no preregistration digest in force is refused; the H0 arm cannot
+  report reconnaissance and the treatment arms cannot report its absence;
+  trajectories and artifacts must be content addresses, since a path is a claim
+  about a machine that will be reformatted; and appends refuse an out-of-order
+  `run_sequence_index`, because interleaving is the defence against drift and it
+  is unverifiable from a log that accepted trials in any order. Corrections are
+  appended against a receipt's digest and never replace it. The contract also
+  states what it does not enforce — chiefly that no structural check can tell a
+  receipt saying `arm: h1` from a harness that ran H0.
+
 - **The envelope milestone described a probe nobody could run twice the same
   way.** M−1 said to record peak VRAM, throughput, and offload events and to
   freeze the winning configuration, which is a summary of a protocol rather than
