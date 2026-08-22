@@ -27,12 +27,12 @@ class ReleaseContractTests(unittest.TestCase):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
         context = (ROOT / "CONTEXT.template.md").read_text(encoding="utf-8")
-        self.assertIn('version: "0.8.0"', skill)
-        self.assertIn("How Do v0.8.0", readme)
-        self.assertIn('version = "0.8.0"', pyproject)
-        self.assertIn('skill_version: "0.8.0"', context)
+        self.assertIn('version: "0.9.0"', skill)
+        self.assertIn("How Do v0.9.0", readme)
+        self.assertIn('version = "0.9.0"', pyproject)
+        self.assertIn('skill_version: "0.9.0"', context)
         changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
-        self.assertIn("## 0.8.0", changelog)
+        self.assertIn("## 0.9.0", changelog)
 
     def test_tracked_context_is_the_template_not_a_settled_context(self):
         # Personal contexts are never committed; only the template is tracked.
@@ -99,6 +99,41 @@ class ReleaseContractTests(unittest.TestCase):
         skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
         self.assertIn("structural completeness only", skill)
         self.assertIn("does not prove", skill)
+
+
+class IssuerGuaranteeTests(unittest.TestCase):
+    """0.9.0 was a deliberate goalpost move; CONTRIBUTING asks a release test to hold it.
+
+    The runtime enforces these. What this checks is that the shipped documents
+    still *say* so, because an issuer whose refusals are undocumented reads as a
+    way to manufacture ground.
+    """
+
+    def test_the_skill_says_an_artifact_is_issued_from_a_run(self):
+        skill = _flatten((ROOT / "SKILL.md").read_text(encoding="utf-8"))
+        self.assertIn("issued rather than described", skill)
+        self.assertIn("from a completed howdo rather than from a plan", skill)
+
+    def test_the_skill_keeps_untested_separate_from_grounded(self):
+        skill = _flatten((ROOT / "SKILL.md").read_text(encoding="utf-8"))
+        self.assertIn("untested", skill)
+        self.assertIn("residual that *matched* grounds it".replace("*", ""), skill.replace("*", ""))
+        self.assertIn("drops the grounding its predecessor earned", skill)
+
+    def test_the_skill_states_where_the_kernels_staleness_check_stops(self):
+        """The one guarantee a persisted artifact cannot inherit from admit()."""
+        skill = _flatten((ROOT / "SKILL.md").read_text(encoding="utf-8"))
+        self.assertIn("ends at the process boundary", skill)
+        self.assertIn("revision it was observed against", skill)
+
+    def test_the_boundaries_of_grounding_are_declared_not_implied(self):
+        adversarial = _flatten((ROOT / "ADVERSARIAL.md").read_text(encoding="utf-8"))
+        self.assertIn("structurally grounded, not correct", adversarial)
+        self.assertIn("staleness is reported, not enforced", adversarial)
+
+    def test_the_goalpost_move_is_recorded(self):
+        changelog = _flatten((ROOT / "CHANGELOG.md").read_text(encoding="utf-8"))
+        self.assertIn("deliberate goalpost move", changelog)
 
 
 class PedagogyIntentTests(unittest.TestCase):

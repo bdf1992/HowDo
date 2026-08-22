@@ -1,0 +1,434 @@
+"""Render an issued domain-how as an installable Agent Skill or Claude Code workflow.
+
+The issuer produces a durable artifact. This projects one into the two formats a
+host can actually load: a `SKILL.md` bundle per the Agent Skills specification,
+and a dynamic-workflow script for `.claude/workflows/`.
+
+Emission is a *projection*, never a second artifact. Nothing here is stored back
+into the index, for the reason `experiment/CROSSINGS.md` gives about the skill
+graph: derived things are recomputed, and only what cannot be recomputed is
+frozen. Re-emit whenever the domain-how moves.
+
+One refusal shapes the module. An untested domain-how is not emitted without an
+explicit override, because a `SKILL.md` on disk is loaded by every future
+session on that concern -- which is exactly where `ADVERSARIAL.md` warns a minted
+artifact compounds what a spoken one did not. The override exists for review, and
+it stamps the output so a reader cannot mistake a draft for settled ground.
+
+Format constraints come from the two specifications, not from taste:
+
+* Agent Skills -- `name` is lowercase letters, digits and hyphens, at most 64
+  characters, no leading or trailing hyphen, and must equal the directory name;
+  `description` is at most 1024 characters and says both what it does and when
+  to use it; angle brackets are kept out of frontmatter because they can inject
+  instructions into a system prompt.
+* Dynamic workflows -- a `meta` object literal, then plain JavaScript with no
+  module loading, and `meta.phases` titles matching the `phase()` calls.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Mapping
+import json
+import re
+
+from .contract import Field, Shape
+from .domain import STATUS_GROUNDED, DomainError, DomainHow
+
+__all__ = [
+    "MAX_DESCRIPTION",
+    "MAX_NAME",
+    "EmitError",
+    "SkillBundle",
+    "WorkflowScript",
+    "render_skill",
+    "render_workflow",
+    "skill_name",
+    "write_skill",
+    "write_workflow",
+]
+
+#: Agent Skills: `name` caps at 64 characters.
+MAX_NAME = 64
+#: Agent Skills: `description` caps at 1024 characters.
+MAX_DESCRIPTION = 1024
+
+_SKILL_NAME = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+# Angle brackets in frontmatter can inject instructions into a system prompt.
+_FRONTMATTER_UNSAFE = re.compile(r"[<>]")
+
+
+class EmitError(ValueError):
+    """An artifact that cannot be rendered into a loadable form honestly."""
+
+
+def _guard(how: DomainHow, allow_untested: bool) -> None:
+    if not isinstance(how, DomainHow):
+        raise EmitError(f"expected a DomainHow, got {type(how).__name__}")
+    if how.status != STATUS_GROUNDED and not allow_untested:
+        raise EmitError(
+            f"{how.concern!r} is {how.status}: emitting it installs an artifact that "
+            "pre-loads every later session on this concern, on the strength of a run "
+            "nothing confirmed. Ground it, or pass allow_untested=True for review."
+        )
+
+
+def skill_name(concern: str) -> str:
+    """Project a concern onto a legal Agent Skills name.
+
+    A concern may contain dots and underscores; a skill name may not. The
+    projection is lossy on purpose and validated afterwards rather than trusted,
+    because a name that does not match its directory is not loadable at all.
+    """
+
+    candidate = re.sub(r"[^a-z0-9]+", "-", concern.lower()).strip("-")
+    candidate = re.sub(r"-{2,}", "-", candidate)
+    if not candidate:
+        raise EmitError(f"{concern!r} projects to an empty skill name")
+    if len(candidate) > MAX_NAME:
+        raise EmitError(
+            f"{concern!r} projects to a {len(candidate)}-character name; the "
+            f"specification caps it at {MAX_NAME}"
+        )
+    if not _SKILL_NAME.match(candidate):
+        raise EmitError(f"{concern!r} projects to {candidate!r}, which is not a legal name")
+    return candidate
+
+
+def _frontmatter_safe(name: str, value: str) -> str:
+    cleaned = _FRONTMATTER_UNSAFE.sub("", value).replace("\n", " ").strip()
+    cleaned = re.sub(r"\s{2,}", " ", cleaned)
+    if not cleaned:
+        raise EmitError(f"{name} is empty once frontmatter-unsafe characters are removed")
+    return cleaned
+
+
+def _describe_shape(shape: Shape) -> list[str]:
+    return [_describe_field(item) for item in shape.fields]
+
+
+def _describe_field(item: Field) -> str:
+    kind = f"list of {item.of}" if item.of else item.type
+    suffix = "" if item.required else " (optional)"
+    note = f" — {item.description}" if item.description else ""
+    return f"`{item.name}`: {kind}{suffix}{note}"
+
+
+def _render_map(value: Any, indent: int = 0) -> list[str]:
+    pad = "  " * indent
+    if isinstance(value, Mapping):
+        lines: list[str] = []
+        for key, item in value.items():
+            if isinstance(item, (Mapping, list)):
+                lines.append(f"{pad}- **{key}**")
+                lines.extend(_render_map(item, indent + 1))
+            else:
+                lines.append(f"{pad}- **{key}** — {item}")
+        return lines
+    if isinstance(value, list):
+        return [f"{pad}- {item}" for item in value]
+    return [f"{pad}- {value}"]
+
+
+@dataclass(frozen=True)
+class SkillBundle:
+    """A rendered Agent Skill: the directory name and the `SKILL.md` it contains."""
+
+    name: str
+    description: str
+    body: str
+
+    @property
+    def text(self) -> str:
+        return self.body
+
+
+@dataclass(frozen=True)
+class WorkflowScript:
+    """A rendered dynamic workflow: the command name and the script source."""
+
+    name: str
+    source: str
+
+
+def render_skill(how: DomainHow, *, allow_untested: bool = False) -> SkillBundle:
+    """Render an issued domain-how as a `SKILL.md` bundle.
+
+    The body carries what the artifact holds -- the map, the workflow, the gate,
+    the observable result, and the run it was issued from -- plus the honest
+    limit of what grounding proved, which is one matching run and not
+    correctness.
+    """
+
+    _guard(how, allow_untested)
+    name = skill_name(how.concern)
+    contract = how.contract
+
+    caps = ", ".join(contract.requires) if contract.requires else "no special capability"
+    description = _frontmatter_safe(
+        "description",
+        f"{contract.intent}. Use when the request is about {how.concern} specifically "
+        f"and that concern is named or clearly implied; the procedure runs "
+        f"{contract.path[0]} through {contract.path[-1]}, and needs {caps}. "
+        f"Issued by How Do from an observed run, not a general-purpose helper: an "
+        f"unrelated question about this domain is not by itself a reason to load it.",
+    )
+    if len(description) > MAX_DESCRIPTION:
+        description = description[: MAX_DESCRIPTION - 1].rstrip() + "."
+
+    lines = [
+        "---",
+        f"name: {name}",
+        f"description: {description}",
+        "metadata:",
+        '  issued_by: "how-do"',
+        f'  concern: "{how.concern}"',
+        f'  revision: "{how.revision}"',
+        f'  status: "{how.status}"',
+        f'  digest: "{how.digest()[:16]}"',
+        "---",
+        "",
+        f"# {how.concern}",
+        "",
+        contract.intent + ".",
+        "",
+    ]
+
+    if how.status == STATUS_GROUNDED:
+        lines += [
+            f"Issued by How Do from a run that was observed to match, at paradigm "
+            f"revision {how.observed_against} (observer: {how.grounded_by}). That is "
+            "one confirming run — it is not a claim that this is the best route, only "
+            "that this route was taken and its result was checked.",
+            "",
+        ]
+    else:
+        lines += [
+            "> **Untested.** This was issued but no observed run has confirmed it. "
+            "Treat every step below as a proposal, not as settled ground.",
+            "",
+        ]
+
+    lines += ["## Map", "", *_render_map(how.map), ""]
+    lines += ["## Workflow", ""]
+    lines += [f"{i}. {step}" for i, step in enumerate(contract.path, 1)]
+    lines += [""]
+
+    preconditions = [r for r in contract.rules if r.kind == "precondition"]
+    invariants = [r for r in contract.rules if r.kind == "invariant"]
+
+    if preconditions:
+        lines += ["## Check before acting", ""]
+        lines += [f"- **{r.name}** — {r.description} (`{r.clause.describe()}`)" for r in preconditions]
+        lines += ["", "If any of these cannot be established from real state, stop. "
+                  "The crossing never became admissible; that is not a failed attempt.", ""]
+    if invariants:
+        lines += ["## Must stay true throughout", ""]
+        lines += [f"- **{r.name}** — {r.description} (`{r.clause.describe()}`)" for r in invariants]
+        lines += [""]
+
+    if contract.accepts:
+        lines += ["## Inputs", "", *[f"- {d}" for d in _describe_shape(contract.accepts)], ""]
+    if contract.expects:
+        lines += [
+            "## What must be observable afterwards",
+            "",
+            *[f"- {d}" for d in _describe_shape(contract.expects)],
+            "",
+            "Observe the actual state. A report that the step ran is not evidence "
+            "that it worked.",
+            "",
+        ]
+    if contract.requires:
+        lines += ["## Requires", "", *[f"- `{c}`" for c in contract.requires], ""]
+
+    lines += [
+        "## Worked example",
+        "",
+        "From the run this was issued from.",
+        "",
+        "```json",
+        json.dumps(how.example.as_dict(), indent=2, sort_keys=True),
+        "```",
+        "",
+    ]
+
+    return SkillBundle(name=name, description=description, body="\n".join(lines).rstrip() + "\n")
+
+
+def render_workflow(how: DomainHow, *, allow_untested: bool = False) -> WorkflowScript:
+    """Render an issued domain-how as a dynamic-workflow script.
+
+    The loop is the structure: the gate is checked before anything acts, the path
+    runs as ordered phases, and a final phase observes the world rather than
+    reading back what the acting agents reported.
+    """
+
+    _guard(how, allow_untested)
+    name = skill_name(how.concern)
+    contract = how.contract
+
+    def js(value: Any) -> str:
+        """JSON is a JavaScript literal subset, so this escapes safely."""
+        return json.dumps(value, ensure_ascii=False)
+
+    preconditions = [r for r in contract.rules if r.kind == "precondition"]
+    invariants = [r for r in contract.rules if r.kind == "invariant"]
+    gate = [f"{r.name}: {r.description} ({r.clause.describe()})" for r in preconditions]
+    holds = [f"{r.name}: {r.description} ({r.clause.describe()})" for r in invariants]
+    observable = _describe_shape(contract.expects)
+
+    description = _frontmatter_safe(
+        "description", f"{contract.intent} ({how.concern}, r{how.revision})"
+    )
+
+    header = "" if how.status == STATUS_GROUNDED else (
+        "// UNTESTED: issued but never confirmed by an observed run. Review before use.\n"
+    )
+
+    source = f"""{header}// Generated by How Do from domain-how {js(how.concern)} r{how.revision}
+// ({how.status}, digest {how.digest()[:16]}). Re-emit rather than editing:
+// the artifact is the source, this script is a projection of it.
+
+export const meta = {{
+  name: {js(name)},
+  description: {js(description)},
+  phases: [
+    {{ title: 'Check', detail: 'establish the gate before anything acts' }},
+    {{ title: 'Do', detail: {js(' -> '.join(contract.path))} }},
+    {{ title: 'Look', detail: 'observe the world and compare against the prediction' }},
+  ],
+}}
+
+const MAP = {json.dumps(dict(how.map), indent=2, sort_keys=True)}
+const GATE = {json.dumps(gate, indent=2)}
+const INVARIANTS = {json.dumps(holds, indent=2)}
+const OBSERVABLE = {json.dumps(observable, indent=2)}
+const STEPS = {json.dumps(list(contract.path), indent=2)}
+const REQUIRES = {json.dumps(list(contract.requires), indent=2)}
+
+const target = args ? JSON.stringify(args) : 'the target named in the conversation'
+
+phase('Check')
+const gate = await agent(
+  `Establish whether this work is admissible. Target: ${{target}}.
+
+Map of the concern:
+${{JSON.stringify(MAP, null, 2)}}
+
+Every one of these must be established from real state, not assumed:
+${{GATE.map(g => `- ${{g}}`).join('\\n')}}
+
+Capabilities this needs: ${{REQUIRES.join(', ') || 'none'}}.
+
+Report what you actually checked and where you read it from. If any of it cannot
+be established, say so and do not propose a workaround: an inadmissible crossing
+is not a failed attempt, and reporting it as one hides the missing evidence.`,
+  {{ label: 'gate', phase: 'Check', schema: {{
+    type: 'object',
+    required: ['admissible', 'findings'],
+    properties: {{
+      admissible: {{ type: 'boolean' }},
+      findings: {{ type: 'array', items: {{ type: 'string' }} }},
+      missing: {{ type: 'array', items: {{ type: 'string' }} }},
+    }},
+  }} }},
+)
+
+if (!gate || !gate.admissible) {{
+  log('gate closed: ' + ((gate && gate.missing) || ['no gate result']).join('; '))
+  return {{ fizzled: true, missing: (gate && gate.missing) || ['no gate result'] }}
+}}
+
+phase('Do')
+const done = []
+for (const step of STEPS) {{
+  const result = await agent(
+    `Carry out this step: ${{step}}
+
+Target: ${{target}}. Steps already completed: ${{done.length ? done.join('; ') : 'none'}}.
+
+These must remain true throughout; stop and report rather than breaking one:
+${{INVARIANTS.map(i => `- ${{i}}`).join('\\n') || '- (none declared)'}}
+
+Report what you changed and where. Do not report success you have not checked.`,
+    {{ label: step, phase: 'Do' }},
+  )
+  done.push(step)
+  if (!result) break
+}}
+
+phase('Look')
+const observed = await agent(
+  `Observe the resulting state directly and independently. Target: ${{target}}.
+
+Do NOT read back what the previous agents reported. Go to the source and look.
+
+These must be observably true:
+${{OBSERVABLE.map(o => `- ${{o}}`).join('\\n')}}
+
+And these must still hold:
+${{INVARIANTS.map(i => `- ${{i}}`).join('\\n') || '- (none declared)'}}
+
+Report what you found, then the difference between that and what was predicted.
+The difference is the result of this workflow; a report that says only "it
+worked" has not run the test.`,
+  {{ label: 'observe', phase: 'Look', schema: {{
+    type: 'object',
+    required: ['matched', 'observed', 'residual'],
+    properties: {{
+      matched: {{ type: 'boolean' }},
+      observed: {{ type: 'object' }},
+      residual: {{ type: 'string' }},
+      brokenInvariants: {{ type: 'array', items: {{ type: 'string' }} }},
+    }},
+  }} }},
+)
+
+return {{ concern: {js(how.concern)}, steps: done, gate, observed }}
+"""
+    return WorkflowScript(name=name, source=source)
+
+
+def write_skill(
+    how: DomainHow,
+    root: str | Path,
+    *,
+    allow_untested: bool = False,
+    overwrite: bool = False,
+) -> Path:
+    """Write a rendered skill to ``<root>/<name>/SKILL.md``.
+
+    The directory name must equal the skill's ``name``, so the layout is not the
+    caller's to choose.
+    """
+
+    bundle = render_skill(how, allow_untested=allow_untested)
+    directory = Path(root).expanduser() / bundle.name
+    target = directory / "SKILL.md"
+    if target.exists() and not overwrite:
+        raise EmitError(f"{target} already exists; pass overwrite=True to replace it")
+    directory.mkdir(parents=True, exist_ok=True)
+    target.write_text(bundle.body, encoding="utf-8")
+    return target
+
+
+def write_workflow(
+    how: DomainHow,
+    root: str | Path,
+    *,
+    allow_untested: bool = False,
+    overwrite: bool = False,
+) -> Path:
+    """Write a rendered workflow to ``<root>/<name>.js``."""
+
+    script = render_workflow(how, allow_untested=allow_untested)
+    directory = Path(root).expanduser()
+    target = directory / f"{script.name}.js"
+    if target.exists() and not overwrite:
+        raise EmitError(f"{target} already exists; pass overwrite=True to replace it")
+    directory.mkdir(parents=True, exist_ok=True)
+    target.write_text(script.source, encoding="utf-8")
+    return target

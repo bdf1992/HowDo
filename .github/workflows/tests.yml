@@ -24,8 +24,11 @@ jobs:
           python-version: ${{ matrix.python }}
       - name: Suite
         run: python -m unittest discover -s tests -t . -v
-      - name: Example
-        run: python examples/jira_workflow.py
+      - name: Examples
+        run: |
+          python examples/jira_workflow.py
+          python examples/portable_contract.py
+          python examples/issue_domain_how.py
 
   install:
     # The suite exercises the library; this exercises what a person actually
