@@ -136,11 +136,13 @@ observation, residual = runnable.observe(
 print("observed:", observation.observed)
 print("residual:", residual.route, "matched=", residual.matched)
 
+# The observation matched the declared expectation, so the run is acknowledged
+# without a patch: a matched residual disproved nothing and cannot license a
+# rewrite. Only a discrepancy earns a write-back.
 settlement = settle(
     paradigm,
     residual,
     accept=residual.matched,
-    patch=lambda state: {**state, "map": {"statuses": list(observation.observed["statuses"])}},
     reason="verified against the declared shape",
 )
 print("revision:", paradigm.revision, "->", settlement.paradigm.revision)

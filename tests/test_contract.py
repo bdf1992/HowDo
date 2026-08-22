@@ -376,21 +376,25 @@ class ObservationRoutingTests(unittest.TestCase):
         )
         self.assertEqual(residual.route, "contract")
 
-    def test_a_matching_run_settles_normally(self):
+    def test_a_matching_run_settles_without_a_rewrite(self):
         paradigm, (_observation, residual) = self._run(
             {"statuses": ["Open", "Ready for QA", "Done"]}
         )
         self.assertTrue(residual.matched)
         self.assertEqual(residual.route, "none")
-        settlement = settle(
-            paradigm,
-            residual,
-            accept=True,
-            patch=lambda state: {**state, "map": {"statuses": list(residual.observed["statuses"])}},
-            reason="verified",
-        )
-        self.assertTrue(settlement.changed)
-        self.assertEqual(settlement.changed_layers, ("map",))
+        # A matching observation disproved nothing, so it is acknowledged
+        # without a patch and cannot license one.
+        settlement = settle(paradigm, residual, accept=True, reason="verified")
+        self.assertTrue(settlement.accepted)
+        self.assertFalse(settlement.changed)
+        self.assertEqual(settlement.paradigm.revision, paradigm.revision)
+        with self.assertRaisesRegex(ValueError, "no discrepancy"):
+            settle(
+                paradigm,
+                residual,
+                accept=True,
+                patch=lambda state: {**state, "map": {"statuses": list(residual.observed["statuses"])}},
+            )
 
 
 if __name__ == "__main__":

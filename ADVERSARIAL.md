@@ -9,6 +9,10 @@ The runtime is a small protocol kernel, not a complete trust system. v0.9 makes 
 | consequential request with no expected state | `resolve` refuses |
 | consequential request with no precondition | `resolve` refuses |
 | stale resolution | `admit` fizzles before execution |
+| issued paradigm mutated through the caller's mapping | state is snapshotted at construction |
+| state mutated in place behind an unchanged revision counter | `admit` fizzles and `settle` refuses; the resolved snapshot is compared by value |
+| `None`-valued key added or removed without a revision bump | absence and a present `None` are distinct; the layer counts as changed |
+| matched observation used to license a paradigm rewrite | `settle` refuses a patch on a residual that carries no discrepancy |
 | check raises | fails closed |
 | one admission used twice | second `operate()` raises |
 | observer self-verifies from executor report argument | observer never receives `Outcome.reported` |
