@@ -18,6 +18,18 @@ Versions are aligned across `SKILL.md`, `README.md`, `pyproject.toml`, and `CONT
   `disable-model-invocation: true` — the destination decides the frontmatter
   target, not the caller.
 
+
+- **How Do had no way to find out what it had already built.** `published()`
+  scans the destinations for artifacts carrying How Do's marker and
+  `write_reference()` renders `SUBSKILLS.md` into the store, beside `CONTEXT.md`
+  and outside the payload. Derived rather than declared, the same rule
+  `CROSSINGS.md` sets for the skill graph: a deleted artifact is absent, a
+  hand-placed one appears, and another author's skill is not counted as ours.
+  `SKILL.md` now reads the catalogue before establishing anything fresh — a
+  concern that already has a grounded skill is invoked, not rebuilt — which is
+  the whole point of issuing anything.
+
+
 - **Reachability was decided for the person instead of by them.** Publishing
   marked any consequential artifact `disable-model-invocation: true` on the
   strength of the contract alone. But the person publishing worked the concern
@@ -33,36 +45,223 @@ Versions are aligned across `SKILL.md`, `README.md`, `pyproject.toml`, and `CONT
   decision stays visible, read back from the installed file rather than from what
   was published, so a later hand-edit governs.
 
-- **How Do had no way to find out what it had already built.** `published()`
-  scans the destinations for artifacts carrying How Do's marker and
-  `write_reference()` renders `SUBSKILLS.md` into the store, beside `CONTEXT.md`
-  and outside the payload. Derived rather than declared, the same rule
-  `CROSSINGS.md` sets for the skill graph: a deleted artifact is absent, a
-  hand-placed one appears, and another author's skill is not counted as ours.
-  `SKILL.md` now reads the catalogue before establishing anything fresh — a
-  concern that already has a grounded skill is invoked, not rebuilt — which is
-  the whole point of issuing anything.
 
-- **A request's I/O was implied, so it was neither checkable nor portable.** The
-  kernel refuses a consequential operation with no expected state and no
-  precondition, but it never knew what that expected state was *shaped* like,
-  what the operation read, or what a host had to be able to do before the
-  operation was runnable there at all. Those three lived in the caller's head
-  and in Python closures, which meant they could not be checked and could not
-  leave the process. `runtime/howdo/contract.py` states them as data: `accepts`
-  (declared inputs, now carried on `Request.inputs` and reaching the executor on
-  the resolution instead of through a closure), `expects` (the shape of the
-  observable result), `rules` (checks as clauses over a closed operator set,
-  compiling into ordinary `Check` objects so the gate is the same one), and
-  `requires` (capabilities a host must offer). A contract round-trips through
-  JSON and digests to a stable identity, and `bind(contract, host)` answers
-  *can this run here* before anything resolves. A consequential contract must
-  carry its own precondition and its own result shape, because a gate the host
-  happened to supply is not part of what shipped. One new route: an observation
-  that does not match the declared shape is a `contract` residual, not a
-  `postcondition` one — a result that cannot be compared is a different fault
-  from one that came out wrong, and filing it as the latter claims a test ran
-  that did not. Optional, additive, and no invariant above it moved.
+- **Every module was unit-tested and the chain had never run.**
+  `tests/test_end_to_end.py` drives a synthetic Harbor jobs directory through
+  the walk, the blob store, ingestion, the append-only log, the schedule, the
+  audit, and the analysis, in the order a real run would. It found two defects
+  on its first execution, which is the whole argument for it. **Discovery order
+  is not run order**: Harbor names trial directories after the task, so a
+  filesystem walk returns them alphabetically while the study ran them
+  interleaved, and appending in walk order hit the log's sequence rule — the
+  refusal was correct but read like a corrupt log rather than like a caller
+  iterating wrongly. `harness/jobs.py` now separates `find_trials()`, which is
+  for inspection and says so, from `ordered_trials()`, which ingests in run
+  order and refuses any directory it cannot place; the runbook gains the
+  obligation that produced it, since nothing in Harbor's output records which
+  scheduled trial a directory was and without that mapping the interleaving is
+  unverifiable. The walk also identifies trials by content rather than depth,
+  because a job directory carries its own `result.json` beside the trials' and
+  the obvious glob picks it up as a phantom trial. The second defect was in a
+  test rather than the code: an assertion that terminal recordings are excluded
+  was written against total store size, which tar's 10 KB block padding
+  dominates, so it would have passed while storing them. It reads the archive
+  now. That padding is left alone and the reason is recorded in `blobs.py` — the
+  archive format is part of every digest addressing a tree, so it is free to
+  change today and not free once a single real trial exists.
+
+- **A correction that was itself wrong, and a real defect it was hiding.** An
+  earlier entry claimed no `harbor-index` dataset exists. It does. The check had
+  been a grep of the Harbor repository's `registry.json`, and absence from that
+  one registry was read as absence — Harbor Index is served from Harbor Hub as
+  `harbor-index/harbor-index`, with its tasks in `harbor-framework/harbor-index`.
+  Measuring both pools properly changes the recommendation's *reasoning* while
+  leaving it standing: `terminal-bench@2.0` has 89 tasks that all write a binary
+  reward from their own test suite, so all 89 can certify; `harbor-index` has 80
+  of which 34 are LLM-judged, and `TASK-QUALIFICATION.md` makes those
+  `research_only`, leaving 46 — on a suite curated to defeat frontier agents,
+  which on a 12B means near-total floor effects, and with a judge that turns a
+  local study into one needing a paid API. Neither is chosen; the pool is a
+  Stage A commitment nobody has made, and the runbook now says its dataset is a
+  placeholder. Alongside it, one real defect the audit surfaced: the runbook's
+  Harbor commands used `--dataset name==version`, and the CLI takes
+  `name@version`, so every command in it would have failed. Four other inferences
+  were checked and hold — `oracle` and `nop` are real agent names, results land
+  at `<trial_dir>/result.json`, and the binary reward mapping is not an
+  assumption but the canonical task template's behaviour, verified across all 89
+  terminal-bench tasks. The claim that cost is timeout-bound is now labelled an
+  inference rather than a finding, because it is one: a scaffold stops when the
+  model says it is done, a small model may stop early and often, and M−1 is what
+  settles it.
+
+- **The runbook described a scheduler and an audit that did not exist.** Both
+  were prose steps for a person to carry out on a run that will take weeks, which
+  is exactly when a checklist gets walked through quickly.
+  `experiment/harness/schedule.py` makes the trial order an artifact: round-based
+  rather than a flat shuffle, because interleaving only defends against drift if
+  the arms are balanced *over time* and a flat shuffle balances only in
+  expectation — after every round each task has the same count in every arm. It
+  is generated once, persisted with a digest, resumed by sequence index rather
+  than by (task, arm) since two entries in a round are otherwise
+  indistinguishable, and it refuses both an overwrite and a resume under changed
+  parameters, because a regenerated schedule is a different study continued under
+  the same name. `experiment/harness/checks.py` turns the post-collection audit
+  into one pass that returns findings and never raises: unverifiable receipts,
+  two organisms or two preregistrations in one log, a stray rehearsal receipt,
+  duplicate sequence indices, per-arm exclusions over the ceiling, tasks outside
+  the committed set, and any receipt that ran a different trial from the one
+  scheduled — the last being structurally perfect and still wrong. M−1's probe
+  set is now six named tasks stratified across the measured timeout distribution
+  rather than a description of what to pick, and naming them commits their
+  exclusion from the pilot before the probe runs.
+
+- **The evidence layer had no way to receive evidence.** Everything up to here
+  was contracts and validators; nothing read a trial. `experiment/harness/` is
+  the seam to Harbor, and only that — Harbor owns execution, and the roadmap
+  says not to rebuild a runner. `ingest.py` maps a Harbor `TrialResult` to a
+  receipt and refuses rather than guesses at each point where a guess would
+  become evidence: a partial reward is refused instead of rounded, since
+  rounding invents an outcome the verifier never reported and is invisible in
+  the aggregate afterwards; an exception is always an `error` and never a
+  `fail`, since a crashed trial did not measure the treatment; an unmapped
+  exception becomes `other` rather than a neighbouring class that would make the
+  tally wrong. It also closes part of a gap `RECEIPT.md` declared open — Harbor
+  records which model ran and the lock records which was frozen, so a mismatch
+  is refused rather than left to review. `blobs.py` gives custody its other
+  half: a digest in a receipt now resolves to bytes that re-hash to it, an
+  edited blob is detected on read, and a trajectory directory archives
+  deterministically so two machines agree. `qualify.py` folds oracle and no-op
+  runs into a qualification record, counting infrastructure errors separately
+  from both — an error miscounted as an oracle failure drops a solvable task
+  from an already small pool, and one miscounted as a no-op failure keeps a
+  vacuous verifier in. The runbook now carries the real Harbor commands,
+  verified against the CLI.
+
+- **Writing the analysis before the data caught two defects in the stopping
+  rule.** `experiment/analysis/pilot0001.py` is the committed analysis — a
+  task-level permutation test and bootstrap, seeded, zero dependencies —
+  written and validated against synthetic trials with a known effect before any
+  real trial exists. Running it against synthetic nulls immediately falsified
+  two rules that had read as obviously sensible in prose. The first: STOP was
+  defined as "the interval includes zero and its upper bound is below δ\*",
+  which sends a real-but-too-small effect to INCONCLUSIVE when it is in fact
+  conclusive; STOP is now simply an upper bound below δ\*. The second: harm was
+  drafted as a gate at 20% of tasks regressing, but with single-digit
+  trials-per-arm one trial is worth more than δ\* of a per-task pass rate, so
+  30–40% of tasks regress by at least δ\* under a true null — the ceiling would
+  have fired on nothing at all, and on a genuine positive too. Harm is now
+  computed at the δ\* threshold, reported, and flagged for investigation, and
+  the protection against a treatment that lifts the mean while breaking tasks
+  comes from GO requiring the interval's lower bound to clear δ\*.
+  `PILOT-0001/SIZING.md` records what the analysis does on synthetic data and
+  states why every figure in it is optimistic; its useful finding is that tasks
+  buy more precision than trials do, because the task is the unit of analysis.
+  `PILOT-0001/REHEARSAL.md` and `PILOT-0001/RESULTS.template.md` complete the
+  operational set: exercise the machinery on excluded tasks and throw the
+  results away, then write the preregistered result before anything exploratory
+  by document order.
+
+- **The pilot had a frozen treatment and no committed study.** `TREATMENT.md`
+  said what would be administered; nothing said what would count as an effect,
+  which tasks would be committed, how many trials, what analysis, or what result
+  would stop the programme. `PILOT-0001/PREREGISTRATION.md` now does, and it is
+  frozen in two stages so that the parts M0.0 must not influence — endpoints,
+  analysis, δ\*, the stopping rule — are fixed before M0.0 runs, while the task
+  set and trial count are filled from its output. It declares its own screening
+  bias rather than leaving it to be discovered: selecting tasks on the control
+  arm's mid-range performance means the pilot estimates an effect on tasks a raw
+  agent finds neither trivial nor impossible, not on the suite. INCONCLUSIVE
+  is defined as not a soft GO, and a null is recorded as falsifying this
+  treatment and not the discipline, because the person-derived half is in no
+  arm. `PILOT-0001/RUNBOOK.md` makes the study executable without midstream
+  judgement: pre-run gates, the per-trial lifecycle ending in destruction, a
+  disposition table to look up rather than decide, and integrity checks ordered
+  before anyone looks at the difference. `evidence/preregistration.py` refuses to
+  digest a document with an open commitment, so the four values still awaiting a
+  decision — the task variance ceiling, δ\*, the reconnaissance budget, and the
+  harm-rate ceiling — block a confirmatory trial rather than defaulting quietly.
+
+- **Nothing said which benchmark tasks were allowed to be evidence.** Two kinds
+  of unqualified task bias a study rather than blurring it: one nothing can
+  solve scores zero in every arm and shrinks the effective sample while the task
+  count says otherwise, and one that passes without being solved scores one in
+  every arm and pulls a real effect toward zero. Both look ordinary in an
+  aggregate score. `experiment/TASK-QUALIFICATION.md` is the procedure — oracle
+  run five times because a 4/5 indicts the fixture rather than the solution, a
+  no-op agent run three times where a single pass disqualifies outright,
+  verifier type recorded, and a 20% infrastructure-flake cap because the
+  exclusions a flaky task produces are decisions made after the data is visible.
+  `experiment/evidence/qualification.py` derives the outcome from the counts and
+  refuses to let it be asserted, so a record edited to promote a rejected task
+  fails verification even with its digest recomputed. Judge-scored tasks come
+  out `research_only`: they inform the census and exploratory analysis and never
+  certify. Rejections stay in the record, because deleting them turns a
+  committed set into a selected one.
+
+- **The receipt was one frozen block and a list of field names.** Everything
+  the programme will claim is a projection over receipts, so a field the receipt
+  omits is evidence that does not exist — but only the resolution block had a
+  shape, and the rest was a bullet list in the roadmap.
+  `experiment/evidence/RECEIPT.md` is now the contract and
+  `experiment/evidence/receipt.py` enforces the checkable half. The invariants
+  are the ones that otherwise produce evidence that looks correct and is not:
+  certification is derived from verifier kind, analysis class, and result rather
+  than written, and is rechecked at verification time so a hand-edited receipt
+  fails even with its digest recomputed; `failure_class` is required exactly
+  when a trial did not measure the treatment and refused when it did, so an
+  inconvenient result cannot be refiled as infrastructure noise; a confirmatory
+  trial with no preregistration digest in force is refused; the H0 arm cannot
+  report reconnaissance and the treatment arms cannot report its absence;
+  trajectories and artifacts must be content addresses, since a path is a claim
+  about a machine that will be reformatted; and appends refuse an out-of-order
+  `run_sequence_index`, because interleaving is the defence against drift and it
+  is unverifiable from a log that accepted trials in any order. Corrections are
+  appended against a receipt's digest and never replace it. The contract also
+  states what it does not enforce — chiefly that no structural check can tell a
+  receipt saying `arm: h1` from a harness that ran H0.
+
+- **The envelope milestone described a probe nobody could run twice the same
+  way.** M−1 said to record peak VRAM, throughput, and offload events and to
+  freeze the winning configuration, which is a summary of a protocol rather than
+  one. `experiment/M-1/PROTOCOL.md` now states which factors vary and which are
+  held constant, defines stability *before* the probe runs (no offload
+  transition mid-run, no truncation, no hard failures, peak memory within 5%
+  across repeats, throughput CV ≤ 0.15), records determinism rather than
+  requiring it, derives hours-per-100-trials from end-to-end wall clock rather
+  than token rates, and names "no stable cell exists" as a result instead of a
+  reason to lower the bar. The probe set is drawn from tasks explicitly excluded
+  from the pilot, because tuning against tasks the pilot will score is selection
+  on the outcome. `evidence/organism.py` makes the output executable: the
+  fingerprint is computed from identity, configuration, and hardware, the
+  observed envelope is recorded but deliberately not hashed, and a lock file
+  with any field still a placeholder is refused — a fingerprint over an unfilled
+  form certifies nothing while looking exactly like one that does.
+
+- **The contribution rules had no lane the experiment could enter through.**
+  Attack, Fix, and Skill text all require a residual from real use, and rule 8
+  requires a trace that could not be served without the change — but producing
+  the first trace is what the measurement work exists to do, so every research
+  PR had to argue its way past rules written for a released discipline. A fourth
+  lane now carries its own: treatment before implementation, preregistration
+  before confirmatory data, raw evidence never rewritten, experimental code
+  never implying promotion, the payload boundary enforced by test rather than
+  asserted, and cross-boundary imports declared in the importing module with
+  their direction. The PR shape gains `experiment` as a layer and a `Promotes:`
+  line whose honest answer is almost always `no`.
+
+- **The experiment/release boundary was a claim in a document, not a fact about
+  the filesystem.** `ROADMAP.md` said `experiment/` is outside the installed
+  skill, but `install.py` copies all of `runtime/`, the pilot adapter lived at
+  `runtime/howdo/environment.py`, and `howdo.__init__` re-exported twelve pilot
+  symbols — so every install carried the adapter and the release surface
+  silently included it. The adapter moved to
+  `experiment/PILOT-0001/adapter/`, the exports are gone, and the boundary is
+  now enforced: `tests/test_release.py` installs into a temporary directory and
+  checks that no pilot module ships, that a clean interpreter importing the
+  installed `howdo` finds none of the pilot API, and that no payload file so
+  much as names the pilot. Kind-awareness stays in `context.py` because
+  `inspect_context()` needs it, and it is generic — it validates whichever kind
+  a file declares and names no consumer.
 
 - **A benchmark agent cannot honestly hold a person's context, so it gets a
   different kind.** `CONTEXT.template.md` says a pedagogy "cannot be generated"
@@ -77,8 +276,8 @@ Versions are aligned across `SKILL.md`, `README.md`, `pyproject.toml`, and `CONT
   not overlap, so relabelling one kind as the other fails on both, and each
   settlement helper refuses the other's file with `ContextKindError`. Lifetime
   and write authority are orthogonal to kind, so `environment` never silently
-  implies `ephemeral`. Under `experiment/PILOT-0001/`; nothing in the shipped
-  discipline refers to it and no version moved.
+  implies `ephemeral`. Nothing in the shipped discipline refers to it and no
+  version moved.
 
 - **A trial's resolution is the one thing a receipt cannot recompute.** The
   benchmark experiment derives everything it can from evidence — capability
@@ -97,82 +296,6 @@ Versions are aligned across `SKILL.md`, `README.md`, `pyproject.toml`, and `CONT
   them with status, including the two documents still unwritten
   (`PREREGISTRATION.md`, the rest of the receipt) and the undeclared values
   (reconnaissance budget, δ\*) that block the pilot.
-
-- **The installer tells the person what is being configured.** A fresh install
-  printed `next  establish the pedagogy before the first substantive HowDo` — an
-  instruction addressed to an agent who is not reading it, shown to a person, in
-  a term nothing on their path had defined. Nothing told them what the first
-  conversation is for, why it cannot be guessed, or that it can be declined or
-  deferred. `install.py` now prints a `CONFIGURATION_NOTE` after the status
-  block on a fresh install only, carrying all four settings and both opt-outs in
-  plain ASCII; `--verify` stays terse and prints none of it, and a reinstall over
-  a settled context has nothing to explain. The `next` line no longer uses the
-  internal term. `QUICKSTART.md` now leads with what gets configured, mapped
-  stage by stage, before the store mechanics.
-
-- **The shell is fixed, its internals are personal, and both halves are stated
-  wherever the term is introduced.** `SKILL.md` called a pedagogy "how
-  understanding gets built for this person"; `references/onboarding.md` called it
-  "the loop itself". Both are true, and the join was stated in one place, on the
-  line a reader reaches last — so onboarding read either as an agent inventing a
-  pedagogy per reader or as an impersonal config step with nothing a person could
-  supply. `SKILL.md`, `CONTEXT.template.md`, and `references/onboarding.md` now
-  each carry the loop as a fixed shell, its internals as personal, and the reason
-  a person is required: the settings have no other source.
-- **The vocabulary is working equipment, not output.** Nothing forbade emitting
-  the local terms, state names, frontmatter keys, or store paths at the person.
-  Guide mode was told it "does not need" the vocabulary — permission to skip,
-  rather than an instruction to withhold — and the one rule about what shows
-  through an answer governs structure, not wording. `SKILL.md` now states the
-  rule and names what leaks most readily, with two narrow exceptions (inspect
-  mode, and working on How Do itself); `references/onboarding.md` carries it
-  beside the anti-label bullet, where it bites hardest.
-- **The glossary defines the words a newcomer trips over first.**
-  `references/vocabulary.md` was silently missing `pedagogy`, `onboarding`,
-  `exemplar`, `payload`, and `store`, plus the new `shell` and `internals`.
-
-- **The default-store test pins the platform it asserts.** `default_store_path()`
-  documents and implements `%APPDATA%\howdo\CONTEXT.md` on Windows and
-  `~/.howdo/CONTEXT.md` elsewhere, but
-  `test_default_store_is_user_scoped_and_keeps_the_canonical_basename` passed no
-  `platform=` and asserted the POSIX branch unconditionally — so it agreed with
-  whatever host ran it, and stayed green on Linux-only CI while proving nothing
-  about Windows. All three branches are now asserted through `subTest` with
-  `platform` pinned per case.
-
-## Unreleased
-
-- **Every skill the emitter produced was unloadable, and so was this one.** A
-  plain YAML scalar may not contain `": "`, and a generated description always
-  does — "not a general-purpose helper: an unrelated question ...". So did this
-  repo's own `SKILL.md`, whose description has read "requested, not ambient: use
-  when ..." since 0.8.0. Claude Code's reader is lenient enough to have hidden
-  it; the paths that are not — claude.ai upload, the Skills API,
-  `package_skill.py` — validate the block and fail with a hard error. Frontmatter
-  values are now quoted unconditionally rather than when a scan believes it is
-  needed, this repo's own description is quoted, and
-  `FrontmatterIsParseableTests` checks both without adding a dependency. Found by
-  giving the generated output to a real parser instead of reading it.
-
-- **Emission had one frontmatter target where there are two.** Outside Claude
-  Code only six fields are accepted and any other key is a hard error, while
-  inside it every documented field works. `render_skill` now takes
-  `target="spec"` (the default, restricted to `name`, `description`, `license`,
-  `compatibility`, `metadata`, `allowed-tools`) or `target="claude-code"`. The
-  distinction is not bookkeeping: a domain-how whose contract is consequential
-  describes an operation with side effects, which is the documented case for
-  `disable-model-invocation: true` — "workflows with side effects or that you
-  want to control timing, like `/commit`, `/deploy`" — and also this
-  discipline's own posture. Consequential artifacts emitted for Claude Code are
-  therefore not left auto-invocable. The portable target cannot say it, states
-  it in the body instead, and that limit is declared in `ADVERSARIAL.md` rather
-  than papered over.
-
-- **Two spec fields were being left on the floor.** `license` is emitted when the
-  caller supplies one — the issuer knows how an artifact was produced, not what
-  covers the domain knowledge in it — and a contract's `requires` now becomes the
-  `compatibility` statement, which is what that field is for, capped at the
-  specification's 500 characters.
 
 ## 0.9.0
 
@@ -236,6 +359,80 @@ requires.
   An untested artifact is refused without an explicit override, and the override
   stamps the output, because an installed skill pre-loads every later session on
   that concern.
+
+- **Every skill the emitter produced was unloadable, and so was this one.** A
+  plain YAML scalar may not contain `": "`, and a generated description always
+  does — "not a general-purpose helper: an unrelated question ...". So did this
+  repo's own `SKILL.md`, whose description has read "requested, not ambient: use
+  when ..." since 0.8.0. Claude Code's reader is lenient enough to have hidden
+  it; the paths that are not — claude.ai upload, the Skills API,
+  `package_skill.py` — validate the block and fail with a hard error. Frontmatter
+  values are now quoted unconditionally rather than when a scan believes it is
+  needed, this repo's own description is quoted, and
+  `FrontmatterIsParseableTests` checks both without adding a dependency. Found by
+  giving the generated output to a real parser instead of reading it.
+
+- **Emission had one frontmatter target where there are two.** Outside Claude
+  Code only six fields are accepted and any other key is a hard error, while
+  inside it every documented field works. `render_skill` now takes
+  `target="spec"` (the default, restricted to `name`, `description`, `license`,
+  `compatibility`, `metadata`, `allowed-tools`) or `target="claude-code"`. The
+  distinction is not bookkeeping: a domain-how whose contract is consequential
+  describes an operation with side effects, which is the documented case for
+  `disable-model-invocation: true` — "workflows with side effects or that you
+  want to control timing, like `/commit`, `/deploy`" — and also this
+  discipline's own posture. Consequential artifacts emitted for Claude Code are
+  therefore not left auto-invocable. The portable target cannot say it, states
+  it in the body instead, and that limit is declared in `ADVERSARIAL.md` rather
+  than papered over.
+
+- **Two spec fields were being left on the floor.** `license` is emitted when the
+  caller supplies one — the issuer knows how an artifact was produced, not what
+  covers the domain knowledge in it — and a contract's `requires` now becomes the
+  `compatibility` statement, which is what that field is for, capped at the
+  specification's 500 characters.
+
+- **The installer tells the person what is being configured.** A fresh install
+  printed `next  establish the pedagogy before the first substantive HowDo` — an
+  instruction addressed to an agent who is not reading it, shown to a person, in
+  a term nothing on their path had defined. Nothing told them what the first
+  conversation is for, why it cannot be guessed, or that it can be declined or
+  deferred. `install.py` now prints a `CONFIGURATION_NOTE` after the status
+  block on a fresh install only, carrying all four settings and both opt-outs in
+  plain ASCII; `--verify` stays terse and prints none of it, and a reinstall over
+  a settled context has nothing to explain. The `next` line no longer uses the
+  internal term. `QUICKSTART.md` now leads with what gets configured, mapped
+  stage by stage, before the store mechanics.
+
+- **The shell is fixed, its internals are personal, and both halves are stated
+  wherever the term is introduced.** `SKILL.md` called a pedagogy "how
+  understanding gets built for this person"; `references/onboarding.md` called it
+  "the loop itself". Both are true, and the join was stated in one place, on the
+  line a reader reaches last — so onboarding read either as an agent inventing a
+  pedagogy per reader or as an impersonal config step with nothing a person could
+  supply. `SKILL.md`, `CONTEXT.template.md`, and `references/onboarding.md` now
+  each carry the loop as a fixed shell, its internals as personal, and the reason
+  a person is required: the settings have no other source.
+- **The vocabulary is working equipment, not output.** Nothing forbade emitting
+  the local terms, state names, frontmatter keys, or store paths at the person.
+  Guide mode was told it "does not need" the vocabulary — permission to skip,
+  rather than an instruction to withhold — and the one rule about what shows
+  through an answer governs structure, not wording. `SKILL.md` now states the
+  rule and names what leaks most readily, with two narrow exceptions (inspect
+  mode, and working on How Do itself); `references/onboarding.md` carries it
+  beside the anti-label bullet, where it bites hardest.
+- **The glossary defines the words a newcomer trips over first.**
+  `references/vocabulary.md` was silently missing `pedagogy`, `onboarding`,
+  `exemplar`, `payload`, and `store`, plus the new `shell` and `internals`.
+
+- **The default-store test pins the platform it asserts.** `default_store_path()`
+  documents and implements `%APPDATA%\howdo\CONTEXT.md` on Windows and
+  `~/.howdo/CONTEXT.md` elsewhere, but
+  `test_default_store_is_user_scoped_and_keeps_the_canonical_basename` passed no
+  `platform=` and asserted the POSIX branch unconditionally — so it agreed with
+  whatever host ran it, and stayed green on Linux-only CI while proving nothing
+  about Windows. All three branches are now asserted through `subTest` with
+  `platform` pinned per case.
 
 ## 0.8.0
 

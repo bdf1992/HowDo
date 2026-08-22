@@ -26,22 +26,6 @@ from .context import (
     write_authority,
 )
 
-# PILOT-0001 experiment adapter. Not part of the discipline: no shipped skill
-# document refers to it, and nothing in the person path depends on it.
-from .environment import (
-    PILOT_ADMISSIBLE,
-    FrozenContext,
-    PilotAdmissibilityError,
-    ReconReceipt,
-    TrialClosure,
-    assert_pilot_admissible,
-    close_trial_context,
-    complete_reconnaissance,
-    describe_frozen,
-    freeze_context,
-    open_trial_context,
-)
-
 from .contract import (
     CONTRACT_VERSION,
     ELEMENT_TYPES,
@@ -135,6 +119,9 @@ from .core import (
     settle,
 )
 
+# Kind-awareness is generic: ``context.py`` validates whichever kind a context
+# file declares. Nothing here names a particular consumer of the environment
+# kind, and no consumer of it is installed with the skill.
 __all__ = [
     "FORMATS",
     "SCOPE_PERSONAL",
@@ -239,15 +226,4 @@ __all__ = [
     "context_kind",
     "context_lifetime",
     "write_authority",
-    "PILOT_ADMISSIBLE",
-    "FrozenContext",
-    "PilotAdmissibilityError",
-    "ReconReceipt",
-    "TrialClosure",
-    "assert_pilot_admissible",
-    "close_trial_context",
-    "complete_reconnaissance",
-    "describe_frozen",
-    "freeze_context",
-    "open_trial_context",
 ]

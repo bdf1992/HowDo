@@ -17,8 +17,17 @@ Lifetime and write authority are independent of kind, so that "environment"
 never silently implies "ephemeral". During a pilot only two combinations are
 admissible; see :func:`assert_pilot_admissible`.
 
-This is an experiment adapter, not part of the discipline. Nothing in the
-shipped skill documents refers to it, and it is not How Do 0.9.
+This is an experiment adapter, not part of the discipline. It lives under
+``experiment/`` rather than in ``runtime/howdo`` so the boundary is a fact
+about the filesystem and not a claim in a document: an ordinary How Do install
+copies ``runtime/`` and therefore cannot contain any of this.
+
+Declared dependency: this module imports private helpers from
+``howdo.context`` (frontmatter parsing, section replacement, placeholder
+tables). That coupling is deliberate and one-directional. ``howdo.context``
+knows about context *kinds* generically and knows nothing about PILOT-0001;
+this module knows about PILOT-0001 and reaches into the kernel. If the kernel's
+private helpers change, this adapter breaks and the skill does not.
 """
 
 from __future__ import annotations
@@ -30,7 +39,7 @@ import hashlib
 import re
 import stat
 
-from .context import (
+from howdo.context import (
     AUTHORITY_READONLY,
     AUTHORITY_WRITABLE,
     ContextKindError,
