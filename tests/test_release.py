@@ -1,5 +1,7 @@
+import os
 import re
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -99,6 +101,59 @@ class ReleaseContractTests(unittest.TestCase):
         skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
         self.assertIn("structural completeness only", skill)
         self.assertIn("does not prove", skill)
+
+
+class FrontmatterIsParseableTests(unittest.TestCase):
+    """A skill whose frontmatter a YAML parser rejects fails packaging outright.
+
+    The Agent Skills distribution paths -- claude.ai upload, the Skills API,
+    `package_skill.py` -- validate the block rather than reading it leniently.
+    This repo's own description says "requested, not ambient: use when ...",
+    and a plain YAML scalar may not contain ": ", so it has to be quoted.
+
+    Checked without a YAML dependency: the failure mode is narrow and the repo
+    ships zero dependencies.
+    """
+
+    INDICATORS = "-?:,[]{}#&*!|>'\"%@`"
+
+    def _frontmatter(self, path: Path) -> str:
+        text = path.read_text(encoding="utf-8")
+        self.assertTrue(text.startswith("---"), f"{path} has no frontmatter")
+        return text[3 : text.index("\n---", 3)]
+
+    def _hazards(self, front: str) -> list:
+        found = []
+        for line in front.splitlines():
+            if not line or line.startswith((" ", "\t", "#")) or ":" not in line:
+                continue
+            key, _, value = line.partition(":")
+            value = value.strip()
+            if not value:
+                continue
+            if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+                continue  # a quoted scalar may contain anything
+            if ": " in value or value.endswith(":"):
+                found.append(f"{key}: unquoted scalar contains a colon")
+            elif value[0] in self.INDICATORS:
+                found.append(f"{key}: unquoted scalar opens with {value[0]!r}")
+        return found
+
+    def test_the_skill_frontmatter_has_no_unquoted_hazard(self):
+        for name in ("SKILL.md", "CONTEXT.template.md"):
+            with self.subTest(document=name):
+                self.assertEqual(self._hazards(self._frontmatter(ROOT / name)), [])
+
+    def test_it_parses_when_a_yaml_parser_is_available(self):
+        yaml = __import__("importlib").util.find_spec("yaml")
+        if yaml is None:
+            self.skipTest("pyyaml absent; the hazard check above still ran")
+        import yaml as parser  # noqa: PLC0415
+
+        for name in ("SKILL.md", "CONTEXT.template.md"):
+            with self.subTest(document=name):
+                data = parser.safe_load(self._frontmatter(ROOT / name))
+                self.assertIsInstance(data, dict)
 
 
 class IssuerGuaranteeTests(unittest.TestCase):
@@ -293,7 +348,12 @@ class InvocationIntentTests(unittest.TestCase):
         text = (ROOT / "SKILL.md").read_text(encoding="utf-8")
         front = text[3 : text.index("\n---", 3)]
         line = next(l for l in front.splitlines() if l.startswith("description:"))
-        return line.split(":", 1)[1].strip()
+        value = line.split(":", 1)[1].strip()
+        # The value is a quoted YAML scalar: it contains ": ", which a plain one
+        # may not. See FrontmatterIsParseableTests.
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+            value = value[1:-1]
+        return value
 
     def test_description_asks_to_be_invoked(self):
         description = self._description().lower()
@@ -467,6 +527,102 @@ class PayloadHygieneTests(unittest.TestCase):
             ]
             self.assertEqual(strays, [], f"install shipped build noise: {strays}")
 
+
+class ExperimentBoundaryTests(unittest.TestCase):
+    """The boundary between the skill and the research around it is a fact
+    about the filesystem, not a claim in a document.
+
+    An ordinary install copies ``runtime/``. If pilot code lives there, then
+    every installed user carries an experiment adapter, the release surface
+    silently includes it, and a decision to abandon the pilot cannot be
+    carried out by deleting a directory.
+    """
+
+    PILOT_API = (
+        "PILOT_ADMISSIBLE",
+        "FrozenContext",
+        "FrozenContextError",
+        "PilotAdmissibilityError",
+        "ReconReceipt",
+        "TrialClosure",
+        "assert_pilot_admissible",
+        "close_trial_context",
+        "complete_reconnaissance",
+        "describe_frozen",
+        "freeze_context",
+        "open_trial_context",
+    )
+
+    def _payload(self, tmp):
+        sys.path.insert(0, str(ROOT))
+        import install  # noqa: PLC0415
+
+        destination = Path(tmp) / "how-do"
+        install.copy_payload(destination, dry_run=False)
+        return destination
+
+    def test_the_installer_never_copies_the_experiment(self):
+        sys.path.insert(0, str(ROOT))
+        import install  # noqa: PLC0415
+
+        self.assertNotIn("experiment", install.PAYLOAD)
+
+    def test_an_ordinary_install_carries_no_pilot_module(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            destination = self._payload(tmp)
+            self.assertTrue((destination / "runtime" / "howdo" / "context.py").exists())
+            strays = [
+                path.relative_to(destination)
+                for path in destination.rglob("environment.py")
+            ]
+            self.assertEqual(strays, [], f"install shipped the pilot adapter: {strays}")
+
+    def test_an_ordinary_install_exposes_no_pilot_api(self):
+        # Imported out of the installed copy in a clean interpreter, so a
+        # module already imported by this test run cannot mask the answer.
+        with tempfile.TemporaryDirectory() as tmp:
+            destination = self._payload(tmp)
+            probe = (
+                "import howdo, sys\n"
+                f"names = {self.PILOT_API!r}\n"
+                "leaked = [n for n in names if hasattr(howdo, n) or n in getattr(howdo, '__all__', ())]\n"
+                "try:\n"
+                "    import howdo.environment\n"
+                "    leaked.append('howdo.environment')\n"
+                "except ImportError:\n"
+                "    pass\n"
+                "sys.stdout.write(','.join(leaked))\n"
+            )
+            result = subprocess.run(
+                [sys.executable, "-c", probe],
+                cwd=str(destination / "runtime"),
+                capture_output=True,
+                text=True,
+                check=True,
+                env={"PYTHONPATH": str(destination / "runtime"), "PATH": os.environ.get("PATH", "")},
+            )
+            self.assertEqual(result.stdout, "", f"installed skill exposes pilot API: {result.stdout}")
+
+    def test_the_installed_skill_does_not_name_the_pilot(self):
+        # A payload that points at a directory it does not ship is a dangling
+        # reference for anyone reading the installed copy.
+        with tempfile.TemporaryDirectory() as tmp:
+            destination = self._payload(tmp)
+            offenders = []
+            for path in sorted(destination.rglob("*")):
+                if not path.is_file() or path.suffix not in {".py", ".md"}:
+                    continue
+                text = path.read_text(encoding="utf-8", errors="replace")
+                if "PILOT-0001" in text:
+                    offenders.append(str(path.relative_to(destination)))
+            self.assertEqual(offenders, [], f"payload names the pilot: {offenders}")
+
+    def test_the_adapter_still_exists_outside_the_payload(self):
+        # The boundary is only meaningful if the code is somewhere; a test that
+        # passes because the adapter was deleted proves nothing.
+        adapter = ROOT / "experiment" / "PILOT-0001" / "adapter" / "environment.py"
+        self.assertTrue(adapter.exists(), "the adapter was moved out of the payload and lost")
+        self.assertIn("from howdo.context import", adapter.read_text())
 
 if __name__ == "__main__":
     unittest.main()

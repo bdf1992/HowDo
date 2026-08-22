@@ -84,6 +84,11 @@ Emission installs something. These hold for `runtime/howdo/emit.py`.
 | directory name drifting from the skill's `name` | `write_skill` owns the layout; the caller cannot choose it |
 | quotes, backticks, `${...}` or backslashes in a map breaking the generated script | values are emitted as JSON literals; a parser check covers it |
 | generated workflow loading a module | none is emitted; a script containing `import()` fails before a run starts |
+| description or compatibility containing `: ` emitted as a plain scalar | quoted; an unparseable frontmatter block fails packaging outright rather than degrading |
+| a Claude Code extension field emitted on the portable path | the default `spec` target is restricted to the six fields the specification accepts |
+| consequential artifact left auto-invocable as a Claude Code skill | `disable-model-invocation: true`, the documented case for a workflow with side effects |
+| `compatibility` over the specification's 500 characters | refused |
+| unknown emission target | refused rather than silently treated as portable |
 | an existing skill or workflow silently replaced | refused without `overwrite=True` |
 
 ## Enforced context invariants
@@ -120,6 +125,8 @@ surface.
 
 | Attack | Adapter response |
 |---|---|
+| pilot adapter reaches end users by sitting in `runtime/` | `install.py` copies `runtime/`; the adapter is not there, and an install test imports the installed package in a clean interpreter and finds no pilot API |
+| installed skill points at a directory it does not ship | no payload file names `PILOT-0001`; the kind hook that remains is generic |
 | person context relabelled `context_kind: environment` | `invalid`; the required metadata keys differ and the evidence sections do not overlap |
 | environment context relabelled `context_kind: person` | not ready; `onboarding` is missing and person evidence is absent |
 | person evidence reused to settle an environment context | `reconnaissance_required`; the headings themselves are disjoint |
@@ -137,6 +144,18 @@ surface.
 | persistent accumulating context used in a pilot trial | `PilotAdmissibilityError`; later trials would inherit earlier trials' information |
 | person context carried into a benchmark trial | `PilotAdmissibilityError`; no arm of the pilot carries a pedagogy |
 | reconnaissance marker flipped with sections left blank | `reconnaissance_required` |
+| receipt asserts `certifies: true` on a judge-scored trial | refused at write time and rechecked at verification, so a recomputed digest does not help |
+| result refiled as infrastructure noise after the fact | `failure_class` is refused on `pass` and `fail` and required on `error` and `excluded` |
+| confirmatory trial cites no preregistration | refused; it is an exploratory trial wearing the word |
+| trial log accepts receipts in any order | `append_receipt()` refuses a non-increasing `run_sequence_index` per experiment |
+| a wrong receipt edited or deleted | corrections append against its digest; the original is never touched |
+| trajectory stored as a filesystem path or inline text | refused; custody references must be sha256 content addresses |
+| control arm reports reconnaissance, or a treatment arm reports none | refused; the arm and the recon outcome must agree |
+| qualification record edited to promote a rejected task | `verify_qualification()` recomputes the outcome, not just the digest |
+| judge-scored task certifies capability | derived outcome is `research_only`; certification is unreachable |
+| preregistration digested while a commitment is still a proposal | refused, and the refusal lists what is open |
+| organism lock fingerprinted from an unfilled template | refused; every required field is checked, not just the first |
+| observed envelope changes the organism fingerprint | it is excluded from the hashed payload by construction |
 | `Skill(foo) + Environment(bar)` digested as `Environment(foo) + Skill(bar)` | different digests; role and kind are committed separately |
 | two-operand resolution digested as a three-operand one | different digests; arity is committed |
 | operand identity crafted to impersonate the serialization | different digests; every value is a quoted string in a typed structure |
@@ -167,6 +186,7 @@ These are semantic invariants rather than Python NLP rules:
 - **A host's capabilities are declared, not authenticated.** `bind` proves a contract was not loaded somewhere it says it cannot run. It does not prove the host told the truth about what it can do, and it cannot: the same class of boundary as the caller-supplied comparator.
 - **A contract binds the declaration, not the executor.** It states what the operation must make observable; whether the executor pursues that or something else is caught at Look, not at the door. A contract makes the lie checkable, not impossible.
 - **The clause set is closed on purpose.** A predicate it cannot state has to ship as a host-supplied `Check`, and that check does not travel with the contract. The contract's own rules still gate the operation, so the portable floor holds while the local ceiling does not — but a contract whose real gate is local is portable in form only, and nothing here detects that.
+- **The portable target cannot restrict who invokes a skill.** `disable-model-invocation` is a Claude Code extension, and emitting it on the path that goes to claude.ai or the Skills API fails packaging with a hard error. So a consequential artifact rendered for that target says so in its body and nothing enforces it. Prose in a skill body is an instruction, not a permission boundary.
 - **An emitted skill is a projection, and drifts the moment the artifact moves.** Nothing tracks what was emitted or re-emits it: `emit` is stateless by design, in the same spirit as the index being rebuilt rather than stored. An installed skill whose domain-how has since been revised will keep being loaded, and only re-emission fixes that.
 - **A generated workflow can state Look's discipline but cannot enforce it.** The kernel structurally withholds the executor report from the observer; a script can only instruct an agent not to read it back. That instruction is prose in a prompt, and an agent may ignore it.
 - **An issued artifact is structurally grounded, not correct.** `ground()` proves a residual matched on one run. It does not prove the map is good, the path is the best one, or that the concern was worth an artifact — the same boundary `onboarding: complete` already declares one level up. Ablation across runs is the semantic test, and it is not in the runtime.

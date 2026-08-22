@@ -1,6 +1,6 @@
 ---
 name: how-do
-description: Understanding-before-acting discipline — bind the actor, map the problem, state checks at consequential boundaries, act only when they hold, then observe and correct only what the result disproved. Requested, not ambient: use when the user invokes /how-do, names How Do or its loop (Map → Path → Check → Do → Look → Update), or asks in their own words to work this way — to slow down, ground a plan before acting, or inspect the reasoning behind a result. An ordinary how-to question, a request for help, or simply continuing prior work is not by itself a request for How Do; answer those directly.
+description: "Understanding-before-acting discipline — bind the actor, map the problem, state checks at consequential boundaries, act only when they hold, then observe and correct only what the result disproved. Requested, not ambient: use when the user invokes /how-do, names How Do or its loop (Map → Path → Check → Do → Look → Update), or asks in their own words to work this way — to slow down, ground a plan before acting, or inspect the reasoning behind a result. An ordinary how-to question, a request for help, or simply continuing prior work is not by itself a request for How Do; answer those directly."
 license: MIT
 metadata:
   author: bdo
@@ -203,6 +203,13 @@ loop becomes the script's structure — the gate runs before anything acts, the
 path runs as ordered phases, and a final phase observes the world rather than
 reading back what the acting agents reported. Emission is a projection, so
 re-emit rather than editing what came out; the artifact is the source.
+
+Emission has two frontmatter targets, because what a host accepts and what the
+portable specification accepts are not the same set — and on the portable path an
+unrecognised field fails packaging outright rather than being ignored. Where the
+target allows it, a consequential artifact is marked non-auto-invocable, which is
+this discipline's own posture expressed in a host's own vocabulary; where it does
+not, the body says so and nothing enforces it.
 
 An untested artifact is not emitted without an explicit override, and the
 override stamps what it produces. A `SKILL.md` on disk pre-loads every later
