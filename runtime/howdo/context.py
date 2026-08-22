@@ -19,28 +19,73 @@ ContextState = Literal[
     "missing",
     "template",
     "onboarding_required",
+    "reconnaissance_required",
     "ready",
     "deferred",
     "declined",
     "fork_required",
+    "expired",
     "invalid",
 ]
 
-_REQUIRED_META = {
+# A context declares what kind of thing it records. The kinds are disjoint:
+# a person context is elicited because a pedagogy is not observable, and an
+# environment context is inspected because an environment's affordances are.
+# Neither validator can be satisfied by the other's file — the metadata keys
+# and the evidence sections both differ.
+KIND_PERSON = "person"
+KIND_ENVIRONMENT = "environment"
+_KIND_KEY = "context_kind"
+_KINDS = (KIND_PERSON, KIND_ENVIRONMENT)
+
+# Lifetime and write authority are independent of kind, so that "environment"
+# never silently implies "ephemeral".
+LIFETIME_EPHEMERAL = "ephemeral"
+LIFETIME_FROZEN = "frozen"
+LIFETIME_PERSISTENT = "persistent"
+_LIFETIMES = (LIFETIME_EPHEMERAL, LIFETIME_FROZEN, LIFETIME_PERSISTENT)
+_LIFETIME_KEY = "lifetime"
+
+AUTHORITY_WRITABLE = "writable"
+AUTHORITY_READONLY = "readonly"
+_AUTHORITIES = (AUTHORITY_WRITABLE, AUTHORITY_READONLY)
+_AUTHORITY_KEY = "write_authority"
+
+_TRIAL_KEY = "trial_id"
+_UNSET = {None, "", "pending", "none"}
+
+_BASE_META = {
     "howdo_context",
     "context_id",
     "context_file",
     "skill",
     "skill_version",
-    "onboarding",
     "parent_context_id",
 }
-_REQUIRED_SECTIONS = (
-    "Calibration domains",
-    "Representation observations",
-    "Structures that landed",
-    "Structures that did not land",
-)
+# The settlement key differs by kind and is not shared. "onboarding" is person
+# language; an environment context is never deferred or declined, because there
+# is nobody to ask.
+_REQUIRED_META_BY_KIND = {
+    KIND_PERSON: _BASE_META | {"onboarding"},
+    KIND_ENVIRONMENT: _BASE_META | {_KIND_KEY, "reconnaissance", _LIFETIME_KEY, _AUTHORITY_KEY},
+}
+_REQUIRED_META = _REQUIRED_META_BY_KIND[KIND_PERSON]
+
+_REQUIRED_SECTIONS_BY_KIND = {
+    KIND_PERSON: (
+        "Calibration domains",
+        "Representation observations",
+        "Structures that landed",
+        "Structures that did not land",
+    ),
+    KIND_ENVIRONMENT: (
+        "Available ground",
+        "Imposed ordering",
+        "Verification mechanisms",
+        "Mutation and authority boundaries",
+    ),
+}
+_REQUIRED_SECTIONS = _REQUIRED_SECTIONS_BY_KIND[KIND_PERSON]
 _PLACEHOLDERS = {"", "pending", "none", "none yet", "- pending", "- none yet"}
 _PLACEHOLDER_PREFIXES = ("pending", "none yet")
 
@@ -89,6 +134,16 @@ class PayloadContextError(ValueError):
     The payload is replaceable: install, update, and reinstall overwrite it. A
     settled context written there is discarded without any error being raised,
     so the write would produce a receipt the installation cannot keep.
+    """
+
+
+class ContextKindError(ValueError):
+    """A settlement was attempted across context kinds.
+
+    ``person`` and ``environment`` are different kinds, not two modes of one
+    onboarding. Their evidence sections are disjoint, so settling one through
+    the other's helper would write text into headings that do not exist and
+    stamp a marker the validator does not read.
     """
 
 
@@ -228,6 +283,31 @@ def is_shared(metadata: Mapping[str, str]) -> bool:
     without one, is per-person. Genericness is only ever opted into.
     """
     return str(metadata.get(_SCOPE_KEY, _SCOPE_USER)).strip().lower() == _SCOPE_SHARED
+
+
+def context_kind(metadata: Mapping[str, str]) -> str:
+    """Return the declared kind of a context.
+
+    Absence means ``person``: every context written before the kind existed
+    records a pedagogy, so the default preserves them exactly. An unrecognised
+    value is returned as-is so :func:`inspect_context` can report it rather
+    than quietly treating an unknown kind as a person.
+    """
+    return str(metadata.get(_KIND_KEY, KIND_PERSON)).strip().lower() or KIND_PERSON
+
+
+def context_lifetime(metadata: Mapping[str, str]) -> str:
+    """Return the declared lifetime. Absent means ``persistent``.
+
+    A person context has always outlived the session that settled it, so the
+    default has to keep meaning that. Environment contexts must declare one.
+    """
+    return str(metadata.get(_LIFETIME_KEY, LIFETIME_PERSISTENT)).strip().lower()
+
+
+def write_authority(metadata: Mapping[str, str]) -> str:
+    """Return the declared write authority. Absent means ``writable``."""
+    return str(metadata.get(_AUTHORITY_KEY, AUTHORITY_WRITABLE)).strip().lower()
 
 
 def payload_root(path: str | Path) -> Path | None:
@@ -384,13 +464,18 @@ def _refuse_payload_settlement(path: Path, *, allow_payload: bool) -> None:
     )
 
 
-def inspect_context(path: str | Path) -> ContextStatus:
+def inspect_context(path: str | Path, *, trial_id: str | None = None) -> ContextStatus:
     """Return whether a durable context is absent, new, ready, declined, forked, or invalid.
 
     A copied/renamed context is detected because its embedded ``context_file``
-    no longer matches its actual basename. ``onboarding: complete`` is not
-    sufficient by itself: the minimum comparative evidence sections must also
+    no longer matches its actual basename. A settled marker is not sufficient by
+    itself: the evidence sections required for that context's *kind* must also
     contain non-placeholder material.
+
+    ``trial_id`` asserts which trial is reading. It is required to read an
+    ephemeral context and ignored otherwise: an ephemeral context that outlives
+    its trial reports ``expired`` instead of handing back content, so a reused
+    volume surfaces as a state rather than as silent contamination.
     """
     p = Path(path)
     if not p.exists():
@@ -398,7 +483,12 @@ def inspect_context(path: str | Path) -> ContextStatus:
 
     text = p.read_text(encoding="utf-8")
     metadata = _frontmatter(text)
-    missing = sorted(_REQUIRED_META - set(metadata))
+    kind = context_kind(metadata)
+    if kind not in _KINDS:
+        return ContextStatus(
+            p, "invalid", f"unrecognised context_kind: {kind!r}", metadata
+        )
+    missing = sorted(_REQUIRED_META_BY_KIND[kind] - set(metadata))
     if missing:
         return ContextStatus(
             p,
@@ -424,6 +514,9 @@ def inspect_context(path: str | Path) -> ContextStatus:
             metadata,
         )
 
+    if kind == KIND_ENVIRONMENT:
+        return _inspect_environment(p, text, metadata, trial_id)
+
     if metadata.get("onboarding") == "deferred":
         # Deferred is not declined. The person chose to work first, so the
         # offer stays open; nothing here is learned context yet.
@@ -446,13 +539,79 @@ def inspect_context(path: str | Path) -> ContextStatus:
         or metadata.get("context_id") in {None, "", "pending"}
     )
     missing_evidence = [
-        heading for heading in _REQUIRED_SECTIONS if not _section_has_evidence(text, heading)
+        heading
+        for heading in _REQUIRED_SECTIONS_BY_KIND[KIND_PERSON]
+        if not _section_has_evidence(text, heading)
     ]
     if incomplete_meta or missing_evidence:
         reason = "context has not established a pedagogy"
         if metadata.get("onboarding") == "complete" and missing_evidence:
             reason += f"; missing evidence in: {', '.join(missing_evidence)}"
         return ContextStatus(p, "onboarding_required", reason, metadata)
+
+    return ContextStatus(p, "ready", "context is ready", metadata)
+
+
+def _inspect_environment(
+    p: Path,
+    text: str,
+    metadata: Mapping[str, str],
+    trial_id: str | None,
+) -> ContextStatus:
+    """Validate an environment context.
+
+    Ordering is deliberate. Lifetime and authority are checked first because a
+    context that cannot say how long it lives cannot be trusted at all; the
+    trial binding is checked next because it decides whether this reader may
+    look at the content; evidence is checked last.
+    """
+    lifetime = context_lifetime(metadata)
+    if lifetime not in _LIFETIMES:
+        return ContextStatus(p, "invalid", f"unrecognised lifetime: {lifetime!r}", metadata)
+
+    authority = write_authority(metadata)
+    if authority not in _AUTHORITIES:
+        return ContextStatus(
+            p, "invalid", f"unrecognised write_authority: {authority!r}", metadata
+        )
+
+    if lifetime == LIFETIME_EPHEMERAL:
+        bound = metadata.get(_TRIAL_KEY)
+        if bound in _UNSET:
+            return ContextStatus(
+                p, "invalid", "ephemeral context is not bound to a trial_id", metadata
+            )
+        if trial_id is None:
+            return ContextStatus(
+                p,
+                "invalid",
+                f"ephemeral context is bound to trial {bound!r} and must be read "
+                f"with the reading trial's id",
+                metadata,
+            )
+        if trial_id != bound:
+            return ContextStatus(
+                p,
+                "expired",
+                f"ephemeral context belongs to trial {bound!r}, not {trial_id!r}; "
+                f"it did not survive the trial boundary",
+                metadata,
+            )
+
+    incomplete_meta = (
+        metadata.get("reconnaissance") != "complete"
+        or metadata.get("context_id") in _UNSET
+    )
+    missing_evidence = [
+        heading
+        for heading in _REQUIRED_SECTIONS_BY_KIND[KIND_ENVIRONMENT]
+        if not _section_has_evidence(text, heading)
+    ]
+    if incomplete_meta or missing_evidence:
+        reason = "environment context has not established ground"
+        if metadata.get("reconnaissance") == "complete" and missing_evidence:
+            reason += f"; missing evidence in: {', '.join(missing_evidence)}"
+        return ContextStatus(p, "reconnaissance_required", reason, metadata)
 
     return ContextStatus(p, "ready", "context is ready", metadata)
 
@@ -493,6 +652,12 @@ def complete_onboarding(
         raise FileNotFoundError(p)
     _refuse_template_settlement(p)
     _refuse_payload_settlement(p, allow_payload=allow_payload)
+
+    if context_kind(_frontmatter(p.read_text(encoding="utf-8"))) != KIND_PERSON:
+        raise ContextKindError(
+            f"{p} is not a person context; onboarding settles a pedagogy, which "
+            f"an environment context does not record"
+        )
 
     status = inspect_context(p)
     if status.state == "fork_required":
