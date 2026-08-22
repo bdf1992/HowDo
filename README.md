@@ -203,6 +203,18 @@ python examples/issue_domain_how.py   # run -> issue -> index -> ground -> emit
 - `tests/` — runtime and context contract tests.
 - `ADVERSARIAL.md` — enforced attacks and declared boundaries.
 - `CONTRIBUTING.md` — lanes, rules, PR shape. `CHANGELOG.md` — versions.
+- `experiment/` — the measurement work. Not installed; see below.
+
+## Research
+
+How Do has no measurement yet: it is a discipline, a reference runtime, and
+tests that prove the documents keep their promises, none of which shows that the
+discipline changes what an agent does. `experiment/` holds the work that would
+find out, starting from `experiment/ROADMAP.md`. **None of it is part of the
+installed skill or the 0.8.0 release.** The installer copies `runtime/` and
+never `experiment/`, and `tests/test_release.py` checks that an ordinary install
+contains no experiment code. If the measurement fails, the directory is deleted
+and 0.8.0 is unaffected.
 
 ## QA
 
