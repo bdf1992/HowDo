@@ -303,6 +303,20 @@ class HookTests(unittest.TestCase):
                 self.assertEqual(len(recorded), 1, f"{tool} recorded nothing")
                 self.assertEqual(recorded[0]["tool"], tool)
 
+    def test_a_notebook_is_not_something_this_can_observe(self):
+        """A `.ipynb` is JSON, so it cannot carry a header at byte 0.
+
+        NotebookEdit was wired up once and "fixed" once, and both were wrong:
+        the tool writes files, but not files this mechanism can read. A test
+        that passed did so only because it wrote a fake notebook that was
+        really markdown -- asserting something that cannot happen.
+        """
+        notebook = json.dumps({"cells": [], "metadata": {}, "nbformat": 4})
+        self.assertEqual(read_header(notebook), {},
+                         "a real notebook appeared to carry a header")
+        self.assertNotIn("NotebookEdit", TOOL_PATH_KEYS,
+                         "a tool whose files can never declare a header is wired up")
+
     def test_the_matcher_and_the_table_cannot_drift_apart(self):
         """Wired in one place and not the other is silent in both directions."""
         config = json.loads((PAYLOAD / "hooks" / "hooks.json").read_text(encoding="utf-8"))

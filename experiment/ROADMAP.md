@@ -69,6 +69,9 @@ study.
       `evidence/organism.py`. The fingerprint is computed from the
       configuration and refuses a lock with any field left unfilled; the
       observed envelope is recorded but excluded from the digest.
+- [x] **Probe set chosen** — six named tasks stratified across the measured
+      timeout distribution (10–200 min cap, 2–8 GB container, four categories),
+      committed as excluded from the pilot before the probe runs.
 - [ ] Probe Q4_K_M and Q8_0 across 8k/16k/32k+ context; record peak VRAM, RAM,
       tok/s, prompt throughput, offload events, failures.
 - [ ] Emit **hours per 100 trials** as a first-class output. It sizes every
@@ -123,7 +126,29 @@ fingerprints. No XP, no levels, no skill graph.
       trials do, because the task is the unit of analysis.
 - [x] **Results template** — `PILOT-0001/RESULTS.template.md`, preregistered
       result before exploratory work, by document order.
-- [ ] Harbor ingestion. Do not rebuild a runner; Harbor already owns execution.
+- [x] **Harbor ingestion** — `experiment/harness/`. `ingest.py` maps a Harbor
+      `TrialResult` to a receipt, `blobs.py` is the content-addressed store,
+      `qualify.py` folds oracle and no-op runs into a qualification record. No
+      runner was rebuilt: Harbor owns execution and this is the seam.
+- [x] **Trial schedule** — `harness/schedule.py`. Round-based rather than a
+      flat shuffle, so the arms are balanced after every round and drift across
+      the run hits both equally. Generated once, persisted with a digest,
+      resumable by sequence index, and refusing both an overwrite and a resume
+      under changed parameters.
+- [x] **Post-collection checks** — `harness/checks.py`. The runbook's step 2 as
+      code: every receipt verifies, one organism and one preregistration
+      throughout, no stray analysis class, unique sequence indices, exclusions
+      under the ceiling per arm, only committed tasks, every receipt matching
+      the trial the schedule planned, and no dangling correction.
+- [x] **Jobs-directory walk** — `harness/jobs.py`. Trials are identified by
+      content, not depth, because a job directory carries its own
+      `result.json` beside the trials'. `ordered_trials()` ingests in run order
+      from a mapping the runner must persist; `find_trials()` is for inspection
+      and says so.
+- [x] **End-to-end pass** — `tests/test_end_to_end.py`. The whole chain over a
+      synthetic Harbor jobs directory, in CI. It found two defects on its first
+      run; see `PILOT-0001/REHEARSAL.md`.
+- [ ] Wire the seam to a real Harbor job on the target machine (needs M−1).
 
 ## M0.0 — Noise floor · `blocked` on M−1 · [#10](https://github.com/bdf1992/HowDo/issues/10)
 
@@ -242,6 +267,10 @@ These came out of the design and apply across milestones.
 - Reconnaissance budget cap — proposed in `PILOT-0001/PREREGISTRATION.md`, not signed off.
 - δ\* — proposed at 0.10, not signed off; must be set before M0.0's power gate.
 - Task variance ceiling and harm-rate ceiling — proposed, not signed off.
+- **Candidate pool — undecided, and a Stage A commitment.** `terminal-bench@2.0`
+  (89 tasks, all deterministic) against `harbor-index` (80 tasks, 46
+  deterministic, curated to defeat frontier agents, needs a paid judge). See
+  `PILOT-0001/SIZING.md`. The runbook uses terminal-bench as a placeholder only.
 - Pilot task set — uncommitted; Stage B, depends on M0.0 screening.
 - Whether the environment adapter's kind-awareness in `runtime/howdo/context.py`
   should move fully out of the payload. Currently the hook ships and the

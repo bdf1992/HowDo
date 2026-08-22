@@ -3,9 +3,10 @@
 A signal is what it sounds like -- a log entry with datums about an operation.
 It is not a receipt, not a score, and not a judgement. Whatever a graph
 eventually says about a person's work is a *projection* over these lines,
-computed later and recomputable when the question changes. That is the rule
-``experiment/CROSSINGS.md`` states for the skill graph, applied one layer down:
-freeze what cannot be recovered, derive what can.
+computed later and recomputable when the question changes. The rule is: freeze
+what cannot be recovered, derive what can. Anything a query could reconstruct
+from these lines does not belong in them, because storing it fixes an answer to
+a question that has not been asked yet.
 
 Two things produce a signal, and the pairing is the point:
 
@@ -24,8 +25,9 @@ several sessions append to one file concurrently, so position orders writes
 rather than events, and nothing relates a signal to a receipt or a run without
 a clock. And the **format version**, because the first change to the line shape
 would otherwise make every earlier line ambiguous -- with malformed-tolerant
-reading hiding the ambiguity instead of surfacing it. ``receipt.py`` carries
-``RECEIPT_VERSION`` for the same reason.
+reading hiding the ambiguity instead of surfacing it. A version in the line is
+what lets a later reader skip a dialect it does not understand rather than
+misread it as the current one.
 """
 
 from __future__ import annotations
@@ -60,15 +62,21 @@ HEADER_STAGE = "howdo_stage"
 # typo rather than a new kind of work.
 STAGES = ("map", "path", "check", "do", "look", "update")
 
-# Which payload key holds the path each writing tool actually wrote. This is a
-# table rather than one inline lookup because the tools disagree: NotebookEdit
-# reports ``notebook_path`` where the others report ``file_path``, and a hook
-# that assumed otherwise would be wired up and permanently silent for it.
+# Which payload key holds the path each writing tool actually wrote. A table
+# rather than one inline lookup because the tools do not agree on the key, so a
+# hook that assumed a single shape would be wired up and permanently silent for
+# whichever tool disagreed.
+#
+# NotebookEdit is deliberately absent. A ``.ipynb`` is JSON: it begins with
+# ``{``, so it can never carry a header at byte 0, and wiring it up would add a
+# process spawn on every notebook edit that can only ever decline to record.
+# Notebooks would need a different mechanism -- a declaration in notebook
+# metadata, not frontmatter -- and that is a separate decision, not an
+# extension of this one.
 TOOL_PATH_KEYS = {
     "Write": "file_path",
     "Edit": "file_path",
     "MultiEdit": "file_path",
-    "NotebookEdit": "notebook_path",
 }
 
 # A header is two short lines at the top of a file. Reading more than this to

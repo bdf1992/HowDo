@@ -113,6 +113,7 @@ Emission installs something. These hold for `plugin/runtime/howdo/emit.py`.
 | install or update run over a settled store | `ensure_context()` never overwrites an existing store |
 | store deliberately pointed inside the payload | `install.py` refuses before copying anything unless `--shared` opts in |
 | unmarked context inside the payload settled | `PayloadContextError`; only a declared `scope: shared` store is admitted there |
+| `scope: shared` store settled inside a **plugin** payload | `PayloadContextError` naming `$CLAUDE_PLUGIN_DATA`; the opt-in describes a trade a version-scoped payload does not offer — the store is orphaned in the previous release's directory, not discarded |
 | `scope` key absent or blank | read as `user`; genericness is never inferred |
 | build noise present in the working tree at install time | excluded from the payload |
 | install directory name drifts from the skill's declared `name:` | `--verify` fails |

@@ -4,6 +4,41 @@ Versions are aligned across `plugin/SKILL.md`, `README.md`, `pyproject.toml`, an
 
 ## 0.10.0
 
+- **Shipped code cited documents the reader does not have.** `domain.py` and
+  `emit.py` pointed at `experiment/CROSSINGS.md` and `ADVERSARIAL.md` for
+  principles they rest on — the index being a view rather than an authority, and
+  what a minted artifact compounds that a spoken one does not. Both are
+  repository documents and neither ships, so a plugin user reading the source
+  found paths that do not exist on their disk and reasoning that was nowhere in
+  what they had. The direction is the one rule 14 already sets for imports:
+  `experiment/` may depend on the runtime, never the reverse, and a docstring is
+  a dependency written in prose. Each now states the principle instead of
+  citing where it is stated — the knowledge was the point, the pointer was not.
+  A test fails on any shipped file referencing `experiment/`, `packaging/`,
+  `tests/`, `ADVERSARIAL.md`, `CONTRIBUTING.md` or `README.md`. Naming the other
+  *install route* stays allowed: `bin/howdo-context` calling itself the
+  plugin-native replacement for `install.py --verify` orients a reader rather
+  than sending them to a missing file.
+
+- **The one escape hatch in the payload guard described a trade the plugin route
+  does not offer.** `_refuse_payload_settlement` lets a store through when it
+  declares `scope: shared`, on the stated grounds that whoever declared it
+  "accepted that a wholesale reinstall discards it". That is true of a skill
+  directory, which is replaced in place. It is false of a plugin: hosts install
+  under a directory named for the release, so an update does not touch the old
+  one — it creates a new one beside it and reads from there. The store is not
+  discarded, it is **orphaned**: still on disk, still readable, and no longer the
+  file anything loads. Nothing raises and nothing goes missing, which makes it
+  strictly worse than deletion for a durable context and impossible to opt into
+  knowingly. `is_plugin_payload()` now tells the two kinds apart by the manifest
+  a plugin root ships and a skill directory never does, and a `scope: shared`
+  settlement inside a plugin payload raises instead, naming
+  `$CLAUDE_PLUGIN_DATA` as where the store belongs. A skill directory is
+  unchanged, and an explicit `allow_payload=True` still overrides — a caller who
+  states the risk is not the accident being guarded against. This strengthens an
+  existing guarantee rather than weakening one, per rule 1, and the new row in
+  `ADVERSARIAL.md` says so.
+
 - **Four of seven version strings were unchecked, and a release is what would
   have found that out.** `test_release_versions_are_aligned` verified
   `SKILL.md`, `README.md`, `pyproject.toml`, `CONTEXT.template.md` and
@@ -130,6 +165,97 @@ Versions are aligned across `plugin/SKILL.md`, `README.md`, `pyproject.toml`, an
   `postcondition` one — a result that cannot be compared is a different fault
   from one that came out wrong, and filing it as the latter claims a test ran
   that did not. Optional, additive, and no invariant above it moved.
+
+- **Every module was unit-tested and the chain had never run.**
+  `tests/test_end_to_end.py` drives a synthetic Harbor jobs directory through
+  the walk, the blob store, ingestion, the append-only log, the schedule, the
+  audit, and the analysis, in the order a real run would. It found two defects
+  on its first execution, which is the whole argument for it. **Discovery order
+  is not run order**: Harbor names trial directories after the task, so a
+  filesystem walk returns them alphabetically while the study ran them
+  interleaved, and appending in walk order hit the log's sequence rule — the
+  refusal was correct but read like a corrupt log rather than like a caller
+  iterating wrongly. `harness/jobs.py` now separates `find_trials()`, which is
+  for inspection and says so, from `ordered_trials()`, which ingests in run
+  order and refuses any directory it cannot place; the runbook gains the
+  obligation that produced it, since nothing in Harbor's output records which
+  scheduled trial a directory was and without that mapping the interleaving is
+  unverifiable. The walk also identifies trials by content rather than depth,
+  because a job directory carries its own `result.json` beside the trials' and
+  the obvious glob picks it up as a phantom trial. The second defect was in a
+  test rather than the code: an assertion that terminal recordings are excluded
+  was written against total store size, which tar's 10 KB block padding
+  dominates, so it would have passed while storing them. It reads the archive
+  now. That padding is left alone and the reason is recorded in `blobs.py` — the
+  archive format is part of every digest addressing a tree, so it is free to
+  change today and not free once a single real trial exists.
+
+- **A correction that was itself wrong, and a real defect it was hiding.** An
+  earlier entry claimed no `harbor-index` dataset exists. It does. The check had
+  been a grep of the Harbor repository's `registry.json`, and absence from that
+  one registry was read as absence — Harbor Index is served from Harbor Hub as
+  `harbor-index/harbor-index`, with its tasks in `harbor-framework/harbor-index`.
+  Measuring both pools properly changes the recommendation's *reasoning* while
+  leaving it standing: `terminal-bench@2.0` has 89 tasks that all write a binary
+  reward from their own test suite, so all 89 can certify; `harbor-index` has 80
+  of which 34 are LLM-judged, and `TASK-QUALIFICATION.md` makes those
+  `research_only`, leaving 46 — on a suite curated to defeat frontier agents,
+  which on a 12B means near-total floor effects, and with a judge that turns a
+  local study into one needing a paid API. Neither is chosen; the pool is a
+  Stage A commitment nobody has made, and the runbook now says its dataset is a
+  placeholder. Alongside it, one real defect the audit surfaced: the runbook's
+  Harbor commands used `--dataset name==version`, and the CLI takes
+  `name@version`, so every command in it would have failed. Four other inferences
+  were checked and hold — `oracle` and `nop` are real agent names, results land
+  at `<trial_dir>/result.json`, and the binary reward mapping is not an
+  assumption but the canonical task template's behaviour, verified across all 89
+  terminal-bench tasks. The claim that cost is timeout-bound is now labelled an
+  inference rather than a finding, because it is one: a scaffold stops when the
+  model says it is done, a small model may stop early and often, and M−1 is what
+  settles it.
+
+- **The runbook described a scheduler and an audit that did not exist.** Both
+  were prose steps for a person to carry out on a run that will take weeks, which
+  is exactly when a checklist gets walked through quickly.
+  `experiment/harness/schedule.py` makes the trial order an artifact: round-based
+  rather than a flat shuffle, because interleaving only defends against drift if
+  the arms are balanced *over time* and a flat shuffle balances only in
+  expectation — after every round each task has the same count in every arm. It
+  is generated once, persisted with a digest, resumed by sequence index rather
+  than by (task, arm) since two entries in a round are otherwise
+  indistinguishable, and it refuses both an overwrite and a resume under changed
+  parameters, because a regenerated schedule is a different study continued under
+  the same name. `experiment/harness/checks.py` turns the post-collection audit
+  into one pass that returns findings and never raises: unverifiable receipts,
+  two organisms or two preregistrations in one log, a stray rehearsal receipt,
+  duplicate sequence indices, per-arm exclusions over the ceiling, tasks outside
+  the committed set, and any receipt that ran a different trial from the one
+  scheduled — the last being structurally perfect and still wrong. M−1's probe
+  set is now six named tasks stratified across the measured timeout distribution
+  rather than a description of what to pick, and naming them commits their
+  exclusion from the pilot before the probe runs.
+
+- **The evidence layer had no way to receive evidence.** Everything up to here
+  was contracts and validators; nothing read a trial. `experiment/harness/` is
+  the seam to Harbor, and only that — Harbor owns execution, and the roadmap
+  says not to rebuild a runner. `ingest.py` maps a Harbor `TrialResult` to a
+  receipt and refuses rather than guesses at each point where a guess would
+  become evidence: a partial reward is refused instead of rounded, since
+  rounding invents an outcome the verifier never reported and is invisible in
+  the aggregate afterwards; an exception is always an `error` and never a
+  `fail`, since a crashed trial did not measure the treatment; an unmapped
+  exception becomes `other` rather than a neighbouring class that would make the
+  tally wrong. It also closes part of a gap `RECEIPT.md` declared open — Harbor
+  records which model ran and the lock records which was frozen, so a mismatch
+  is refused rather than left to review. `blobs.py` gives custody its other
+  half: a digest in a receipt now resolves to bytes that re-hash to it, an
+  edited blob is detected on read, and a trajectory directory archives
+  deterministically so two machines agree. `qualify.py` folds oracle and no-op
+  runs into a qualification record, counting infrastructure errors separately
+  from both — an error miscounted as an oracle failure drops a solvable task
+  from an already small pool, and one miscounted as a no-op failure keeps a
+  vacuous verifier in. The runbook now carries the real Harbor commands,
+  verified against the CLI.
 
 - **The host already guarantees what `install.py` was built by hand to
   provide.** Almost all of the installer exists to keep `CONTEXT.md` out of the
@@ -336,80 +462,6 @@ Versions are aligned across `plugin/SKILL.md`, `README.md`, `pyproject.toml`, an
   (`PREREGISTRATION.md`, the rest of the receipt) and the undeclared values
   (reconnaissance budget, δ\*) that block the pilot.
 
-- **The installer tells the person what is being configured.** A fresh install
-  printed `next  establish the pedagogy before the first substantive HowDo` — an
-  instruction addressed to an agent who is not reading it, shown to a person, in
-  a term nothing on their path had defined. Nothing told them what the first
-  conversation is for, why it cannot be guessed, or that it can be declined or
-  deferred. `install.py` now prints a `CONFIGURATION_NOTE` after the status
-  block on a fresh install only, carrying all four settings and both opt-outs in
-  plain ASCII; `--verify` stays terse and prints none of it, and a reinstall over
-  a settled context has nothing to explain. The `next` line no longer uses the
-  internal term. `QUICKSTART.md` now leads with what gets configured, mapped
-  stage by stage, before the store mechanics.
-
-- **The shell is fixed, its internals are personal, and both halves are stated
-  wherever the term is introduced.** `SKILL.md` called a pedagogy "how
-  understanding gets built for this person"; `references/onboarding.md` called it
-  "the loop itself". Both are true, and the join was stated in one place, on the
-  line a reader reaches last — so onboarding read either as an agent inventing a
-  pedagogy per reader or as an impersonal config step with nothing a person could
-  supply. `SKILL.md`, `CONTEXT.template.md`, and `references/onboarding.md` now
-  each carry the loop as a fixed shell, its internals as personal, and the reason
-  a person is required: the settings have no other source.
-- **The vocabulary is working equipment, not output.** Nothing forbade emitting
-  the local terms, state names, frontmatter keys, or store paths at the person.
-  Guide mode was told it "does not need" the vocabulary — permission to skip,
-  rather than an instruction to withhold — and the one rule about what shows
-  through an answer governs structure, not wording. `SKILL.md` now states the
-  rule and names what leaks most readily, with two narrow exceptions (inspect
-  mode, and working on How Do itself); `references/onboarding.md` carries it
-  beside the anti-label bullet, where it bites hardest.
-- **The glossary defines the words a newcomer trips over first.**
-  `references/vocabulary.md` was silently missing `pedagogy`, `onboarding`,
-  `exemplar`, `payload`, and `store`, plus the new `shell` and `internals`.
-
-- **The default-store test pins the platform it asserts.** `default_store_path()`
-  documents and implements `%APPDATA%\howdo\CONTEXT.md` on Windows and
-  `~/.howdo/CONTEXT.md` elsewhere, but
-  `test_default_store_is_user_scoped_and_keeps_the_canonical_basename` passed no
-  `platform=` and asserted the POSIX branch unconditionally — so it agreed with
-  whatever host ran it, and stayed green on Linux-only CI while proving nothing
-  about Windows. All three branches are now asserted through `subTest` with
-  `platform` pinned per case.
-
-- **Every skill the emitter produced was unloadable, and so was this one.** A
-  plain YAML scalar may not contain `": "`, and a generated description always
-  does — "not a general-purpose helper: an unrelated question ...". So did this
-  repo's own `SKILL.md`, whose description has read "requested, not ambient: use
-  when ..." since 0.8.0. Claude Code's reader is lenient enough to have hidden
-  it; the paths that are not — claude.ai upload, the Skills API,
-  `package_skill.py` — validate the block and fail with a hard error. Frontmatter
-  values are now quoted unconditionally rather than when a scan believes it is
-  needed, this repo's own description is quoted, and
-  `FrontmatterIsParseableTests` checks both without adding a dependency. Found by
-  giving the generated output to a real parser instead of reading it.
-
-- **Emission had one frontmatter target where there are two.** Outside Claude
-  Code only six fields are accepted and any other key is a hard error, while
-  inside it every documented field works. `render_skill` now takes
-  `target="spec"` (the default, restricted to `name`, `description`, `license`,
-  `compatibility`, `metadata`, `allowed-tools`) or `target="claude-code"`. The
-  distinction is not bookkeeping: a domain-how whose contract is consequential
-  describes an operation with side effects, which is the documented case for
-  `disable-model-invocation: true` — "workflows with side effects or that you
-  want to control timing, like `/commit`, `/deploy`" — and also this
-  discipline's own posture. Consequential artifacts emitted for Claude Code are
-  therefore not left auto-invocable. The portable target cannot say it, states
-  it in the body instead, and that limit is declared in `ADVERSARIAL.md` rather
-  than papered over.
-
-- **Two spec fields were being left on the floor.** `license` is emitted when the
-  caller supplies one — the issuer knows how an artifact was produced, not what
-  covers the domain knowledge in it — and a contract's `requires` now becomes the
-  `compatibility` statement, which is what that field is for, capped at the
-  specification's 500 characters.
-
 ## 0.9.0
 
 Two capabilities, one arc: a request's declared I/O becomes portable, and a run
@@ -472,6 +524,80 @@ requires.
   An untested artifact is refused without an explicit override, and the override
   stamps the output, because an installed skill pre-loads every later session on
   that concern.
+
+- **Every skill the emitter produced was unloadable, and so was this one.** A
+  plain YAML scalar may not contain `": "`, and a generated description always
+  does — "not a general-purpose helper: an unrelated question ...". So did this
+  repo's own `SKILL.md`, whose description has read "requested, not ambient: use
+  when ..." since 0.8.0. Claude Code's reader is lenient enough to have hidden
+  it; the paths that are not — claude.ai upload, the Skills API,
+  `package_skill.py` — validate the block and fail with a hard error. Frontmatter
+  values are now quoted unconditionally rather than when a scan believes it is
+  needed, this repo's own description is quoted, and
+  `FrontmatterIsParseableTests` checks both without adding a dependency. Found by
+  giving the generated output to a real parser instead of reading it.
+
+- **Emission had one frontmatter target where there are two.** Outside Claude
+  Code only six fields are accepted and any other key is a hard error, while
+  inside it every documented field works. `render_skill` now takes
+  `target="spec"` (the default, restricted to `name`, `description`, `license`,
+  `compatibility`, `metadata`, `allowed-tools`) or `target="claude-code"`. The
+  distinction is not bookkeeping: a domain-how whose contract is consequential
+  describes an operation with side effects, which is the documented case for
+  `disable-model-invocation: true` — "workflows with side effects or that you
+  want to control timing, like `/commit`, `/deploy`" — and also this
+  discipline's own posture. Consequential artifacts emitted for Claude Code are
+  therefore not left auto-invocable. The portable target cannot say it, states
+  it in the body instead, and that limit is declared in `ADVERSARIAL.md` rather
+  than papered over.
+
+- **Two spec fields were being left on the floor.** `license` is emitted when the
+  caller supplies one — the issuer knows how an artifact was produced, not what
+  covers the domain knowledge in it — and a contract's `requires` now becomes the
+  `compatibility` statement, which is what that field is for, capped at the
+  specification's 500 characters.
+
+- **The installer tells the person what is being configured.** A fresh install
+  printed `next  establish the pedagogy before the first substantive HowDo` — an
+  instruction addressed to an agent who is not reading it, shown to a person, in
+  a term nothing on their path had defined. Nothing told them what the first
+  conversation is for, why it cannot be guessed, or that it can be declined or
+  deferred. `install.py` now prints a `CONFIGURATION_NOTE` after the status
+  block on a fresh install only, carrying all four settings and both opt-outs in
+  plain ASCII; `--verify` stays terse and prints none of it, and a reinstall over
+  a settled context has nothing to explain. The `next` line no longer uses the
+  internal term. `QUICKSTART.md` now leads with what gets configured, mapped
+  stage by stage, before the store mechanics.
+
+- **The shell is fixed, its internals are personal, and both halves are stated
+  wherever the term is introduced.** `SKILL.md` called a pedagogy "how
+  understanding gets built for this person"; `references/onboarding.md` called it
+  "the loop itself". Both are true, and the join was stated in one place, on the
+  line a reader reaches last — so onboarding read either as an agent inventing a
+  pedagogy per reader or as an impersonal config step with nothing a person could
+  supply. `SKILL.md`, `CONTEXT.template.md`, and `references/onboarding.md` now
+  each carry the loop as a fixed shell, its internals as personal, and the reason
+  a person is required: the settings have no other source.
+- **The vocabulary is working equipment, not output.** Nothing forbade emitting
+  the local terms, state names, frontmatter keys, or store paths at the person.
+  Guide mode was told it "does not need" the vocabulary — permission to skip,
+  rather than an instruction to withhold — and the one rule about what shows
+  through an answer governs structure, not wording. `SKILL.md` now states the
+  rule and names what leaks most readily, with two narrow exceptions (inspect
+  mode, and working on How Do itself); `references/onboarding.md` carries it
+  beside the anti-label bullet, where it bites hardest.
+- **The glossary defines the words a newcomer trips over first.**
+  `references/vocabulary.md` was silently missing `pedagogy`, `onboarding`,
+  `exemplar`, `payload`, and `store`, plus the new `shell` and `internals`.
+
+- **The default-store test pins the platform it asserts.** `default_store_path()`
+  documents and implements `%APPDATA%\howdo\CONTEXT.md` on Windows and
+  `~/.howdo/CONTEXT.md` elsewhere, but
+  `test_default_store_is_user_scoped_and_keeps_the_canonical_basename` passed no
+  `platform=` and asserted the POSIX branch unconditionally — so it agreed with
+  whatever host ran it, and stayed green on Linux-only CI while proving nothing
+  about Windows. All three branches are now asserted through `subTest` with
+  `platform` pinned per case.
 
 ## 0.8.0
 

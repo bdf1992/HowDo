@@ -15,9 +15,8 @@ This module issues that file and indexes it. Three rules shape it:
   matched promotes it, and any content change drops it back -- so a map that was
   rewritten cannot inherit the grounding its predecessor earned.
 * **The index is a view, not the authority.** It is rebuilt from the files it
-  describes, in the same spirit as `experiment/CROSSINGS.md`: relations are
-  projections over evidence, so a lost or stale index is a rebuild rather than
-  a loss.
+  describes: relations are projections over evidence, so a lost or stale index
+  is a rebuild rather than a loss.
 
 The store is the one outside the payload. A domain-how settled inside the skill
 would be discarded by the next update with no error raised -- the failure
@@ -540,10 +539,10 @@ def load(concern: str, *, root: str | Path | None = None) -> DomainHow:
 def reindex(*, root: str | Path | None = None) -> tuple[IndexEntry, ...]:
     """Rebuild the index from the artifacts it describes.
 
-    The index is a materialized view, never the authority -- the same rule
-    `experiment/CROSSINGS.md` sets for the skill graph. A missing, stale, or
-    corrupt index is therefore a rebuild, not a loss, and an artifact dropped
-    into the directory by hand appears without anyone registering it.
+    The index is a materialized view, never the authority: what can be derived
+    is recomputed, and only what cannot be recomputed is frozen. A missing,
+    stale, or corrupt index is therefore a rebuild, not a loss, and an artifact
+    dropped into the directory by hand appears without anyone registering it.
     """
 
     directory = Path(resolve_domain_root(root))

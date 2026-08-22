@@ -1,10 +1,10 @@
 """The How Do runtime.
 
-Names are resolved on first use rather than at import. The package is
-imported by a `PostToolUse` hook that runs on every file write in every
-session, and eagerly pulling in every submodule made that hook pay ~20 ms
-for modules it never touches. `from howdo import X` and
-`from howdo.context import Y` both still work; only the timing changed.
+Names resolve on first use rather than at import. A `PostToolUse` hook
+imports this package on every file write in every session, and eagerly
+pulling in every submodule made that hook pay ~20 ms for modules it never
+touches. `from howdo import X` and `from howdo.context import Y` both still
+work; only the timing changed.
 """
 
 from __future__ import annotations
@@ -14,6 +14,7 @@ from typing import Any
 
 # name -> the submodule that defines it.
 _ORIGIN = {
+
     "AUTHORITY_READONLY": "context",
     "AUTHORITY_WRITABLE": "context",
     "Admission": "core",
@@ -33,6 +34,9 @@ _ORIGIN = {
     "Field": "contract",
     "Fizzle": "core",
     "GateEvidence": "core",
+    "HEADER_BYTES": "signal",
+    "HEADER_OPERATION": "signal",
+    "HEADER_STAGE": "signal",
     "Host": "contract",
     "IndexEntry": "domain",
     "KIND_ENVIRONMENT": "context",
@@ -57,21 +61,29 @@ _ORIGIN = {
     "Rule": "contract",
     "SIGNALS_OFF": "context",
     "SIGNALS_ON": "context",
+    "SIGNAL_BASENAME": "signal",
+    "SIGNAL_ENV": "signal",
+    "SIGNAL_VERSION": "signal",
     "SPEC_FIELDS": "emit",
+    "STAGES": "signal",
     "STATUS_GROUNDED": "domain",
     "STATUS_UNTESTED": "domain",
     "Settlement": "core",
     "Shape": "contract",
+    "Signal": "signal",
+    "SignalError": "signal",
     "SkillBundle": "emit",
     "Staleness": "domain",
     "TARGET_CLAUDE_CODE": "emit",
     "TARGET_SPEC": "emit",
+    "TOOL_PATH_KEYS": "signal",
     "TYPES": "contract",
     "TemplateContextError": "context",
     "Unsupported": "contract",
     "WorkedExample": "domain",
     "WorkflowScript": "emit",
     "admit": "core",
+    "append": "signal",
     "bind": "contract",
     "complete_onboarding": "context",
     "context_kind": "context",
@@ -84,6 +96,7 @@ _ORIGIN = {
     "fork_context": "context",
     "ground": "domain",
     "inspect_context": "context",
+    "is_plugin_payload": "context",
     "is_shared": "context",
     "issue": "domain",
     "issue_from_run": "domain",
@@ -92,7 +105,9 @@ _ORIGIN = {
     "observe": "core",
     "operate": "core",
     "payload_root": "context",
+    "read": "signal",
     "read_frontmatter": "context",
+    "read_header": "signal",
     "read_index": "domain",
     "reindex": "domain",
     "render_skill": "emit",
@@ -100,15 +115,18 @@ _ORIGIN = {
     "resolve": "core",
     "resolve_context_path": "context",
     "resolve_domain_root": "domain",
+    "resolve_signal_log": "signal",
     "revise": "domain",
     "set_signals": "context",
     "settle": "core",
+    "signal_from_header": "signal",
     "signals_enabled": "context",
     "skill_name": "emit",
     "staleness": "domain",
     "write_authority": "context",
     "write_skill": "emit",
     "write_workflow": "emit",
+    "written_path": "signal",
 }
 
 
@@ -127,6 +145,7 @@ def __dir__() -> list[str]:
 
 
 __all__ = [
+
     "AUTHORITY_READONLY",
     "AUTHORITY_WRITABLE",
     "Admission",
@@ -146,6 +165,9 @@ __all__ = [
     "Field",
     "Fizzle",
     "GateEvidence",
+    "HEADER_BYTES",
+    "HEADER_OPERATION",
+    "HEADER_STAGE",
     "Host",
     "IndexEntry",
     "KIND_ENVIRONMENT",
@@ -170,21 +192,29 @@ __all__ = [
     "Rule",
     "SIGNALS_OFF",
     "SIGNALS_ON",
+    "SIGNAL_BASENAME",
+    "SIGNAL_ENV",
+    "SIGNAL_VERSION",
     "SPEC_FIELDS",
+    "STAGES",
     "STATUS_GROUNDED",
     "STATUS_UNTESTED",
     "Settlement",
     "Shape",
+    "Signal",
+    "SignalError",
     "SkillBundle",
     "Staleness",
     "TARGET_CLAUDE_CODE",
     "TARGET_SPEC",
+    "TOOL_PATH_KEYS",
     "TYPES",
     "TemplateContextError",
     "Unsupported",
     "WorkedExample",
     "WorkflowScript",
     "admit",
+    "append",
     "bind",
     "complete_onboarding",
     "context_kind",
@@ -197,6 +227,7 @@ __all__ = [
     "fork_context",
     "ground",
     "inspect_context",
+    "is_plugin_payload",
     "is_shared",
     "issue",
     "issue_from_run",
@@ -205,7 +236,9 @@ __all__ = [
     "observe",
     "operate",
     "payload_root",
+    "read",
     "read_frontmatter",
+    "read_header",
     "read_index",
     "reindex",
     "render_skill",
@@ -213,13 +246,16 @@ __all__ = [
     "resolve",
     "resolve_context_path",
     "resolve_domain_root",
+    "resolve_signal_log",
     "revise",
     "set_signals",
     "settle",
+    "signal_from_header",
     "signals_enabled",
     "skill_name",
     "staleness",
     "write_authority",
     "write_skill",
     "write_workflow",
+    "written_path",
 ]
