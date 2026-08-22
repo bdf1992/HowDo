@@ -44,6 +44,37 @@ The runtime is a small protocol kernel, not a complete trust system. v0.8 makes 
 | build noise present in the working tree at install time | excluded from the payload |
 | install directory name drifts from the skill's declared `name:` | `--verify` fails |
 
+## Enforced experiment-adapter invariants
+
+Experiment layer, not the discipline: these hold for `experiment/` and the
+`context_kind` hook it needs, and none of them is part of the 0.8.0 release
+surface.
+
+| Attack | Adapter response |
+|---|---|
+| person context relabelled `context_kind: environment` | `invalid`; the required metadata keys differ and the evidence sections do not overlap |
+| environment context relabelled `context_kind: person` | not ready; `onboarding` is missing and person evidence is absent |
+| person evidence reused to settle an environment context | `reconnaissance_required`; the headings themselves are disjoint |
+| `complete_onboarding()` aimed at an environment context | `ContextKindError` |
+| `complete_reconnaissance()` aimed at a person context | `ContextKindError` |
+| unrecognised `context_kind` | `invalid` rather than silently treated as a person |
+| ephemeral context read by a later trial | `expired`; a reused volume surfaces as a state, not as contamination |
+| ephemeral context read with no trial asserted | `invalid`; a relation cannot answer with an operand missing |
+| ephemeral context with no `trial_id` | `invalid`; ephemerality without a binding is unverifiable |
+| one trial settling another trial's context | refused |
+| one trial closing another trial's context | refused; the file is preserved |
+| settlement attempted on a frozen or read-only context | `FrozenContextError` |
+| frozen context declared immutable on a writable file | `describe_frozen()` reports the filesystem, not the frontmatter |
+| unsettled context frozen as if it were ground | refused |
+| persistent accumulating context used in a pilot trial | `PilotAdmissibilityError`; later trials would inherit earlier trials' information |
+| person context carried into a benchmark trial | `PilotAdmissibilityError`; no arm of the pilot carries a pedagogy |
+| reconnaissance marker flipped with sections left blank | `reconnaissance_required` |
+| `Skill(foo) + Environment(bar)` digested as `Environment(foo) + Skill(bar)` | different digests; role and kind are committed separately |
+| two-operand resolution digested as a three-operand one | different digests; arity is committed |
+| operand identity crafted to impersonate the serialization | different digests; every value is a quoted string in a typed structure |
+| resolution operands reordered after the fact | `verify_resolution()` fails |
+| canonicalization rules changed without notice | `resolution_version` is inside the hashed payload |
+
 ## Skill-level agency attacks
 
 These are semantic invariants rather than Python NLP rules:
@@ -63,6 +94,8 @@ These are semantic invariants rather than Python NLP rules:
 - **Store lifetime is the host's, not the module's.** `payload_root()` decides a *location* question — is this file in the part of the install that gets replaced — which is decidable in one session. Whether a store outside the payload survives a reboot, a container reset, or an ephemeral home directory is not observable from inside the process that writes it: a successful write to a discarded filesystem is byte-identical to a durable one. A host whose entire filesystem is scratch will pass every check here and still lose the context. That is declared, not enforced.
 - Context completion proves a **structural receipt**, not the truth of a learning claim. LongHow + user settlement remain the semantic boundary.
 - Rename/new-basename forks are detectable from the file itself. A byte-for-byte copy of an entire settled installation under the same filenames is not distinguishable without an external installation identity/custody mechanism; this release does not pretend otherwise.
+- **Reconnaissance records observations, not conclusions — as a rule, not a check.** The structural validator proves an environment context's sections are populated. It cannot tell "pytest is the verifier here" from "the best way to solve this task is X", and the second would make the treatment a solver rather than a discipline. Documented in `experiment/PILOT-0001/reconnaissance.md`; enforced by review.
+- **A frozen context's read-only mount is the harness's, not the module's.** `freeze_context()` drops the file to read-only permissions and publishes a digest, so a change is detectable afterwards. Preventing the change requires the mount.
 - The agency modifier is intentionally not implemented as a brittle pronoun parser. The skill binds the actor from language/context; the execution kernel remains domain-neutral.
 
 These boundaries keep the reference system small enough to audit. Closing them requires host identity, isolation, authenticated evidence, or policy infrastructure rather than more prose in the kernel.

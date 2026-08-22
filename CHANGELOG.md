@@ -4,6 +4,40 @@ Versions are aligned across `SKILL.md`, `README.md`, `pyproject.toml`, and `CONT
 
 ## Unreleased
 
+- **A benchmark agent cannot honestly hold a person's context, so it gets a
+  different kind.** `CONTEXT.template.md` says a pedagogy "cannot be generated"
+  because it has no source but the person, and the required evidence sections
+  record how one person builds understanding. A benchmark agent has no person,
+  so synthesizing a context for it would fabricate exactly the evidence
+  `complete_onboarding()` exists to require — and completion is structural, so
+  the fake would pass and certify nothing. `context_kind: person | environment`
+  now splits the two, defaulting to `person` when absent so every existing
+  context behaves as before. The validators are disjoint: the settlement key
+  differs (`onboarding` versus `reconnaissance`) and the evidence sections do
+  not overlap, so relabelling one kind as the other fails on both, and each
+  settlement helper refuses the other's file with `ContextKindError`. Lifetime
+  and write authority are orthogonal to kind, so `environment` never silently
+  implies `ephemeral`. Under `experiment/PILOT-0001/`; nothing in the shipped
+  discipline refers to it and no version moved.
+
+- **A trial's resolution is the one thing a receipt cannot recompute.** The
+  benchmark experiment derives everything it can from evidence — capability
+  edges, interaction claims, the skill graph itself are projections over
+  receipts. Which operands were composed, in what order, by which resolver is
+  not derivable: it exists only while the container does. `experiment/evidence/
+  resolution.py` freezes that block and nothing more, with a digest over
+  canonical JSON rather than concatenated context digests, so arity and role
+  are committed and a crafted identity cannot impersonate the surrounding
+  syntax. `experiment/CROSSINGS.md` records why the rest — the `×`, `-`, `/`,
+  `+` vocabulary — is analysis language kept deliberately out of storage.
+
+- **The experiment has a written progression instead of a remembered one.**
+  The milestone ordering, what each one must produce, the stopping gate, and
+  the open decisions lived only in discussion. `experiment/ROADMAP.md` records
+  them with status, including the two documents still unwritten
+  (`PREREGISTRATION.md`, the rest of the receipt) and the undeclared values
+  (reconnaissance budget, δ\*) that block the pilot.
+
 - **The installer tells the person what is being configured.** A fresh install
   printed `next  establish the pedagogy before the first substantive HowDo` — an
   instruction addressed to an agent who is not reading it, shown to a person, in
