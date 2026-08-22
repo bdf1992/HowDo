@@ -94,5 +94,5 @@ Restated for anyone reading only this file:
 - The person-derived half of How Do is absent from every arm. A null falsifies
   this treatment, not the discipline.
 - Tasks were screened to those a raw agent finds neither trivial nor
-  impossible. The figure above is an effect on that set, not on Harbor Index.
+  impossible. The figure above is an effect on that set, not on the suite.
 - Any effect is unattributed among the treatment's components.

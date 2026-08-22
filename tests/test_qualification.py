@@ -25,8 +25,8 @@ from evidence import (  # noqa: E402
 PROCEDURE = ROOT / "experiment" / "TASK-QUALIFICATION.md"
 
 BASE = dict(
-    suite="harbor-index",
-    suite_version="2026.03",
+    suite="terminal-bench",
+    suite_version="2.0",
     task_id="hb-0042",
     task_version="3",
     task_definition_digest="a" * 64,

@@ -40,8 +40,8 @@ SECTIONS = {
         "trial_id": "t-0001",
     },
     "benchmark": {
-        "suite": "harbor-index",
-        "suite_version": "2026.03",
+        "suite": "terminal-bench",
+        "suite_version": "2.0",
         "task_id": "hb-0042",
         "task_version": "3",
         "task_qualification_digest": D("2"),

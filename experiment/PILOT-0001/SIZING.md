@@ -51,6 +51,52 @@ the rule working as designed — the run genuinely cannot distinguish "worth
 acting on" from "not" — but it means an INCONCLUSIVE is the *expected* outcome
 for a modest real effect, and the response is more tasks, not a lower δ\*.
 
+## The candidate pool is 89 tasks, and that may bind before compute does
+
+Measured from Harbor's `registry.json` at `harbor-framework/harbor@39b8587` and
+the task definitions at `laude-institute/terminal-bench-2@69671fb`:
+
+| | |
+|---|---|
+| `terminal-bench` 2.0 | **89 tasks** |
+| difficulty | 4 easy, 55 medium, 30 hard |
+| agent timeout | median 15 min, mean 28 min, p90 60 min, max 200 min |
+| verifier timeout | median 15 min |
+| one worst-case sweep of all 89 | **41.5 h** of agent time |
+| expert time estimate | median 60 min, max 2400 min |
+| tasks needing a GPU | 0 — the GPU is entirely the organism's |
+| tasks needing internet | 89 of 89 |
+| tasks with an oracle solution | 89 of 89 — qualification is executable for all |
+| container resources | median 1 CPU / 2 GB, max 4 CPU / 8 GB |
+
+There is **no `harbor-index` dataset.** Harbor's registry holds 80 *datasets*;
+the largest terminal-style ones are `terminal-bench` 2.0 (89 tasks),
+`terminal-bench-pro` 1.0 (200), and `terminal-bench-sample` 2.0 (10).
+
+This matters for power. The table above says 40 committed tasks give an MDE of
+about 0.074 and 20 give about 0.101 — at δ\* = 0.10, twenty tasks is already at
+the edge. If floor-and-ceiling screening on a 12B leaves fewer than about 25
+tasks out of 89, **PILOT-0001 is underpowered by task supply, not by compute**,
+and no amount of extra trials fixes it. The response is a wider candidate pool
+declared before M0.0 — `terminal-bench-pro`, or an easier suite — which is a
+preregistration decision, not an implementation one.
+
+## Cost is timeout-bound, not throughput-bound
+
+A failing agent does not stop early; it works until its cap. The pilot's
+organism is expected to fail often, so realized trial time sits much closer to
+the timeout than to anything the model's tokens-per-second predicts. Two Harbor
+flags are therefore the real cost levers, ahead of quantization:
+
+- `--agent-timeout-multiplier` scales every task's cap uniformly. Declared once
+  and identical across arms, it is a legitimate treatment parameter; changed
+  mid-study, it is a treatment change.
+- `--n-attempts` sets repeats per task.
+
+M−1 should therefore measure the **realized wall-clock distribution** on a
+sample stratified across the timeout buckets above, not just the memory
+envelope, and not on three arbitrary tasks.
+
 ## Why these numbers are optimistic
 
 Every figure here is a floor on what the real study needs.

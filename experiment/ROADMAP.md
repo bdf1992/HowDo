@@ -132,8 +132,9 @@ across-task variance, infrastructure error rate, cost, duration.
 
 - [ ] Variance estimate per task and across tasks.
 - [ ] Screen for tasks off the floor and ceiling. On a 12B a large share of
-      Harbor Index tasks will sit at 0/5 in both arms, collapsing effective n
-      well below the task count.
+      `terminal-bench` 2.0's 89 tasks will sit at 0/5 in both arms, collapsing
+      effective n well below the task count. The pool is 89, not a larger
+      index: see `PILOT-0001/SIZING.md`.
 - [ ] **Power gate.** Compute the minimum detectable effect from the measured
       variance and compare it to δ\*. If MDE > δ\*, PILOT-0001 returns
       INCONCLUSIVE by construction — fix the measurement before spending the

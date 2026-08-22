@@ -37,7 +37,7 @@ Versions are aligned across `SKILL.md`, `README.md`, `pyproject.toml`, and `CONT
   set and trial count are filled from its output. It declares its own screening
   bias rather than leaving it to be discovered: selecting tasks on the control
   arm's mid-range performance means the pilot estimates an effect on tasks a raw
-  agent finds neither trivial nor impossible, not on Harbor Index. INCONCLUSIVE
+  agent finds neither trivial nor impossible, not on the suite. INCONCLUSIVE
   is defined as not a soft GO, and a null is recorded as falsifying this
   treatment and not the discipline, because the person-derived half is in no
   arm. `PILOT-0001/RUNBOOK.md` makes the study executable without midstream

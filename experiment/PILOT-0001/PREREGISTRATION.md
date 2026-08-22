@@ -82,8 +82,8 @@ only if all of the following hold, evaluated on M0.0's screening runs:
 This is deliberate — a floor-and-ceiling screen has to use *some* arm — and it
 biases toward tasks where H0 is mid-range, which is where a treatment effect is
 easiest to see. The pilot therefore estimates the effect **on tasks a raw agent
-finds neither trivial nor impossible**, not on Harbor Index as a whole. Any
-figure reported must carry that qualifier.
+finds neither trivial nor impossible**, not on the candidate suite as a whole.
+Any figure reported must carry that qualifier.
 
 **Fresh trials only.** M0.0's runs screened the task set. They are not reused as
 the control arm. Reusing them would make the control the very sample that
