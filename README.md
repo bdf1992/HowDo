@@ -95,6 +95,36 @@ HowDo -> trace -> LongHow -> proposed durable lesson -> settlement -> CONTEXT re
 One interaction may change the current rendering immediately. It does not
 automatically become a permanent learner claim.
 
+## Request contracts
+
+A resolution is assembled from Python objects, so the path, the predicted shape,
+and the checks are real but stuck in the process that built them. A
+`RequestContract` states them as data instead:
+
+```python
+from howdo import Host, RequestContract, bind
+
+contract = RequestContract.from_json(shipped)   # path, accepts, expects, rules, requires
+bound = bind(contract, Host("ci", capabilities=frozenset({"jira.write"})))
+```
+
+`bind` answers *can this run here* before anything resolves: a missing capability
+or a read-only host for a consequential contract comes back as `Unsupported`
+rather than as a surprise mid-operation. What the operation reads is declared
+(`accepts`) and reaches the executor on the resolution instead of through a
+closure; what it promises to make observable is declared (`expects`), and an
+observation that does not match that shape routes to `contract` rather than
+`postcondition` — a result that cannot be compared is a different fault from one
+that came out wrong.
+
+Checks travel as serializable clauses over a closed operator set, so a
+consequential contract carries its own gate wherever it is loaded. A host may add
+Python checks, but only on top of the contract's own.
+
+```bash
+python examples/portable_contract.py   # one contract, three hosts
+```
+
 ## Layout
 
 - `SKILL.md` — the skill itself: discipline, loop, agency modifier, persistence rules. This repo is the skill; install it as a directory.
@@ -103,7 +133,9 @@ automatically become a permanent learner claim.
 - `CONTEXT.template.md` — the shipped template the durable store is instantiated from.
 - `runtime/howdo/core.py` — zero-dependency operation protocol.
 - `runtime/howdo/context.py` — zero-dependency context lifetime helpers.
+- `runtime/howdo/contract.py` — portable request contracts: declared I/O shape, serializable checks, host binding.
 - `examples/jira_workflow.py` — ordinary workflow example.
+- `examples/portable_contract.py` — the same operation as a contract, offered to three hosts.
 - `tests/` — runtime and context contract tests.
 - `ADVERSARIAL.md` — enforced attacks and declared boundaries.
 - `CONTRIBUTING.md` — lanes, rules, PR shape. `CHANGELOG.md` — versions.
@@ -113,6 +145,7 @@ automatically become a permanent learner claim.
 ```bash
 python -m unittest discover -s tests -v
 python examples/jira_workflow.py
+python examples/portable_contract.py
 ```
 
 The bundle and Python package share release version `0.8.0`, so package identity

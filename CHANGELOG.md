@@ -4,6 +4,27 @@ Versions are aligned across `SKILL.md`, `README.md`, `pyproject.toml`, and `CONT
 
 ## Unreleased
 
+- **A request's I/O was implied, so it was neither checkable nor portable.** The
+  kernel refuses a consequential operation with no expected state and no
+  precondition, but it never knew what that expected state was *shaped* like,
+  what the operation read, or what a host had to be able to do before the
+  operation was runnable there at all. Those three lived in the caller's head
+  and in Python closures, which meant they could not be checked and could not
+  leave the process. `runtime/howdo/contract.py` states them as data: `accepts`
+  (declared inputs, now carried on `Request.inputs` and reaching the executor on
+  the resolution instead of through a closure), `expects` (the shape of the
+  observable result), `rules` (checks as clauses over a closed operator set,
+  compiling into ordinary `Check` objects so the gate is the same one), and
+  `requires` (capabilities a host must offer). A contract round-trips through
+  JSON and digests to a stable identity, and `bind(contract, host)` answers
+  *can this run here* before anything resolves. A consequential contract must
+  carry its own precondition and its own result shape, because a gate the host
+  happened to supply is not part of what shipped. One new route: an observation
+  that does not match the declared shape is a `contract` residual, not a
+  `postcondition` one — a result that cannot be compared is a different fault
+  from one that came out wrong, and filing it as the latter claims a test ran
+  that did not. Optional, additive, and no invariant above it moved.
+
 - **A benchmark agent cannot honestly hold a person's context, so it gets a
   different kind.** `CONTEXT.template.md` says a pedagogy "cannot be generated"
   because it has no source but the person, and the required evidence sections

@@ -42,6 +42,23 @@ from .environment import (
     open_trial_context,
 )
 
+from .contract import (
+    CONTRACT_VERSION,
+    ELEMENT_TYPES,
+    OPS,
+    TYPES,
+    BoundContract,
+    Clause,
+    ContractError,
+    Field,
+    Host,
+    RequestContract,
+    Rule,
+    Shape,
+    Unsupported,
+    bind,
+)
+
 from .core import (
     Admission,
     Agency,
@@ -65,6 +82,20 @@ from .core import (
 )
 
 __all__ = [
+    "CONTRACT_VERSION",
+    "ELEMENT_TYPES",
+    "OPS",
+    "TYPES",
+    "BoundContract",
+    "Clause",
+    "ContractError",
+    "Field",
+    "Host",
+    "RequestContract",
+    "Rule",
+    "Shape",
+    "Unsupported",
+    "bind",
     "Admission",
     "Agency",
     "Check",

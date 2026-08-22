@@ -151,6 +151,31 @@ Consequential resolutions require at least one precondition. Admission refuses s
 
 The runtime is optional. It exists to make state, gates, evidence, and write-back inspectable; it must not turn a baseline discipline into ceremony. In the reference runtime, `settle` is also the **rebase boundary**: an accepted patch is applied to the current paradigm to produce the next revision.
 
+### Request contract
+
+The five operations say when a crossing is admissible. They do not say what the
+request reads, what shape the result has to have, or what a host must be able to
+do before the operation is loadable there at all. Left implied, those three go
+unchecked and do not travel.
+
+A **request contract** states them as data: the path, the shape it `accepts`
+(declared inputs, rather than arguments smuggled through intent prose or an
+executor closure), the shape it `expects` of the observable result, its checks as
+serializable clauses rather than closures, and the capabilities it `requires`.
+Being data is the point — one contract loads into any host and states the same
+obligations there, and binding it to a host answers *can this run here* before
+anything resolves instead of part-way through an operation.
+
+Two consequences are worth naming. A consequential contract must carry its own
+precondition and its own result shape, because a gate the host happened to
+supply is not part of what shipped. And an observation that does not match the
+declared shape routes to `contract`, not `postcondition`: a result that cannot be
+compared is a different fault from one that came out wrong, and filing it as the
+latter claims a test ran that did not.
+
+Optional, like the rest of the runtime — `runtime/howdo/contract.py`, with
+`examples/portable_contract.py` offering one contract to three hosts.
+
 ## Handles
 
 A handle is admissible if it names a move over the paradigm and its residual is measurable. The seed set is illustrative, not fixed. These are moves within a HowDo already underway; a bare "help me" does not summon the discipline.

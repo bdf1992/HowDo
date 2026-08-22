@@ -18,6 +18,30 @@ The runtime is a small protocol kernel, not a complete trust system. v0.8 makes 
 | stale residual settles newer revision | refused |
 | multi-layer settlement by default | refused |
 
+## Enforced request-contract invariants
+
+Optional runtime surface. These hold for `runtime/howdo/contract.py`, and the
+kernel invariants above are unchanged by it: a contract's rules compile into
+ordinary `Check` objects and go through the same gate.
+
+| Attack | Contract response |
+|---|---|
+| contract loaded onto a host that lacks a required capability | `bind` returns `Unsupported` before anything resolves |
+| consequential contract bound to a read-only host | refused at bind |
+| consequential contract shipped with no declared result shape | refused at construction |
+| consequential contract leaning on a gate the host happens to supply | refused; at least one precondition rule must travel with it |
+| host-supplied checks used to replace the contract's own | additive only; the contract's rules always apply |
+| clause operand that cannot serialize | refused; a contract that only runs here is not portable |
+| unknown operator, or an unknown key in a loaded contract | refused rather than dropped |
+| operand supplied to an operator that reads none | refused; an ignored field looks load-bearing |
+| contract declaring a canonical version this host does not know | refused rather than partially read |
+| rules reordered after the fact | different digest |
+| inputs or expected values that do not match the declared shapes | refused at resolve, before admission |
+| result that does not match the declared shape | residual routes to `contract`, not `postcondition` |
+| shape residual used to mask an invariant residual | invariant outranks it; `settle` keeps refusing |
+| `True` accepted where an integer was declared | refused; a flag is not a count |
+| declared inputs mutated after the resolution was built | snapshotted at `Request` construction |
+
 ## Enforced context invariants
 
 | Attack | Context response |
@@ -96,6 +120,9 @@ These are semantic invariants rather than Python NLP rules:
 - Rename/new-basename forks are detectable from the file itself. A byte-for-byte copy of an entire settled installation under the same filenames is not distinguishable without an external installation identity/custody mechanism; this release does not pretend otherwise.
 - **Reconnaissance records observations, not conclusions — as a rule, not a check.** The structural validator proves an environment context's sections are populated. It cannot tell "pytest is the verifier here" from "the best way to solve this task is X", and the second would make the treatment a solver rather than a discipline. Documented in `experiment/PILOT-0001/reconnaissance.md`; enforced by review.
 - **A frozen context's read-only mount is the harness's, not the module's.** `freeze_context()` drops the file to read-only permissions and publishes a digest, so a change is detectable afterwards. Preventing the change requires the mount.
+- **A host's capabilities are declared, not authenticated.** `bind` proves a contract was not loaded somewhere it says it cannot run. It does not prove the host told the truth about what it can do, and it cannot: the same class of boundary as the caller-supplied comparator.
+- **A contract binds the declaration, not the executor.** It states what the operation must make observable; whether the executor pursues that or something else is caught at Look, not at the door. A contract makes the lie checkable, not impossible.
+- **The clause set is closed on purpose.** A predicate it cannot state has to ship as a host-supplied `Check`, and that check does not travel with the contract. The contract's own rules still gate the operation, so the portable floor holds while the local ceiling does not — but a contract whose real gate is local is portable in form only, and nothing here detects that.
 - The agency modifier is intentionally not implemented as a brittle pronoun parser. The skill binds the actor from language/context; the execution kernel remains domain-neutral.
 
 These boundaries keep the reference system small enough to audit. Closing them requires host identity, isolation, authenticated evidence, or policy infrastructure rather than more prose in the kernel.
