@@ -4,7 +4,7 @@ description: "Understanding-before-acting discipline — bind the actor, map the
 license: MIT
 metadata:
   author: bdo
-  version: "0.9.0"
+  version: "0.10.0"
   category: discipline
 ---
 
@@ -43,7 +43,7 @@ Guide with this loop. The deeper vocabulary exists for inspection, runtime suppo
 
 Every installation ships **`CONTEXT.template.md`** and instantiates a durable **`CONTEXT.md`** in a store outside the payload — the payload is replaced by every update, so a context settled inside it is discarded with no error raised. The template is a replaceable artifact; the instance is a lineage. Durable context is reusable orientation for how this installation should be perceived, built, rendered, and interacted with. What it holds is a **pedagogy**. The loop is a fixed shell — every install runs the same **Map → Path → Check → Do → Look → Update** — and its internals are personal: one person's settings for that shell, which have no source but the person. A pedagogy is therefore neither invented per reader nor guessable from configuration. It is how understanding gets built for this person, not which visual style they prefer. It is **not** one task's context, a session log, or a personality dossier.
 
-Resolve the store in this order: a path selected for this session; `$HOWDO_CONTEXT`; else the platform default — `%APPDATA%\howdo\CONTEXT.md` on Windows, `~/.howdo/CONTEXT.md` on macOS and Linux. The basename stays `CONTEXT.md`; a different basename is read as a fork.
+Resolve the store in this order: a path selected for this session; `$HOWDO_CONTEXT`; `$CLAUDE_PLUGIN_DATA/CONTEXT.md` when a plugin host declares one, because that directory is guaranteed to survive updates; else the platform default — `%APPDATA%\howdo\CONTEXT.md` on Windows, `~/.howdo/CONTEXT.md` on macOS and Linux. The basename stays `CONTEXT.md`; a different basename is read as a fork.
 
 Then route on the state of that file:
 

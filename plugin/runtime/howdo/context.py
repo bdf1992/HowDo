@@ -89,7 +89,7 @@ _REQUIRED_SECTIONS = _REQUIRED_SECTIONS_BY_KIND[KIND_PERSON]
 _PLACEHOLDERS = {"", "pending", "none", "none yet", "- pending", "- none yet"}
 _PLACEHOLDER_PREFIXES = ("pending", "none yet")
 
-SKILL_VERSION = "0.9.0"
+SKILL_VERSION = "0.10.0"
 
 _TEMPLATE_KEY = "template"
 _TEMPLATE_TRUE = {"true", "yes", "1"}
@@ -107,6 +107,12 @@ _SCOPE_KEY = "scope"
 _SCOPE_USER = "user"
 _SCOPE_SHARED = "shared"
 _STORE_ENV = "HOWDO_CONTEXT"
+# A plugin host tells the plugin where per-install persistent state belongs.
+# That directory survives updates by contract, which is the same guarantee the
+# payload/store split exists to provide -- so when a host offers it, it is a
+# better default than a path this module invents. It stays *below* HOWDO_CONTEXT
+# so that a person who has already moved a settled store keeps it.
+_STORE_PLUGIN_DATA_ENV = "CLAUDE_PLUGIN_DATA"
 _STORE_DIRNAME = ".howdo"
 # Windows keeps per-user application state under %APPDATA%; a dotdir in the
 # profile root works but is not where a Windows user looks for it.
@@ -117,6 +123,11 @@ _CONTEXT_BASENAME = "CONTEXT.md"
 # under it is replaced wholesale on reinstall or update.
 _PAYLOAD_MARKER = "SKILL.md"
 _PAYLOAD_SEARCH_DEPTH = 6
+# A plugin root ships its manifest; an ordinary skill directory never does,
+# because the installer's PAYLOAD deliberately excludes it. That makes the
+# manifest the one reliable way to tell the two payload kinds apart from a path
+# alone -- no host directory layout is assumed, and nothing is parsed.
+_PLUGIN_MANIFEST = (".claude-plugin", "plugin.json")
 
 
 class TemplateContextError(ValueError):
@@ -327,6 +338,24 @@ def payload_root(path: str | Path) -> Path | None:
     return None
 
 
+def is_plugin_payload(root: str | Path) -> bool:
+    """True when a payload directory is a *plugin* root rather than a skill directory.
+
+    The distinction is not cosmetic, and it is the reason this exists: the two
+    kinds fail differently on update. A skill directory is replaced in place, so
+    a file inside it is overwritten and gone. A plugin payload is version-scoped
+    -- hosts install it under a directory named for the release -- so an update
+    does not touch the old directory at all. It creates a new one beside it and
+    reads from there.
+
+    A file left in the old directory is therefore not discarded. It is
+    *orphaned*: still on disk, still readable, and no longer the file anything
+    loads. That is strictly worse than deletion for a durable context, because
+    nothing raises and nothing is missing from the filesystem's point of view.
+    """
+    return (Path(root).joinpath(*_PLUGIN_MANIFEST)).is_file()
+
+
 def default_store_path(
     *,
     env: Mapping[str, str] | None = None,
@@ -371,7 +400,14 @@ def resolve_context_path(
     1. an explicitly selected file (never auto-merge several contexts);
     2. ``HOWDO_CONTEXT``, so a host can place the store wherever it keeps
        per-person state;
-    3. the platform default from :func:`default_store_path`.
+    3. ``CLAUDE_PLUGIN_DATA``, the directory a plugin host guarantees will
+       survive updates -- present only when running as an installed plugin;
+    4. the platform default from :func:`default_store_path`.
+
+    Three and four are both "the host's per-install state directory"; the
+    difference is that a plugin host states its own, so we do not have to
+    guess one from the platform. Ordering it under ``HOWDO_CONTEXT`` means
+    installing the plugin never moves a store somebody already relocated.
 
     The basename stays ``CONTEXT.md`` for the canonical lineage because
     :func:`inspect_context` treats a different basename as a fork. Separation
@@ -384,6 +420,10 @@ def resolve_context_path(
     configured = environ.get(_STORE_ENV)
     if configured:
         return Path(configured).expanduser()
+
+    plugin_data = environ.get(_STORE_PLUGIN_DATA_ENV)
+    if plugin_data:
+        return Path(plugin_data).expanduser() / _CONTEXT_BASENAME
 
     return default_store_path(env=environ, home=home, platform=platform)
 
@@ -452,11 +492,28 @@ def _refuse_payload_settlement(path: Path, *, allow_payload: bool) -> None:
     root = payload_root(path)
     if root is None:
         return
-    # A store that declares scope: shared was placed here deliberately, by
-    # someone who accepted that a wholesale reinstall discards it. That is an
-    # opted-into trade, not the accident this refusal exists to catch.
-    if is_shared(_frontmatter(path.read_text(encoding="utf-8"))):
+    shared = is_shared(_frontmatter(path.read_text(encoding="utf-8")))
+    if shared and not is_plugin_payload(root):
+        # A store that declares scope: shared was placed here deliberately, by
+        # someone who accepted that a wholesale reinstall discards it. That is
+        # an opted-into trade, not the accident this refusal exists to catch.
         return
+    if shared:
+        # The same declaration under a plugin buys a different trade than the
+        # one it describes. A version-scoped payload is not replaced on update,
+        # so the store is not discarded -- it is left in the previous version's
+        # directory while the skill reads from the new one. Nobody opts into
+        # that, because nothing announces it: no error, no missing file, just a
+        # context that silently stops being the one in use.
+        raise PayloadContextError(
+            f"{path} declares scope: shared inside a *plugin* payload at {root}. "
+            f"A plugin payload is version-scoped, so the next release reads from "
+            f"a new directory and this file is orphaned rather than replaced. "
+            f"Put the shared store where the host does not version it -- the "
+            f"directory named by ${_STORE_PLUGIN_DATA_ENV}, or a path in "
+            f"${_STORE_ENV} -- and mark it scope: shared there. "
+            f"resolve_context_path() already returns such a path"
+        )
     raise PayloadContextError(
         f"{path} is inside the skill payload at {root}; settle the store "
         f"returned by resolve_context_path() instead, mark it scope: shared to "

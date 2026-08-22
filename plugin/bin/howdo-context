@@ -1,0 +1,89 @@
+#!/usr/bin/env python3
+"""Report or instantiate this installation's durable context.
+
+The plugin-native replacement for ``install.py --verify``. It exists because
+``references/onboarding.md`` used to tell the agent to run a ``sys.path`` hack
+against the relative path ``runtime``, which only resolves when the process
+happens to be sitting in the payload. A file on ``PATH`` has no such
+requirement: a plugin host puts this directory on the Bash tool's ``PATH``
+while the plugin is enabled, so ``howdo-context`` is addressable from anywhere.
+
+    howdo-context            report the store's state
+    howdo-context --ensure   instantiate it from the template if it is missing
+    howdo-context --path     print the resolved store path and nothing else
+
+Exit status is 0 when the store is usable (including a deliberate decline or
+deferral) and 1 when it is invalid, forked, or absent under ``--path``.
+"""
+
+from __future__ import annotations
+
+import argparse
+import os
+import sys
+from pathlib import Path
+
+
+def _plugin_root() -> Path:
+    """Locate the payload this executable was shipped inside.
+
+    ``CLAUDE_PLUGIN_ROOT`` is authoritative when a host sets it. Falling back
+    to the executable's own parent keeps the script working under
+    ``--plugin-dir``, a direct checkout, and a plain skills directory, none of
+    which are guaranteed to export it.
+    """
+    declared = os.environ.get("CLAUDE_PLUGIN_ROOT")
+    if declared:
+        return Path(declared).expanduser().resolve()
+    return Path(__file__).resolve().parent.parent
+
+
+ROOT = _plugin_root()
+sys.path.insert(0, str(ROOT / "runtime"))
+
+try:
+    from howdo.context import (  # noqa: E402
+        ensure_context,
+        inspect_context,
+        resolve_context_path,
+    )
+except ModuleNotFoundError:  # pragma: no cover - depends on how it was copied
+    print(f"howdo-context: no runtime/ under {ROOT}", file=sys.stderr)
+    print("the payload was copied by hand, or CLAUDE_PLUGIN_ROOT is wrong", file=sys.stderr)
+    raise SystemExit(1)
+
+
+# States that mean "do not proceed as if a context were loaded". A decline and a
+# deferral are settled answers, not failures, so neither belongs here.
+BROKEN = {"invalid", "fork_required"}
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--context", type=Path, default=None,
+                        help="durable context file (default: the resolved store)")
+    parser.add_argument("--ensure", action="store_true",
+                        help="instantiate from the shipped template if missing")
+    parser.add_argument("--path", action="store_true",
+                        help="print the resolved store path and exit")
+    args = parser.parse_args(argv)
+
+    store = resolve_context_path(args.context)
+
+    if args.path:
+        print(store)
+        return 0
+
+    if args.ensure:
+        status = ensure_context(store, template=ROOT / "CONTEXT.template.md")
+    else:
+        status = inspect_context(store)
+
+    print(f"payload  {ROOT}")
+    print(f"store    {store}")
+    print(f"state    {status.state} — {status.reason}")
+    return 1 if status.state in BROKEN else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
