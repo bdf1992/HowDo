@@ -118,6 +118,7 @@ A paradigm that lives only in one turn cannot support changed-state behavior. Ke
 - **When to update durable context.** Establishing the pedagogy may settle direct user feedback. Afterward, do not rewrite `CONTEXT.md` from every session. Route presentation residuals into traces; LongHow promotes only recurring or explicitly ratified lessons, with provenance and limits.
 - **When to load.** Load active durable context and relevant saved domain-how before establishing anything fresh. **Read the subskill catalogue first when the request names a recurring concern** — if How Do already built a skill or workflow for it, invoke that rather than re-deriving the map, the path, and the gate from nothing. Resolve from saved state and say only what materially changes the current interaction.
 - **When to publish.** When a grounded domain-how covers work someone will do again. Publishing is what makes the concern invocable next week: the skill loads by name and the workflow runs as its command. An artifact that is still `untested` is not published except explicitly, for review.
+- **Ask before deciding who can reach a published skill.** Whether the assistant may load it unprompted, or only the person may invoke it, is the person's call — they were in the room while the how was worked out. Put it to them in one line when publishing, and say which way you would lean and why. Left unasked, the contract's consequences stand in, and that is a fallback rather than their answer.
 - **When to update a paradigm.** At settlement, only the layer supported by the residual. Accepted settlement rebases that layer into the next revision; it does not rebuild the whole paradigm.
 - **When nothing domain-specific is saved.** Search for the common pattern or offer exemplars. Mark exemplar-derived hows as untested until observed work grounds them.
 
@@ -217,6 +218,11 @@ An untested artifact is not emitted without an explicit override, and the
 override stamps what it produces. A `SKILL.md` on disk pre-loads every later
 session on that concern, which is the point at which an unconfirmed exemplar
 stops costing one answer and starts costing all of them.
+
+Who may reach a published skill is settled by the person, not by the issuer. A
+consequential contract makes *deliberate invocation* the sensible lean, and the
+runtime will fall back to it — but a fallback that is never surfaced is a
+decision taken away from someone who was standing right there. Ask, then publish.
 
 Rendering is not the end of it. An artifact only becomes reusable once it is
 **published** where the host looks — `.claude/skills/<name>/SKILL.md` and

@@ -18,6 +18,21 @@ Versions are aligned across `SKILL.md`, `README.md`, `pyproject.toml`, and `CONT
   `disable-model-invocation: true` — the destination decides the frontmatter
   target, not the caller.
 
+- **Reachability was decided for the person instead of by them.** Publishing
+  marked any consequential artifact `disable-model-invocation: true` on the
+  strength of the contract alone. But the person publishing worked the concern
+  out — they were in the room while the how was built — and they are the one who
+  knows whether it belongs in Claude's reach; sometimes the answer is yes even
+  for something consequential, and sometimes no for something harmless.
+  `disable_model_invocation` is now an explicit choice on `render_skill`,
+  `write_skill` and `publish`, refused rather than coerced if it is not a
+  boolean. Left unmade, the contract's consequences still stand in — but the
+  result reports `invocation_chosen_by == "default"`, and `SKILL.md` tells the
+  agent to put the question in one line with a lean rather than let a fallback
+  pass for an answer. `SUBSKILLS.md` gained a **reachable by** column so the
+  decision stays visible, read back from the installed file rather than from what
+  was published, so a later hand-edit governs.
+
 - **How Do had no way to find out what it had already built.** `published()`
   scans the destinations for artifacts carrying How Do's marker and
   `write_reference()` renders `SUBSKILLS.md` into the store, beside `CONTEXT.md`

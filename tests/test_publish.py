@@ -143,10 +143,40 @@ class PublishTests(unittest.TestCase):
             self._publish()
         self.assertEqual(len(self._publish(overwrite=True)), 2)
 
-    def test_a_consequential_skill_is_installed_non_auto_invocable(self):
-        """It is being installed into Claude Code, so the destination picks the target."""
+    def test_the_person_decides_who_can_reach_a_published_skill(self):
+        """They worked the concern out. It is not the issuer's call to take."""
+        (open_to_claude,) = self._publish(
+            formats=("skill",), disable_model_invocation=False
+        )
+        self.assertNotIn(
+            "disable-model-invocation", open_to_claude.path.read_text(encoding="utf-8")
+        )
+        self.assertTrue(open_to_claude.auto_invocable)
+        self.assertEqual(open_to_claude.invocation_chosen_by, "user")
+
+    def test_a_person_may_also_choose_to_close_a_harmless_one(self):
+        """The choice runs both ways; consequences are a lean, not a rule."""
+        how = dataclasses.replace(
+            grounded(),
+            contract=dataclasses.replace(
+                CONTRACT, mutates=False, crosses_boundary=False, expects=Shape(), rules=()
+            ),
+        )
+        (closed,) = self._publish(how, formats=("skill",), disable_model_invocation=True)
+        self.assertIn("disable-model-invocation: true", closed.path.read_text(encoding="utf-8"))
+        self.assertFalse(closed.auto_invocable)
+        self.assertEqual(closed.invocation_chosen_by, "user")
+
+    def test_an_unmade_choice_falls_back_and_says_that_it_did(self):
+        """A default is a prompt to ask, not the person's answer."""
         (skill,) = self._publish(formats=("skill",))
         self.assertIn("disable-model-invocation: true", skill.path.read_text(encoding="utf-8"))
+        self.assertFalse(skill.auto_invocable)
+        self.assertEqual(skill.invocation_chosen_by, "default")
+
+    def test_a_non_boolean_choice_is_refused_rather_than_coerced(self):
+        with self.assertRaises(EmitError):
+            self._publish(formats=("skill",), disable_model_invocation="yes")
 
     def test_publishing_into_a_skill_payload_is_refused(self):
         payload = Path(self.tmp.name) / "how-do"
@@ -192,6 +222,25 @@ class IndexTests(unittest.TestCase):
         )
         names = {e.name for e in published(SCOPE_PROJECT, project=self.project)}
         self.assertNotIn("deploy", names)
+
+    def test_the_scan_reports_reachability_from_the_installed_file(self):
+        """What governs is what is on disk, even if someone edited it after."""
+        publish(grounded(), project=self.project, disable_model_invocation=False)
+        (skill,) = [e for e in published(SCOPE_PROJECT, project=self.project) if e.kind == "skill"]
+        self.assertTrue(skill.auto_invocable)
+        self.assertEqual(skill.invocation_chosen_by, "observed")
+
+    def test_the_catalogue_shows_who_can_reach_each_entry(self):
+        publish(grounded(), project=self.project, disable_model_invocation=False)
+        text = render_reference(published(SCOPE_PROJECT, project=self.project))
+        self.assertIn("reachable by", text)
+        self.assertIn("you or Claude", text)
+        self.assertIn("a decision someone made, not a property of the work", text)
+
+    def test_a_closed_skill_reads_as_yours_only(self):
+        publish(grounded(), project=self.project, disable_model_invocation=True)
+        text = render_reference(published(SCOPE_PROJECT, project=self.project))
+        self.assertIn("you only", text)
 
     def test_an_empty_destination_indexes_to_nothing_rather_than_raising(self):
         self.assertEqual(published(SCOPE_PROJECT, project=self.project), ())

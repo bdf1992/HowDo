@@ -164,6 +164,12 @@ class Published:
     revision: int
     status: str
     scope: str
+    #: Whether Claude may reach for this unprompted. None for a workflow, which
+    #: is only ever invoked by name.
+    auto_invocable: bool | None = None
+    #: ``"user"`` if someone decided, ``"default"`` if the contract's
+    #: consequences stood in, ``"observed"`` if this was read back off disk.
+    invocation_chosen_by: str = "observed"
 
     @property
     def command(self) -> str:
@@ -224,6 +230,11 @@ def _published_skills(root: Path, scope: str) -> list[Published]:
                 revision=revision,
                 status=str(metadata.get("status", "unknown")),
                 scope=scope,
+                # Read from the file rather than recomputed: what is installed is
+                # what governs, even if someone edited it after publishing.
+                auto_invocable=str(front.get("disable-model-invocation", "")).lower()
+                not in ("true", "yes", "on", "1"),
+                invocation_chosen_by="observed",
             )
         )
     return found
@@ -282,13 +293,22 @@ def publish(
     allow_untested: bool = False,
     overwrite: bool = False,
     license: str | None = None,
+    disable_model_invocation: bool | None = None,
 ) -> tuple[Published, ...]:
     """Build the skill and workflow for a concern, where the host will find them.
 
-    The frontmatter target follows the destination rather than the caller's
+    The frontmatter *target* follows the destination rather than the caller's
     taste: a skill written into a `.claude/skills` directory is being installed
-    into Claude Code, so a consequential artifact is marked non-auto-invocable
-    there. Nothing is published anywhere near the How Do payload.
+    into Claude Code, so that is the vocabulary it gets.
+
+    Whether Claude may then reach for it unprompted is a different question and
+    not the issuer's to settle. The person who worked the concern out was in the
+    room for it and knows whether it belongs in Claude's reach; pass
+    ``disable_model_invocation`` to say so. Left ``None``, the contract's
+    consequences stand in and the result says ``invocation_chosen_by ==
+    "default"`` -- which is a prompt to ask them, not their answer.
+
+    Nothing is published anywhere near the How Do payload.
     """
 
     unknown = sorted(set(formats) - set(FORMATS))
@@ -308,6 +328,7 @@ def publish(
             allow_untested=allow_untested,
             target=TARGET_CLAUDE_CODE,
             license=license,
+            disable_model_invocation=disable_model_invocation,
         )
         directory = root / bundle.name
         target = directory / "SKILL.md"
@@ -323,6 +344,8 @@ def publish(
                 revision=how.revision,
                 status=how.status,
                 scope=scope,
+                auto_invocable=bundle.auto_invocable,
+                invocation_chosen_by=bundle.invocation_chosen_by,
             )
         )
 
@@ -385,11 +408,18 @@ def render_reference(entries: Sequence[Published]) -> str:
         ]
         return "\n".join(lines)
 
-    lines += ["| concern | invoke | kind | r | status | scope |", "|---|---|---|---|---|---|"]
+    lines += [
+        "| concern | invoke | kind | r | status | reachable by | scope |",
+        "|---|---|---|---|---|---|---|",
+    ]
     for entry in entries:
+        if entry.kind == "workflow" or entry.auto_invocable is None:
+            reach = "you"
+        else:
+            reach = "you or Claude" if entry.auto_invocable else "you only"
         lines.append(
             f"| {entry.concern} | `{entry.command}` | {entry.kind} | {entry.revision} "
-            f"| {entry.status} | {entry.scope} |"
+            f"| {entry.status} | {reach} | {entry.scope} |"
         )
     lines += [
         "",
@@ -399,6 +429,11 @@ def render_reference(entries: Sequence[Published]) -> str:
         "that is what makes a recurring task cheap the second time. An entry marked",
         "`untested` was published for review and has not been confirmed by an observed",
         "run; treat its steps as a proposal.",
+        "",
+        "**Reachable by** is a decision someone made, not a property of the work.",
+        "\"You only\" means Claude will not load it unprompted; \"you or Claude\" means it",
+        "can be reached for when relevant. Either is legitimate and it is the person's",
+        "call \u2014 change it by publishing again with the other choice.",
         "",
         "A workflow entry runs as its command directly. To repeat one on a cadence, use",
         "the host's own scheduling rather than anything here: How Do issues and indexes",

@@ -197,8 +197,21 @@ write_reference(scope="project")  # -> SUBSKILLS.md in the store
 
 `scope="project"` writes into the repo's `.claude/`, shared with everyone who
 clones it; `scope="personal"` writes under `~/.claude` (or `$CLAUDE_CONFIG_DIR`),
-available in every project. A consequential artifact installed into Claude Code
-is marked `disable-model-invocation: true`, so it is invoked deliberately.
+available in every project.
+
+**Who may reach a published skill is your choice, not the issuer's.** You worked
+the concern out, so you know whether it belongs in Claude's reach:
+
+```python
+publish(how, disable_model_invocation=False)  # you or Claude can invoke it
+publish(how, disable_model_invocation=True)   # only you
+publish(how)                                  # falls back to the contract's
+                                              # consequences, and says it did
+```
+
+The fallback reports `invocation_chosen_by == "default"`, which is a prompt to
+ask you rather than an answer on your behalf. `SUBSKILLS.md` shows the result in
+a **reachable by** column, so what got decided stays visible.
 
 **This is the point of the whole arc.** A concern that recurs weekly is exactly
 the one nobody should re-derive. Once published it is `/<name>`, and

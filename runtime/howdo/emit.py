@@ -195,6 +195,13 @@ class SkillBundle:
     name: str
     description: str
     body: str
+    #: Whether Claude may load this on its own. Reported rather than buried,
+    #: because it is the person's call and they should be able to see it.
+    auto_invocable: bool = True
+    #: ``"user"`` when the caller decided, ``"default"`` when nobody did and the
+    #: contract's consequences decided for them. A default is a prompt to ask,
+    #: not a settled answer.
+    invocation_chosen_by: str = "default"
 
     @property
     def text(self) -> str:
@@ -215,6 +222,7 @@ def render_skill(
     allow_untested: bool = False,
     target: str = TARGET_SPEC,
     license: str | None = None,
+    disable_model_invocation: bool | None = None,
 ) -> SkillBundle:
     """Render an issued domain-how as a `SKILL.md` bundle.
 
@@ -231,10 +239,19 @@ def render_skill(
 
     ``license`` is emitted only when given: the issuer knows how the artifact was
     produced, not what licence covers the domain knowledge in it.
+
+    ``disable_model_invocation`` is the person's call, not the issuer's. Whoever
+    worked the concern out was in the room for it, and they are the one who knows
+    whether this is something Claude should be able to reach for unprompted.
+    ``None`` falls back to the contract's consequences -- a fallback, reported as
+    ``invocation_chosen_by == "default"`` so a caller can put the question to
+    them rather than let it stand silently.
     """
 
     if target not in _TARGETS:
         raise EmitError(f"unknown target {target!r}; expected one of {_TARGETS}")
+    if disable_model_invocation is not None and not isinstance(disable_model_invocation, bool):
+        raise EmitError("disable_model_invocation is a decision: True, False, or None")
     _guard(how, allow_untested)
     name = skill_name(how.concern)
     contract = how.contract
@@ -266,9 +283,12 @@ def render_skill(
                 f"caps it at {MAX_COMPATIBILITY}"
             )
         lines.append(f"compatibility: {_yaml_scalar(compatibility)}")
-    if target == TARGET_CLAUDE_CODE and contract.consequential:
-        # The documented case for the field: a workflow with side effects, whose
-        # timing someone should control. Also the discipline's own posture.
+    # The person decides; the contract's consequences only stand in when nobody has.
+    chosen_by = "default" if disable_model_invocation is None else "user"
+    disabled = (
+        contract.consequential if disable_model_invocation is None else disable_model_invocation
+    )
+    if target == TARGET_CLAUDE_CODE and disabled:
         lines.append("disable-model-invocation: true")
     lines += [
         "metadata:",
@@ -284,12 +304,11 @@ def render_skill(
         contract.intent + ".",
         "",
     ]
-    if contract.consequential and target == TARGET_SPEC:
+    if disabled and target == TARGET_SPEC:
         lines += [
-            "> **This operation has consequences.** It mutates state or crosses a "
-            "boundary, so it should be invoked deliberately rather than loaded "
-            "because a conversation drifted near the topic. Outside Claude Code "
-            "the frontmatter cannot enforce that; treat this paragraph as the "
+            "> **Invoke this deliberately.** It should not be loaded because a "
+            "conversation drifted near the topic. Outside Claude Code the "
+            "frontmatter cannot enforce that; treat this paragraph as the "
             "instruction.",
             "",
         ]
@@ -353,7 +372,13 @@ def render_skill(
         "",
     ]
 
-    return SkillBundle(name=name, description=description, body="\n".join(lines).rstrip() + "\n")
+    return SkillBundle(
+        name=name,
+        description=description,
+        body="\n".join(lines).rstrip() + "\n",
+        auto_invocable=not disabled,
+        invocation_chosen_by=chosen_by,
+    )
 
 
 def render_workflow(how: DomainHow, *, allow_untested: bool = False) -> WorkflowScript:
@@ -498,6 +523,7 @@ def write_skill(
     overwrite: bool = False,
     target: str = TARGET_SPEC,
     license: str | None = None,
+    disable_model_invocation: bool | None = None,
 ) -> Path:
     """Write a rendered skill to ``<root>/<name>/SKILL.md``.
 
@@ -507,7 +533,11 @@ def write_skill(
     """
 
     bundle = render_skill(
-        how, allow_untested=allow_untested, target=target, license=license
+        how,
+        allow_untested=allow_untested,
+        target=target,
+        license=license,
+        disable_model_invocation=disable_model_invocation,
     )
     directory = Path(root).expanduser() / bundle.name
     target = directory / "SKILL.md"

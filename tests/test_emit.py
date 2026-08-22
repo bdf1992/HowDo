@@ -221,7 +221,7 @@ class FrontmatterTargetTests(unittest.TestCase):
     def test_the_spec_target_says_in_prose_what_it_cannot_say_in_frontmatter(self):
         body = render_skill(grounded()).body
         self.assertNotIn("disable-model-invocation", _frontmatter(body))
-        self.assertIn("This operation has consequences.", body)
+        self.assertIn("Invoke this deliberately.", body)
 
 
 class SpecFieldTests(unittest.TestCase):

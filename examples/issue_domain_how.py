@@ -160,8 +160,15 @@ with tempfile.TemporaryDirectory() as tmp:
 
     print()
     project = Path(tmp) / "repo"
+    # Who may reach a published skill is the person's call, not the issuer's.
+    # Left unsaid it falls back to the contract's consequences, and says so --
+    # which is a prompt to ask them, not their answer.
     for entry in publish(promoted, scope="project", project=project):
+        reach = "n/a" if entry.auto_invocable is None else (
+            "you or Claude" if entry.auto_invocable else "you only")
         print(f"published {entry.kind:9} {entry.path.relative_to(project)}")
+        if entry.kind == "skill":
+            print(f"  reachable by {reach} (chosen by: {entry.invocation_chosen_by})")
     print()
 
     # The catalogue is scanned from the destinations, not from a record of
