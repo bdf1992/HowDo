@@ -12,6 +12,8 @@ the pilot shows, not to what the design anticipates.
 
 Status legend: `done` · `partial` · `next` · `blocked` · `later`
 
+Each milestone has an issue: [#8](https://github.com/bdf1992/HowDo/issues/8) M−1, [#9](https://github.com/bdf1992/HowDo/issues/9) M0, [#10](https://github.com/bdf1992/HowDo/issues/10) M0.0, [#11](https://github.com/bdf1992/HowDo/issues/11) M0.1. The four undeclared values block [#11](https://github.com/bdf1992/HowDo/issues/11) and need no hardware.
+
 ---
 
 ## Next actions — ordered
@@ -54,7 +56,7 @@ measures the machine.
 
 ---
 
-## M−1 — Execution envelope · `next`
+## M−1 — Execution envelope · `next` · [#8](https://github.com/bdf1992/HowDo/issues/8)
 
 Prove one exact local configuration can repeatedly run representative Harbor
 tasks without memory, offload, or context behaviour changing underneath the
@@ -80,7 +82,7 @@ Quantization is decided by the probe, not assumed. Weights fitting VRAM is not
 the property that matters; weights + KV cache + runtime buffers + real context
 + harness workload under a stable envelope is.
 
-## M0 — Receipt · `partial`
+## M0 — Receipt · `partial` · [#9](https://github.com/bdf1992/HowDo/issues/9)
 
 Append-only evidence receipt, Harbor ingestion, artifact custody, immutable
 fingerprints. No XP, no levels, no skill graph.
@@ -123,7 +125,7 @@ fingerprints. No XP, no levels, no skill graph.
       result before exploratory work, by document order.
 - [ ] Harbor ingestion. Do not rebuild a runner; Harbor already owns execution.
 
-## M0.0 — Noise floor · `blocked` on M−1
+## M0.0 — Noise floor · `blocked` on M−1 · [#10](https://github.com/bdf1992/HowDo/issues/10)
 
 Repeatedly run the unchanged organism over ~20 tasks. Estimate within-task and
 across-task variance, infrastructure error rate, cost, duration.
@@ -137,7 +139,7 @@ across-task variance, infrastructure error rate, cost, duration.
       INCONCLUSIVE by construction — fix the measurement before spending the
       trials, not after.
 
-## M0.1 — Falsification pilot · `blocked` on M−1, M0, M0.0
+## M0.1 — Falsification pilot · `blocked` on M−1, M0, M0.0 · [#11](https://github.com/bdf1992/HowDo/issues/11)
 
 H0 (raw) against H1 (HowDo + per-trial reconnaissance), same organism, same
 budget, interleaved.
