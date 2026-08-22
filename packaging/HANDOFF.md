@@ -1,6 +1,9 @@
 # Packaging lane — handoff
 
-Branch `claude/howdo-fullscope-plugin-qqvw7h`, first commit `647d4a0`.
+Branch `claude/howdo-fullscope-plugin-handoff-2yn8w9`, replayed onto `main` at
+`f8b9236`. It started as `claude/howdo-fullscope-plugin-qqvw7h` at `647d4a0`;
+PR #14 is that earlier draft, and it is superseded by this branch rather than
+rebased in place, so the probe results below still stand as recorded.
 
 This lane converts How Do into a Claude Code plugin. It is **packaging only**:
 no hook, no agent, no `settings.json`, nothing that would make the discipline
@@ -91,7 +94,12 @@ Two ways to close it, both cheap once the branches below have landed:
   to main and push the result to a `plugin` branch that the marketplace points
   at. No file moves, but the boundary stays a property of the assembler.
 
-Prefer the first once the tree is quiet. Do not do either while PR #13 is open.
+Prefer the first once the tree is quiet. #13 has landed, so its half of the
+gate is gone; the tree is still not quiet. PR #12 moves
+`runtime/howdo/environment.py` out of the payload and PR #15 edits
+`runtime/howdo/emit.py`, and moving `runtime/` under `plugin/` collides with
+both by construction. The decision has not changed — only the gate has
+narrowed to those two.
 
 ### 2. `CONFIGURATION_NOTE` never reaches a plugin user — blocks parity
 
@@ -128,16 +136,22 @@ the remaining `__init__.py` re-exports, so it also catches a partial fix.
 
 ## Collision map
 
-Dry-run merges as of `647d4a0`, both against `origin/main` at `c721c39`:
+Dry-run merges as of `5c71a17`, both against `origin/main` at `f8b9236`:
 
 | open PR | branch | conflicts with this lane |
 |---|---|---|
 | **#12** experiment/packaging boundary | `claude/skill-graph-benchmark-index-s1vxax` | `CHANGELOG.md` |
-| **#13** request contracts / domain-how | `claude/how-do-request-contract-3jqsr1` | `CHANGELOG.md`, `README.md` |
+| **#15** emit frontmatter | `claude/how-do-request-contract-3jqsr1` | none |
 
-No conflicts in `install.py`, `runtime/howdo/context.py`, `SKILL.md`,
-`tests/`, or `.github/workflows/tests.yml`. Both remaining conflicts are
-additive — a changelog block and two list entries.
+**#13** (request contracts / domain-how) merged as `f8b9236`. Replaying this
+lane over it took the two conflicts it had predicted — a changelog block and a
+QA-block entry in `README.md`, both additive, both resolved as unions — and
+nothing else. `install.py`, `runtime/howdo/context.py`, `SKILL.md`, `tests/`,
+and `.github/workflows/tests.yml` merged untouched, as the earlier probe said
+they would.
+
+The one conflict left is a changelog block against #12. Whichever of the two
+lands second resolves it.
 
 `howdo/payload-store-split` is empty against main. Stale; ignore.
 
@@ -159,8 +173,10 @@ git merge --abort; git checkout <this-branch>; git branch -D probe
 ## Verifying this lane
 
 ```bash
-python -m unittest discover -s tests -v        # 206 tests, exactly 1 skip (item 3)
+python -m unittest discover -s tests -v        # 302 tests, exactly 1 skip (item 3)
 python examples/jira_workflow.py
+python examples/portable_contract.py
+python examples/issue_domain_how.py
 python install.py --plugin dist/how-do
 claude plugin validate dist/how-do             # expects: Validation passed, no warnings
 python install.py --plugin dist/how-do --verify
