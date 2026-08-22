@@ -4,6 +4,30 @@ Versions are aligned across `SKILL.md`, `README.md`, `pyproject.toml`, and `CONT
 
 ## Unreleased
 
+- **Writing the analysis before the data caught two defects in the stopping
+  rule.** `experiment/analysis/pilot0001.py` is the committed analysis — a
+  task-level permutation test and bootstrap, seeded, zero dependencies —
+  written and validated against synthetic trials with a known effect before any
+  real trial exists. Running it against synthetic nulls immediately falsified
+  two rules that had read as obviously sensible in prose. The first: STOP was
+  defined as "the interval includes zero and its upper bound is below δ\*",
+  which sends a real-but-too-small effect to INCONCLUSIVE when it is in fact
+  conclusive; STOP is now simply an upper bound below δ\*. The second: harm was
+  drafted as a gate at 20% of tasks regressing, but with single-digit
+  trials-per-arm one trial is worth more than δ\* of a per-task pass rate, so
+  30–40% of tasks regress by at least δ\* under a true null — the ceiling would
+  have fired on nothing at all, and on a genuine positive too. Harm is now
+  computed at the δ\* threshold, reported, and flagged for investigation, and
+  the protection against a treatment that lifts the mean while breaking tasks
+  comes from GO requiring the interval's lower bound to clear δ\*.
+  `PILOT-0001/SIZING.md` records what the analysis does on synthetic data and
+  states why every figure in it is optimistic; its useful finding is that tasks
+  buy more precision than trials do, because the task is the unit of analysis.
+  `PILOT-0001/REHEARSAL.md` and `PILOT-0001/RESULTS.template.md` complete the
+  operational set: exercise the machinery on excluded tasks and throw the
+  results away, then write the preregistered result before anything exploratory
+  by document order.
+
 - **The pilot had a frozen treatment and no committed study.** `TREATMENT.md`
   said what would be administered; nothing said what would count as an effect,
   which tasks would be committed, how many trials, what analysis, or what result

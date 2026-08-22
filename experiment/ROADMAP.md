@@ -112,6 +112,15 @@ fingerprints. No XP, no levels, no skill graph.
 - [x] **Corrections append.** A wrong receipt is corrected by an entry naming
       its digest and the reason; the original stays.
 - [ ] `organism` block wired from a real `ORGANISM.lock.json` (needs M−1).
+- [x] **Committed analysis** — `analysis/pilot0001.py`, written before any
+      trial exists and shown to recover a known effect from synthetic data.
+      Task-level permutation test and bootstrap, seeded, zero dependencies.
+      Writing it early paid immediately: it caught two defects in the drafted
+      stopping rule (see `CHANGELOG.md`).
+- [x] **Sizing note** — `PILOT-0001/SIZING.md`. Tasks buy more precision than
+      trials do, because the task is the unit of analysis.
+- [x] **Results template** — `PILOT-0001/RESULTS.template.md`, preregistered
+      result before exploratory work, by document order.
 - [ ] Harbor ingestion. Do not rebuild a runner; Harbor already owns execution.
 
 ## M0.0 — Noise floor · `blocked` on M−1
@@ -155,6 +164,14 @@ budget, interleaved.
       lift.
 - [ ] Treatment definition is frozen — see `PILOT-0001/TREATMENT.md`. The
       adapter that makes it runnable is landed.
+
+## M0.2 — Rehearsal · `blocked` on M−1, M0
+
+Run the whole machinery on tasks excluded from the pilot and discard the
+results. See `PILOT-0001/REHEARSAL.md`.
+
+- [x] Procedure written, with the checklist of what must be exercised.
+- [ ] Executed. Needs a running harness.
 
 ## Gate
 

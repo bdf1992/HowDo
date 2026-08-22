@@ -32,6 +32,15 @@ Read these in order. Each one is a precondition for the next being meaningful.
 5. **`evidence/RECEIPT.md`** — the evidence contract: what every trial writes
    down, and which fields are frozen because they cannot be recomputed later.
 
+Then, in the order they are used:
+
+6. **`PILOT-0001/SIZING.md`** — what the committed analysis does on synthetic
+   data. A sighting shot for the power gate, not the gate.
+7. **`PILOT-0001/REHEARSAL.md`** — run the machinery end to end on excluded
+   tasks and throw the results away, before the pilot runs on tasks that count.
+8. **`PILOT-0001/RESULTS.template.md`** — the writeup, with the preregistered
+   result stated before anything exploratory is written down.
+
 Two documents sit outside that spine and are read when they apply:
 
 - **`M-1/PROTOCOL.md`** — the execution-envelope probe that freezes the organism
@@ -40,6 +49,8 @@ Two documents sit outside that spine and are read when they apply:
   count as evidence.
 - **`CROSSINGS.md`** — why crossings are projections over receipts rather than
   stored objects, and why only the resolution block is persisted.
+- **`analysis/pilot0001.py`** — the committed analysis, written and validated
+  against synthetic data before any real trial exists.
 
 ## Standing constraints
 

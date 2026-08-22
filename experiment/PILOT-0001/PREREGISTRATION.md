@@ -128,8 +128,8 @@ Declared now so they cannot be chosen later to rescue a null.
 1. **Task-level win/loss/tie count.** How many tasks improved, how many
    regressed. A mean lift built from one task improving hugely and six
    regressing slightly is a different result from a broad small gain.
-2. **Harm rate.** Tasks whose pass rate is lower under H1. Load-bearing for the
-   stopping rule.
+2. **Harm rate.** Tasks whose pass rate is lower under H1 by at least δ\*.
+   Reported and flagged; see the outcomes section for why it does not gate.
 3. **Reconnaissance outcome distribution.** Rates of `complete`, `over_budget`,
    and `failed`. Recon failure is treatment failure and counts in the primary
    endpoint; this endpoint says how often the treatment failed that way.
@@ -167,6 +167,11 @@ variance is known, precisely so that it cannot be lowered to meet the data.
 
 Before M0.1 collects a confirmatory trial, compute the minimum detectable
 effect from M0.0's measured variance at the Stage B trial count.
+
+`SIZING.md` records what the committed analysis does on synthetic data — a
+sighting shot, not the gate, and optimistic for the reasons it lists. Its main
+finding is that tasks buy more precision than trials do, because the task is the
+unit of analysis.
 
 **If MDE > δ\*, PILOT-0001 does not run.** It would return INCONCLUSIVE by
 construction, and spending the trials to discover that is worse than not
@@ -225,19 +230,33 @@ remaining sample is a selected one.
 
 Declared before collection. Exactly one applies.
 
-**GO.** The 95% interval on the primary endpoint excludes zero, its lower bound
-is at least δ\*, and the harm rate does not exceed `<<DECLARE: proposed 20% of
-committed tasks regressing. Reasoning: a treatment that lifts the mean while
-breaking one task in four is not deployable, and discovering that only in M2
-would waste the branch milestone.>>` → the effect is real and large enough to
-justify the skill-graph infrastructure. Proceed to M1.
+**GO.** The lower bound of the 95% interval on the primary endpoint is at least
+δ\*. → the effect is confidently large enough to justify the skill-graph
+infrastructure. Proceed to M1.
 
-**STOP.** The interval includes zero and its upper bound is below δ\*, **or**
-the harm rate exceeds the ceiling. → *Stop the skill-graph infrastructure work
-and return to How Do itself.* A clean null is an accepted result and is
+**STOP.** The upper bound of the interval is below δ\*. → the effect is absent,
+or real and too small to act on; either way *stop the skill-graph infrastructure
+work and return to How Do itself.* A clean null is an accepted result and is
 published as one. This is the branch that the whole programme is arranged to
 make survivable: the roadmap, the packaging boundary, and the promotion rule all
 exist so that STOP costs a directory rather than a release.
+
+**Harm is reported, and does not gate.** It was drafted as a gate — a ceiling on
+the fraction of committed tasks that regress — and running the committed
+analysis against synthetic nulls before any real data existed showed it cannot
+be one. With trials-per-arm in the single digits, a single trial is worth more
+than δ\* of a per-task pass rate, so 30–40% of tasks regress by at least δ\*
+under a true null. A 20% ceiling would fire on nothing at all, and would fire on
+a genuine positive too. Distinguishing real harm from that noise needs a
+per-task sample the pilot does not have.
+
+So the harm rate is computed at the δ\* threshold, reported with the secondary
+endpoints, and flagged for investigation before M1 when it exceeds an advisory
+`<<DECLARE: advisory harm ceiling — proposed 20% of committed tasks regressing
+by at least δ\*. Advisory only: it triggers a look, never a STOP.>>`.
+Protection against a treatment that lifts the mean while breaking tasks comes
+from GO requiring the interval's lower bound to clear δ\*, which broad damage
+prevents by widening the interval.
 
 **INCONCLUSIVE.** The interval spans δ\* — the effect may be large enough or may
 be nothing, and this run cannot tell. → Not a soft GO. Fix the measurement and
