@@ -67,6 +67,25 @@ runtime surface; the kernel invariants above are unchanged.
 | one unreadable artifact costing the whole index | reported in the view; the rebuild still terminates |
 | grounded artifact loaded into a drifted paradigm | `staleness()` reports the revision gap the kernel cannot see across storage |
 
+## Enforced emitter invariants
+
+Emission installs something. These hold for `runtime/howdo/emit.py`.
+
+| Attack | Emitter response |
+|---|---|
+| untested artifact emitted as an installed skill or workflow | refused without an explicit override |
+| override used to ship a draft as settled ground | the output is stamped `Untested` in both formats |
+| grounding presented as correctness in the generated skill | the body says one confirming run, not best route |
+| concern that cannot project to a legal skill name | refused; not silently truncated or mangled |
+| skill name longer than the specification's 64 characters | refused |
+| description over the specification's 1024 characters | truncated at the cap |
+| generated description broad enough to load on any question in the domain | carries "not a general-purpose helper" and "not by itself a reason to load it" |
+| angle brackets reaching frontmatter from an intent or concern | stripped; they can inject instructions into a system prompt |
+| directory name drifting from the skill's `name` | `write_skill` owns the layout; the caller cannot choose it |
+| quotes, backticks, `${...}` or backslashes in a map breaking the generated script | values are emitted as JSON literals; a parser check covers it |
+| generated workflow loading a module | none is emitted; a script containing `import()` fails before a run starts |
+| an existing skill or workflow silently replaced | refused without `overwrite=True` |
+
 ## Enforced context invariants
 
 | Attack | Context response |
@@ -148,6 +167,8 @@ These are semantic invariants rather than Python NLP rules:
 - **A host's capabilities are declared, not authenticated.** `bind` proves a contract was not loaded somewhere it says it cannot run. It does not prove the host told the truth about what it can do, and it cannot: the same class of boundary as the caller-supplied comparator.
 - **A contract binds the declaration, not the executor.** It states what the operation must make observable; whether the executor pursues that or something else is caught at Look, not at the door. A contract makes the lie checkable, not impossible.
 - **The clause set is closed on purpose.** A predicate it cannot state has to ship as a host-supplied `Check`, and that check does not travel with the contract. The contract's own rules still gate the operation, so the portable floor holds while the local ceiling does not — but a contract whose real gate is local is portable in form only, and nothing here detects that.
+- **An emitted skill is a projection, and drifts the moment the artifact moves.** Nothing tracks what was emitted or re-emits it: `emit` is stateless by design, in the same spirit as the index being rebuilt rather than stored. An installed skill whose domain-how has since been revised will keep being loaded, and only re-emission fixes that.
+- **A generated workflow can state Look's discipline but cannot enforce it.** The kernel structurally withholds the executor report from the observer; a script can only instruct an agent not to read it back. That instruction is prose in a prompt, and an agent may ignore it.
 - **An issued artifact is structurally grounded, not correct.** `ground()` proves a residual matched on one run. It does not prove the map is good, the path is the best one, or that the concern was worth an artifact — the same boundary `onboarding: complete` already declares one level up. Ablation across runs is the semantic test, and it is not in the runtime.
 - **Staleness is reported, not enforced.** `staleness()` answers when asked. Nothing refuses a stale artifact at load, because whether a revision gap invalidates a given artifact is a domain judgment the kernel has no basis to make.
 - **A minted artifact compounds what a spoken one did not.** A bad HowDo used to cost one answer. An issued one pre-loads every later run on that concern, so the `untested` marker and the index's status filter are load-bearing rather than decorative. Nothing prevents an agent from reading a `grounded` artifact whose grounding run was itself misconceived.

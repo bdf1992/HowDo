@@ -147,6 +147,23 @@ requires.
   resolution, but that protection ends at the process boundary, so a grounded
   artifact records the paradigm revision it was observed against.
 
+- **An artifact nothing can load is still only a description.** A domain-how is
+  durable and indexed, but a host loads Agent Skills and workflow scripts, not
+  JSON in a store. `runtime/howdo/emit.py` renders an issued artifact into
+  either: a `SKILL.md` bundle conforming to the Agent Skills specification
+  (name projected to the legal charset and capped, description capped and
+  written so the generated skill is requested rather than ambient, frontmatter
+  stripped of angle brackets), or a dynamic-workflow script for
+  `.claude/workflows/` whose structure is the loop — `Check` establishes the
+  gate and fizzles if it cannot, `Do` runs the path as phases, `Look` observes
+  the world instead of reading back the acting agents' reports. Values are
+  emitted as JSON literals so a map containing quotes, backticks or `${...}`
+  cannot break the script, and the suite parses the output with `node --check`.
+  Emission is stateless and derived: re-emit rather than editing what came out.
+  An untested artifact is refused without an explicit override, and the override
+  stamps the output, because an installed skill pre-loads every later session on
+  that concern.
+
 ## 0.8.0
 
 - **A reading has to be tested before it settles.** Restructuring onboarding

@@ -346,9 +346,15 @@ class Clause:
         return False
 
     def describe(self) -> str:
+        """Render in the portable form, not the Python one.
+
+        A clause read back by a human or another host should look like what is
+        in the file: `approved eq true`, never `approved eq True`.
+        """
+
         if self.op in _NULLARY:
             return f"{self.key} {self.op}"
-        return f"{self.key} {self.op} {self.value!r}"
+        return f"{self.key} {self.op} {json.dumps(self.value)}"
 
     def as_dict(self) -> dict[str, Any]:
         out: dict[str, Any] = {"key": self.key, "op": self.op}

@@ -150,8 +150,31 @@ Artifacts live beside your context (`~/.howdo/domains/`, or `$HOWDO_DOMAINS`),
 outside the payload, for the reason `CONTEXT.md` does: an update replaces the
 skill without discarding what the work produced.
 
+### Install it as a skill or a workflow
+
+A grounded domain-how renders into either format a host loads directly:
+
+```python
+from howdo import write_skill, write_workflow
+
+write_skill(how, "~/.claude/skills")        # -> jira-workflow/SKILL.md
+write_workflow(how, "~/.claude/workflows")  # -> jira-workflow.js, runs as /jira-workflow
+```
+
+The skill body carries the map, the workflow, the gate, the invariants, the
+observable result, and the run it came from. The workflow script is the loop:
+`Check` establishes the gate and fizzles if it cannot, `Do` runs the path as
+phases, and `Look` observes the world independently instead of reading back what
+the acting agents reported.
+
+An untested artifact is refused unless you pass `allow_untested=True`, and the
+override stamps the output — an installed skill pre-loads every later session on
+that concern, so shipping an unconfirmed one is a different order of mistake
+from getting one answer wrong. Emission is a projection: re-emit rather than
+editing what came out.
+
 ```bash
-python examples/issue_domain_how.py   # run -> issue -> index -> ground -> staleness
+python examples/issue_domain_how.py   # run -> issue -> index -> ground -> emit
 ```
 
 ## Layout
@@ -164,6 +187,7 @@ python examples/issue_domain_how.py   # run -> issue -> index -> ground -> stale
 - `runtime/howdo/context.py` — zero-dependency context lifetime helpers.
 - `runtime/howdo/contract.py` — portable request contracts: declared I/O shape, serializable checks, host binding.
 - `runtime/howdo/domain.py` — the issuer and index: domain-hows minted from runs, grounded by evidence.
+- `runtime/howdo/emit.py` — render an artifact as an Agent Skill bundle or a Claude Code workflow script.
 - `examples/jira_workflow.py` — ordinary workflow example.
 - `examples/portable_contract.py` — the same operation as a contract, offered to three hosts.
 - `examples/issue_domain_how.py` — a run that leaves a durable, indexed artifact behind.

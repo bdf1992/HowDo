@@ -125,3 +125,31 @@ with tempfile.TemporaryDirectory() as tmp:
     report = staleness(load("jira.workflow", root=store), drifted)
     print("staleness:", report.stale)
     print(" ", report.reason)
+
+    # --- what the artifact can be installed as -----------------------------
+
+    from howdo import EmitError, render_skill, render_workflow, write_skill, write_workflow
+
+    print()
+    installable = Path(tmp) / "installable"
+    skill = write_skill(promoted, installable / "skills")
+    flow = write_workflow(promoted, installable / "workflows")
+    print("emitted skill:   ", skill.relative_to(installable))
+    print("emitted workflow:", flow.relative_to(installable), "-> runs as /" + flow.stem)
+    print()
+    print("--- SKILL.md frontmatter ---")
+    print("\n".join(render_skill(promoted).body.splitlines()[:6]))
+    print()
+    print("--- workflow meta ---")
+    source = render_workflow(promoted).source
+    print("\n".join(source.splitlines()[4:12]))
+    print()
+
+    # An artifact nothing has confirmed does not become an installed skill.
+    from dataclasses import replace as _replace
+
+    draft = _replace(promoted, status="untested", observed_against=None, grounded_by=None)
+    try:
+        write_skill(draft, installable / "skills")
+    except EmitError as exc:
+        print("refused:", str(exc).split(":", 1)[1].strip()[:96], "...")

@@ -197,7 +197,20 @@ where persistence begins. A grounded domain-how therefore records the paradigm
 revision it was observed against, and drift is something you can ask about
 rather than something that silently stops being true.
 
-`runtime/howdo/domain.py`; `examples/issue_domain_how.py` runs the whole arc.
+An issued artifact can then be **emitted** into a form a host loads directly:
+an Agent Skill (`SKILL.md` bundle) or a Claude Code dynamic workflow, where the
+loop becomes the script's structure — the gate runs before anything acts, the
+path runs as ordered phases, and a final phase observes the world rather than
+reading back what the acting agents reported. Emission is a projection, so
+re-emit rather than editing what came out; the artifact is the source.
+
+An untested artifact is not emitted without an explicit override, and the
+override stamps what it produces. A `SKILL.md` on disk pre-loads every later
+session on that concern, which is the point at which an unconfirmed exemplar
+stops costing one answer and starts costing all of them.
+
+`runtime/howdo/domain.py` and `runtime/howdo/emit.py`;
+`examples/issue_domain_how.py` runs the whole arc.
 
 ## Handles
 
