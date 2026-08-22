@@ -74,16 +74,13 @@ observation, residual = observe(
 )
 
 
-def patch(state):
-    state["map"]["statuses"] = list(world["statuses"])
-    return state
-
-
+# The observation matched the prediction, so there is nothing to update: the
+# paradigm already described the world correctly, and a matched residual is
+# acknowledged rather than patched. Only a discrepancy earns a write-back.
 settlement = settle(
     paradigm,
     residual,
     accept=True,
-    patch=patch,
     reason="verified workflow now contains Ready for QA",
 )
 
@@ -93,4 +90,4 @@ print("observed:", observation.observed)
 print("residual:", residual.route, "matched=", residual.matched)
 print("revision:", paradigm.revision, "->", settlement.paradigm.revision)
 print("changed layers:", settlement.changed_layers)
-print("saved map:", settlement.paradigm.state["map"])
+print("map (unchanged; the prediction held):", settlement.paradigm.state["map"])

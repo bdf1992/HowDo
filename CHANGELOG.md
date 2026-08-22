@@ -2,6 +2,80 @@
 
 Versions are aligned across `plugin/SKILL.md`, `README.md`, `pyproject.toml`, and `plugin/CONTEXT.template.md`; `tests/test_release.py` enforces it.
 
+## Unreleased
+
+Version note for the RC decision (#27): the first three entries below are
+attack closures with no new public capability — patch-class. Making executor
+failure observable and durable settlement lock-aware each add one public
+exception type (`ExecutionError`, `ContextLockError`); if the RC rules read an
+added exception as new public surface, the candidate is 0.11.0-rc rather than
+a 0.10.x patch. The fix was not weakened to dodge that call.
+
+- **Revision identity tracks actual paradigm state.** `Paradigm` snapshots its
+  state at construction, so a caller-held nested mapping cannot change, behind
+  an unchanged revision, what an issued paradigm represents; `admit()` and
+  `settle()` also compare the resolved snapshot by value, so state mutated in
+  place behind an unchanged counter closes the gate rather than passing as
+  current. In the same invariant, `_changed_top_level_keys` now distinguishes
+  an absent key from a present `None`, so adding or removing a `None`-valued
+  layer increments the revision instead of slipping under it.
+
+- **A matched observation cannot license a paradigm rewrite.** `settle()`
+  refuses a state-changing patch on a residual that carries no discrepancy:
+  Update changes the smallest part the evidence disproved, and a matching
+  observation disproved nothing. Acknowledging the run with `patch=None` stays
+  allowed and causes no revision churn. The examples now model that.
+
+- **A skill-directory upgrade replaces the payload exactly.** `copy_payload`
+  overlaid with `dirs_exist_ok`, so a file deleted or renamed by a release
+  survived an upgrade, loadable, indefinitely. Installs now prune whatever the
+  current release does not ship, `--dry-run` reports the removals, and the
+  shared store at the payload root is spared by name — it is durable state,
+  not release state. The installer CI matrix gains the stale-file fixture on
+  Linux, macOS, and Windows.
+
+- **An executor failure cannot erase the admitted attempt.** `operate()` used
+  to let an executor exception swallow the outcome while the admission stayed
+  consumed, leaving an effectful operation with no observable trace. It now
+  raises `ExecutionError` carrying an attributable `Outcome` — empty report,
+  error string, original exception chained — that `observe()` accepts exactly
+  like a returned one. The exception is never treated as evidence about
+  resulting world state, and no rollback is implied. The success-path API is
+  unchanged.
+
+- **Durable context settlement is atomic and stale-write resistant.** Persistent
+  context writes were ordinary `write_text` replacements: two sessions could
+  read the same pre-state and the later writer silently erase the earlier
+  settlement, and an interruption could tear a lineage mid-write. All
+  persistent-context writes now go through one primitive — temp file, fsync,
+  atomic replace — and writers serialize on an exclusive lock beside the store,
+  re-validating on the bytes current inside it, so a stale author fails its own
+  state guard instead of overwriting. A four-process race fixture watches the
+  genuine race. Zero new dependencies; filesystem durability across reboots
+  remains a declared host boundary.
+
+- **The public protocol boundary is written down and pinned.** `PROTOCOL.md`
+  proposes the answers to the pre-1.0 boundary questions from what the code
+  enforces today — which exports are protocol, what hosts may replace, the
+  additive-only compatibility policy, the per-artifact format versions, and
+  refusal-over-partial-reads for unknown future formats — and marks the one
+  genuinely open row (`howdo_context` version validation) as open rather than
+  deciding it. `tests/test_protocol.py` pins the shape: removed or renamed
+  public names, lost dataclass fields, shrunken vocabularies, or a version
+  refusal that stops refusing all fail the suite.
+
+- **The experiment lane moved to the `experiment` branch.** `main` no longer
+  carries `experiment/` or the tests that import it; the lane — PILOT-0001, the
+  evidence contracts, the harness, and the adapter — develops on its own branch
+  and takes `main` in by merge. The payload boundary the directory's placement
+  used to assert is now a fact about the branch: an ordinary checkout of `main`
+  cannot ship experiment code because it does not contain any. The generic
+  `context_kind` hook stays in the runtime and keeps its coverage in
+  `tests/test_context_kind.py`; the adapter-, receipt-, preregistration-,
+  organism-, and resolution-level invariants move to the branch's copy of
+  `ADVERSARIAL.md`, and a release test now asserts `experiment/` stays absent
+  from `main`.
+
 ## 0.10.0
 
 - **Shipped code cited documents the reader does not have.** `domain.py` and

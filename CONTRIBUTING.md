@@ -22,7 +22,7 @@ The goalposts. Move one only with a residual from real use, never because a prob
 
 **Packaging.** Change how the payload is laid out, assembled, or distributed: `plugin/`, `.claude-plugin/`, `install.py`, `packaging/`, the `plugin:` CI job. This lane touches no discipline and no invariant — if a change here alters what the skill *says* or what the kernel *promises*, it is in the wrong lane. Its own rule: the boundary is the directory. Anything inside `plugin/` ships to every user by every route, anything outside it reaches nobody, and `tests/test_plugin.py` asserts both directions rather than trusting a list. `packaging/HANDOFF.md` carries the findings that were established against the runtime rather than the documentation; read it before changing a layout, because two of those findings contradict the published docs.
 
-**Experiment.** Change anything under `experiment/`. This lane exists because measurement work does not obey the other three: it has no residual from real use yet — producing one is the whole point — and rule 8 cannot be satisfied by a trace that does not exist. It gets its own rules, below, and its own goalposts. Nothing in this lane is a How Do release, and code here never earns promotion by being well made.
+**Experiment.** Change anything under `experiment/` — which lives on the [`experiment` branch](https://github.com/bdf1992/HowDo/tree/experiment), not on `main`. This lane exists because measurement work does not obey the other three: it has no residual from real use yet — producing one is the whole point — and rule 8 cannot be satisfied by a trace that does not exist. It gets its own rules, below, and its own goalposts. Experiment PRs target the `experiment` branch; nothing in this lane is a How Do release, and code here never earns promotion by being well made.
 
 ## Rules that will block a merge
 
@@ -37,13 +37,13 @@ The goalposts. Move one only with a residual from real use, never because a prob
 
 ### Rules for the experiment lane
 
-These replace rule 8 inside `experiment/` and add to the rest. Rules 1, 3, and 4 still apply unchanged: an experiment PR may not falsify an enforced row, must test the promise it makes, and may not drift the release version.
+These replace rule 8 inside `experiment/` and add to the rest. Rules 1, 3, and 4 still apply unchanged: an experiment PR may not falsify an enforced row, must test the promise it makes, and may not drift the release version. The lane's home is the `experiment` branch; it takes `main` in by merge to stay current with the runtime it imports, and sends nothing back without the promotion evidence rule 12 demands.
 
 9. **Treatment before implementation.** What is being administered is written and frozen before the code that administers it. An adapter built first will define the treatment by accident, and the definition will be whatever was convenient to build.
 10. **Preregistration before confirmatory data.** No confirmatory trial runs before `PREREGISTRATION.md` names the endpoints, the analysis, the effect threshold, and the STOP condition. Analysis chosen after results are visible is exploratory, and must be labelled exploratory in the writeup. Adding an endpoint after seeing the data is not a fix.
 11. **Raw evidence is never rewritten.** Receipts are append-only. A wrong receipt is corrected by appending a correction that references it, never by editing or deleting it. A PR that mutates historical evidence is closed regardless of what it fixes.
 12. **Experimental code does not imply skill promotion.** Landing on the experiment branch grants nothing. Promotion into `plugin/runtime/` or `plugin/SKILL.md` requires evidence that the discipline changed an outcome, and is a separate PR in a separate lane. "The implementation is clean" is not evidence.
-13. **The payload boundary is enforced, not asserted.** The payload *is* `plugin/`, so `experiment/` sitting outside it is the enforcement rather than a rule the installer remembers; no payload file may name a specific experiment either. `tests/test_release.py` checks this by installing into a temporary directory.
+13. **The payload boundary is enforced, not asserted.** The payload *is* `plugin/`, and `experiment/` sits outside it on a branch `main` does not carry, so the boundary is a fact about the repository rather than a rule the installer remembers; no payload file may name a specific experiment either. `tests/test_release.py` checks this by installing into a temporary directory.
 14. **Cross-boundary dependencies are explicit or refused.** Experiment code may import from `plugin/runtime/howdo`; the reverse never happens. Where an experiment module depends on kernel internals, its docstring states the dependency and its direction, so that a later kernel change breaks the experiment loudly rather than the skill silently. A change to `plugin/runtime/` made *for* the experiment is a cross-layer PR under rule 2 and must say so.
 
 ## Running the suite
@@ -77,7 +77,7 @@ Commit messages follow the same idea: name the invariant or the residual, not th
 
 Patch (`0.x.y`): closes attacks, tightens wording, no new surface. Minor (`0.x.0`): a new capability that has earned its way in with a trace and tests, or a deliberate goalpost move recorded in `CHANGELOG.md` and enforced by a release test.
 
-**1.0 is reserved for the Skill Graph.** It is not held back for lack of polish, and packaging maturity does not reach it: 0.10.0 ships How Do as an installable plugin, which is a new capability with a trace and tests — a minor by the definition above — and says nothing about whether the discipline works. That question belongs to `experiment/ROADMAP.md`, which holds that every further edit to the skill is unfalsifiable until something measures it, and PILOT-0001 has not run. A release that made the plugin sound like a maturity claim would be borrowing confidence the measurement has not supplied.
+**1.0 is reserved for the Skill Graph.** It is not held back for lack of polish, and packaging maturity does not reach it: 0.10.0 ships How Do as an installable plugin, which is a new capability with a trace and tests — a minor by the definition above — and says nothing about whether the discipline works. That question belongs to `experiment/ROADMAP.md` on the `experiment` branch, which holds that every further edit to the skill is unfalsifiable until something measures it, and PILOT-0001 has not run. A release that made the plugin sound like a maturity claim would be borrowing confidence the measurement has not supplied.
 
 ## Where to start
 

@@ -32,6 +32,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import json
 import re
 import shutil
@@ -72,10 +73,68 @@ PAYLOAD = ("SKILL.md", "CONTEXT.template.md", "QUICKSTART.md", "LICENSE",
 # Build and tool droppings are not part of the skill. The README tells people to
 # run the tests, so without this an install ships whatever bytecode that left
 # behind -- stale, platform-specific, and never loaded by the host.
-NOISE = shutil.ignore_patterns(
+NOISE_PATTERNS = (
     "__pycache__", "*.py[cod]", "*.egg-info", ".pytest_cache",
     ".mypy_cache", ".ruff_cache", ".DS_Store",
 )
+NOISE = shutil.ignore_patterns(*NOISE_PATTERNS)
+
+# The payload is replaceable release state; the store is the durable state. An
+# upgrade therefore replaces the payload *exactly* -- a file the previous
+# release shipped and this one does not must not survive, loadable, inside the
+# install. The one thing spared is a shared store someone deliberately opted
+# into keeping at the payload root with --shared: pruning it would destroy the
+# very state the payload/store split exists to protect.
+PRESERVED = ("CONTEXT.md",)
+
+
+def _is_noise(name: str) -> bool:
+    return any(fnmatch.fnmatch(name, pattern) for pattern in NOISE_PATTERNS)
+
+
+def _expected_files(items: tuple[str, ...]) -> set[Path]:
+    """The relative paths the current release lays down for these items."""
+    expected: set[Path] = set()
+    for item in items:
+        source = PAYLOAD_ROOT / item
+        if source.is_dir():
+            expected.add(Path(item))
+            for path in source.rglob("*"):
+                rel = Path(item) / path.relative_to(source)
+                if any(_is_noise(part) for part in rel.parts):
+                    continue
+                expected.add(rel)
+        else:
+            expected.add(Path(item))
+    return expected
+
+
+def prune_stale(destination: Path, expected: set[Path], *, dry_run: bool) -> list[str]:
+    """Remove whatever the current release does not ship.
+
+    Runs against a pre-existing install, deepest paths first so directories
+    empty out before they are removed. The durable store named in PRESERVED is
+    never touched; everything else that is not in ``expected`` -- a renamed
+    module, a dropped reference file, bytecode from a previous run -- is a
+    stale loadable and goes.
+    """
+    actions: list[str] = []
+    if not destination.exists():
+        return actions
+    for path in sorted(destination.rglob("*"), key=lambda p: len(p.parts), reverse=True):
+        rel = path.relative_to(destination)
+        if rel in expected:
+            continue
+        if rel.parts[0] in PRESERVED:
+            continue
+        actions.append(f"remove {rel} (not in the current payload)")
+        if dry_run:
+            continue
+        if path.is_dir() and not path.is_symlink():
+            shutil.rmtree(path)
+        else:
+            path.unlink()
+    return actions
 
 # A plugin root is the same payload with a manifest and an executables
 # directory added. Keeping it a *view* of PAYLOAD rather than a second list is
@@ -101,8 +160,14 @@ def skill_name(skill_md: Path) -> str:
     return match.group(1).strip().strip("\"'")
 
 
-def copy_payload(destination: Path, *, dry_run: bool) -> list[str]:
-    actions = []
+def copy_payload(
+    destination: Path, *, dry_run: bool, expected_extra: set[Path] | None = None
+) -> list[str]:
+    # Prune before copying: an update stages exactly the current payload, and
+    # reporting removals ahead of copies keeps a --dry-run honest about being
+    # a replacement rather than an overlay.
+    expected = _expected_files(PAYLOAD) | (expected_extra or set())
+    actions = prune_stale(destination, expected, dry_run=dry_run)
     for item in PAYLOAD:
         source = PAYLOAD_ROOT / item
         if not source.exists():
@@ -167,7 +232,13 @@ def assemble_plugin(destination: Path, *, dry_run: bool) -> list[str]:
     ``skills/<name>/`` layout would namespace it to ``/how-do:how-do`` and
     break the invocation the skill description promises.
     """
-    actions = copy_payload(destination, dry_run=dry_run)
+    # The plugin root legitimately carries more than PAYLOAD: its executables
+    # and its manifest. They join the expected set so pruning treats them as
+    # release state to replace, never as strays to delete.
+    extra = _expected_files(PLUGIN_EXTRA)
+    extra.add(Path(MANIFEST_DIR))
+    extra.add(Path(MANIFEST_DIR) / MANIFEST_NAME)
+    actions = copy_payload(destination, dry_run=dry_run, expected_extra=extra)
 
     for item in PLUGIN_EXTRA:
         source = PAYLOAD_ROOT / item

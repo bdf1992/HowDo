@@ -286,18 +286,18 @@ python plugin/examples/issue_domain_how.py   # run -> issue -> ground -> emit ->
 - `plugin/bin/howdo-context` — store inspection from anywhere; on `PATH` under a plugin host.
 - `ADVERSARIAL.md` — enforced attacks and declared boundaries.
 - `CONTRIBUTING.md` — lanes, rules, PR shape. `CHANGELOG.md` — versions.
-- `experiment/` — the measurement work. Not installed; see below.
 
 ## Research
 
 How Do has no measurement yet: it is a discipline, a reference runtime, and
 tests that prove the documents keep their promises, none of which shows that the
-discipline changes what an agent does. `experiment/` holds the work that would
-find out, starting from `experiment/ROADMAP.md`. **None of it is part of the
-installed skill or the 0.10.0 release.** `experiment/` sits outside `plugin/`,
-so nothing in it can reach an install, and `tests/test_release.py` checks that
-an ordinary install contains no experiment code. If the measurement fails, the directory is deleted
-and 0.10.0 is unaffected.
+discipline changes what an agent does. The work that would find out lives on the
+[`experiment` branch](https://github.com/bdf1992/HowDo/tree/experiment), in
+`experiment/`, starting from its `ROADMAP.md`. **None of it is part of the
+installed skill or the 0.10.0 release.** `main` does not carry the directory at
+all, and `tests/test_release.py` checks that an ordinary install contains no
+experiment code. If the measurement fails, the branch is deleted and 0.10.0 is
+unaffected.
 
 ## QA
 

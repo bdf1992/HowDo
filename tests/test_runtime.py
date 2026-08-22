@@ -8,6 +8,7 @@ sys.path.insert(0, str(PAYLOAD / "runtime"))
 
 from howdo import (
     Check,
+    ExecutionError,
     Fizzle,
     GateEvidence,
     Paradigm,
@@ -183,7 +184,7 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(settlement.changed_layers, ())
 
     def test_settlement_updates_one_top_level_layer(self):
-        world = {"x": 2}
+        world = {"x": 3}  # the operation overshot: a discrepancy the paradigm must absorb
         p = Paradigm(state={"map": {"x": 1}, "path": ["set"]})
         resolution = self.consequential_resolution(p)
         admission = admit(
@@ -198,8 +199,10 @@ class RuntimeTests(unittest.TestCase):
             world=world,
         )
 
+        self.assertFalse(residual.matched)
+
         def patch(state):
-            state["map"]["x"] = 2
+            state["map"]["x"] = 3
             return state
 
         settlement = settle(p, residual, accept=True, patch=patch)
@@ -209,7 +212,7 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(settlement.paradigm.state["path"], ["set"])
 
     def test_settlement_refuses_multi_layer_rewrite_by_default(self):
-        world = {"x": 2}
+        world = {"x": 3}
         p = Paradigm(state={"map": {"x": 1}, "path": ["set"], "receiver": {"mode": "guide"}})
         resolution = self.consequential_resolution(p)
         admission = admit(
@@ -231,7 +234,7 @@ class RuntimeTests(unittest.TestCase):
             settle(p, residual, accept=True, patch=hostile_patch)
 
     def test_multi_layer_settlement_requires_explicit_override(self):
-        world = {"x": 2}
+        world = {"x": 3}
         p = Paradigm(state={"map": {"x": 1}, "path": ["set"]})
         resolution = self.consequential_resolution(p)
         admission = admit(
@@ -333,6 +336,137 @@ class CoreHardeningTests(unittest.TestCase):
         result = admit(resolution, p, GateEvidence(state={}, source="test"))
         self.assertIsInstance(result, Fizzle)
         self.assertEqual(result.failed_checks, ("needs_key",))
+
+    def test_executor_failure_cannot_erase_the_admitted_attempt(self):
+        world = {"x": 1}
+        p, admission = self._admitted()
+
+        def half_done_then_raise(_r):
+            world["x"] = 2  # the boundary was crossed before the failure
+            raise OSError("connection reset")
+
+        with self.assertRaises(ExecutionError) as caught:
+            operate(admission, half_done_then_raise)
+
+        outcome = caught.exception.outcome
+        self.assertEqual(outcome.admission.admission_id, admission.admission_id)
+        self.assertIn("connection reset", outcome.error)
+        self.assertEqual(dict(outcome.reported), {})
+        self.assertIsInstance(caught.exception.__cause__, OSError)
+
+    def test_admission_stays_single_use_after_executor_failure(self):
+        p, admission = self._admitted()
+        with self.assertRaises(ExecutionError):
+            operate(admission, lambda _r: (_ for _ in ()).throw(RuntimeError("boom")))
+        with self.assertRaisesRegex(ValueError, "already consumed"):
+            operate(admission, lambda _r: {})
+
+    def test_observation_runs_after_executor_failure(self):
+        # The executor raised, but the world may have changed anyway; Look is
+        # the arbiter, not the exception.
+        world = {"x": 1}
+        p, admission = self._admitted()
+
+        def effect_then_raise(_r):
+            world["x"] = 2
+            raise RuntimeError("timeout waiting for confirmation")
+
+        with self.assertRaises(ExecutionError) as caught:
+            operate(admission, effect_then_raise)
+
+        _obs, residual = observe(
+            caught.exception.outcome,
+            lambda context: {"x": context.world["x"]},
+            world=world,
+        )
+        # The expected state {"x": 2} is observed despite the raise: the
+        # exception was not proof that nothing happened.
+        self.assertTrue(residual.matched)
+        s = settle(p, residual, accept=True)
+        self.assertTrue(s.accepted)
+        self.assertFalse(s.changed)
+
+    def test_matched_observation_cannot_license_state_rewrite(self):
+        p, admission = self._admitted()
+        outcome = operate(admission, lambda _r: {})
+        _obs, residual = observe(outcome, lambda c: {"x": 2}, world=None)
+        self.assertTrue(residual.matched)
+        self.assertEqual(residual.route, "none")
+        with self.assertRaisesRegex(ValueError, "no discrepancy"):
+            settle(p, residual, accept=True, patch=lambda st: {**st, "map": {"x": 2}})
+
+    def test_matched_observation_settles_without_revision_churn(self):
+        p, admission = self._admitted()
+        outcome = operate(admission, lambda _r: {})
+        _obs, residual = observe(outcome, lambda c: {"x": 2}, world=None)
+        s = settle(p, residual, accept=True)
+        self.assertTrue(s.accepted)
+        self.assertFalse(s.changed)
+        self.assertEqual(s.paradigm.revision, p.revision)
+
+    def test_unmatched_residual_still_earns_write_back(self):
+        p, admission = self._admitted()
+        outcome = operate(admission, lambda _r: {})
+        _obs, residual = observe(outcome, lambda c: {"x": 3}, world=None)
+        self.assertFalse(residual.matched)
+        s = settle(p, residual, accept=True, patch=lambda st: {**st, "map": {"x": 3}})
+        self.assertTrue(s.changed)
+        self.assertEqual(s.paradigm.revision, p.revision + 1)
+
+    def test_paradigm_state_is_a_snapshot(self):
+        # The revision asserts an identity for this exact state; a caller-held
+        # nested mapping must not be able to change it retroactively.
+        live = {"map": {"x": 1}}
+        p = Paradigm(state=live)
+        live["map"]["x"] = 999
+        self.assertEqual(p.state["map"]["x"], 1)
+
+    def test_state_mutated_behind_an_unchanged_revision_closes_the_gate(self):
+        p = Paradigm(state={"map": {"x": 1}})
+        r = Request(handle="do work", intent="set x to 2")
+        resolution = resolve(
+            r, p, path=["set"], expected={"x": 2},
+            checks=[Check("ok", "always", lambda s: True)],
+        )
+        # The snapshot keeps the constructor's mapping out; the accessor is the
+        # remaining route, and the gate has to catch it by value.
+        p.state["map"]["x"] = 777  # mutate the nested mapping through the accessor
+        result = admit(resolution, p, GateEvidence(state={}, source="test"))
+        self.assertIsInstance(result, Fizzle)
+        self.assertEqual(result.failed_checks, ("paradigm_state",))
+
+    def test_state_mutated_behind_an_unchanged_revision_refuses_settlement(self):
+        p, admission = self._admitted()
+        outcome = operate(admission, lambda _r: {})
+        _obs, residual = observe(outcome, lambda c: {"x": 3}, world=None)
+        self.assertFalse(residual.matched)
+        p.state["map"]["x"] = 777
+        with self.assertRaisesRegex(ValueError, "diverged"):
+            settle(p, residual, accept=True, patch=lambda st: {**st, "map": {"x": 3}})
+
+    def test_adding_a_none_valued_key_counts_as_a_changed_layer(self):
+        p, admission = self._admitted()
+        outcome = operate(admission, lambda _r: {})
+        _obs, residual = observe(outcome, lambda c: {"x": 3}, world=None)
+        s = settle(p, residual, accept=True, patch=lambda st: {**st, "extra": None})
+        self.assertEqual(s.changed_layers, ("extra",))
+        self.assertTrue(s.changed)
+        self.assertEqual(s.paradigm.revision, p.revision + 1)
+
+    def test_removing_a_none_valued_key_counts_as_a_changed_layer(self):
+        p, admission = self._admitted(state={"map": {"x": 1}, "extra": None})
+        outcome = operate(admission, lambda _r: {})
+        _obs, residual = observe(outcome, lambda c: {"x": 3}, world=None)
+
+        def drop_extra(st):
+            st = dict(st)
+            del st["extra"]
+            return st
+
+        s = settle(p, residual, accept=True, patch=drop_extra)
+        self.assertEqual(s.changed_layers, ("extra",))
+        self.assertTrue(s.changed)
+        self.assertEqual(s.paradigm.revision, p.revision + 1)
 
     def test_settle_refuses_patch_after_invariant_residual(self):
         inv = Check("positive", "", lambda s: s["x"] > 0, kind="invariant")

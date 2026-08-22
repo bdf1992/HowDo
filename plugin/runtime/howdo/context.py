@@ -8,10 +8,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal, Mapping
+from typing import Callable, Literal, Mapping
+import contextlib
 import os
 import re
 import sys
+import time
 import uuid
 
 
@@ -128,6 +130,102 @@ _PAYLOAD_SEARCH_DEPTH = 6
 # manifest the one reliable way to tell the two payload kinds apart from a path
 # alone -- no host directory layout is assumed, and nothing is parsed.
 _PLUGIN_MANIFEST = (".claude-plugin", "plugin.json")
+
+
+# Writers of one store are serialized by an exclusive lock file beside it, so
+# two sessions that both read the same pre-state cannot both write: the loser
+# re-reads under the lock and its own state guards refuse the now-wrong write
+# instead of silently erasing the winner's. The replacement itself goes through
+# a temp file and os.replace, so a reader sees the old bytes or the new bytes,
+# never a tear. Both mechanisms are standard library and process-local;
+# filesystem durability across reboots or container destruction remains the
+# host's business — a declared boundary, not one this module can enforce.
+_LOCK_SUFFIX = ".lock"
+_LOCK_TIMEOUT_S = 10.0
+_LOCK_STALE_S = 60.0
+_LOCK_POLL_S = 0.05
+
+
+class ContextLockError(RuntimeError):
+    """A durable-context write could not acquire the store's lock in time.
+
+    The lock exists to make concurrent settlement serialize rather than
+    silently lose a write. A lock held longer than the stale threshold is
+    treated as abandoned by a dead writer and broken; a live one that outlasts
+    the timeout raises this instead of overwriting.
+    """
+
+
+@contextlib.contextmanager
+def _context_lock(path: Path, *, timeout: float | None = None):
+    """Serialize writers of one context file across processes.
+
+    ``O_CREAT | O_EXCL`` is atomic on every platform this runs on and needs no
+    dependency. The lock file carries no content; its existence is the claim.
+    """
+    limit = _LOCK_TIMEOUT_S if timeout is None else timeout
+    lock = path.with_name(path.name + _LOCK_SUFFIX)
+    lock.parent.mkdir(parents=True, exist_ok=True)
+    deadline = time.monotonic() + limit
+    while True:
+        try:
+            fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            break
+        except FileExistsError:
+            try:
+                if time.time() - lock.stat().st_mtime > _LOCK_STALE_S:
+                    # The writer died holding it; break the lock and retry.
+                    lock.unlink(missing_ok=True)
+                    continue
+            except OSError:
+                pass  # released between the failed open and the stat
+            if time.monotonic() >= deadline:
+                raise ContextLockError(
+                    f"could not lock {path} within {limit:.1f}s; if its writer "
+                    f"is gone, remove {lock}"
+                ) from None
+            time.sleep(_LOCK_POLL_S)
+    try:
+        yield
+    finally:
+        os.close(fd)
+        lock.unlink(missing_ok=True)
+
+
+def _atomic_write_text(path: Path, text: str) -> None:
+    """The one write primitive for persistent context bytes.
+
+    Write a temp file in the store's own directory, flush it to the platform's
+    satisfaction, then ``os.replace`` it over the target: a reader observes the
+    previous bytes or the new bytes, never a partially written lineage. A
+    failure before the replace leaves the prior bytes intact.
+    """
+    temp = path.with_name(f"{path.name}.{uuid.uuid4().hex[:8]}.tmp")
+    try:
+        fd = os.open(temp, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(text)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temp, path)
+    finally:
+        temp_path = Path(temp)
+        if temp_path.exists():
+            temp_path.unlink(missing_ok=True)
+
+
+def _settle_rewrite(path: Path, guard_and_transform: Callable[[], str | None]) -> None:
+    """Run a settlement's read-guard-transform under the store's lock.
+
+    The callable re-reads and re-validates on the bytes current *inside* the
+    lock, so an author whose earlier read went stale fails its own state guard
+    rather than overwriting a settlement that landed in between. Returning
+    ``None`` records an idempotent no-op: the state asked for already holds.
+    """
+    with _context_lock(path):
+        text = guard_and_transform()
+        if text is not None:
+            _atomic_write_text(path, text)
 
 
 class TemplateContextError(ValueError):
@@ -473,7 +571,11 @@ def ensure_context(
         },
     )
     destination.parent.mkdir(parents=True, exist_ok=True)
-    destination.write_text(text, encoding="utf-8")
+    with _context_lock(destination):
+        # Two sessions instantiating the same fresh store race here; the loser
+        # keeps the winner's lineage instead of replacing it with a new one.
+        if not destination.exists():
+            _atomic_write_text(destination, text)
     return inspect_context(destination)
 
 
@@ -707,51 +809,57 @@ def complete_onboarding(
     p = Path(path)
     if not p.exists():
         raise FileNotFoundError(p)
-    _refuse_template_settlement(p)
-    _refuse_payload_settlement(p, allow_payload=allow_payload)
 
-    if context_kind(_frontmatter(p.read_text(encoding="utf-8"))) != KIND_PERSON:
-        raise ContextKindError(
-            f"{p} is not a person context; onboarding settles a pedagogy, which "
-            f"an environment context does not record"
-        )
+    def guarded() -> str:
+        # Everything from guard to transform runs on the bytes current inside
+        # the store's lock: an author racing a settlement that landed first
+        # fails these guards instead of overwriting it.
+        _refuse_template_settlement(p)
+        _refuse_payload_settlement(p, allow_payload=allow_payload)
 
-    status = inspect_context(p)
-    if status.state == "fork_required":
-        raise ValueError("fork must be normalized before onboarding can settle")
-    if status.state == "invalid":
-        raise ValueError(status.reason)
-    if status.state == "ready":
-        raise ValueError("context onboarding is already complete")
+        if context_kind(_frontmatter(p.read_text(encoding="utf-8"))) != KIND_PERSON:
+            raise ContextKindError(
+                f"{p} is not a person context; onboarding settles a pedagogy, which "
+                f"an environment context does not record"
+            )
 
-    text = p.read_text(encoding="utf-8")
-    text = _replace_section(text, "Calibration domains", f"- {values['calibration_domain']}")
-    text = _replace_section(
-        text, "Representation observations", f"- {values['representation_observation']}"
-    )
-    text = _replace_section(text, "Structures that landed", f"- {values['landed_example']}")
-    text = _replace_section(
-        text, "Structures that did not land", f"- {values['rejected_example']}"
-    )
-    if interaction_observation:
+        status = inspect_context(p)
+        if status.state == "fork_required":
+            raise ValueError("fork must be normalized before onboarding can settle")
+        if status.state == "invalid":
+            raise ValueError(status.reason)
+        if status.state == "ready":
+            raise ValueError("context onboarding is already complete")
+
+        text = p.read_text(encoding="utf-8")
+        text = _replace_section(text, "Calibration domains", f"- {values['calibration_domain']}")
         text = _replace_section(
-            text, "Interaction observations", f"- {clean(interaction_observation)}"
+            text, "Representation observations", f"- {values['representation_observation']}"
+        )
+        text = _replace_section(text, "Structures that landed", f"- {values['landed_example']}")
+        text = _replace_section(
+            text, "Structures that did not land", f"- {values['rejected_example']}"
+        )
+        if interaction_observation:
+            text = _replace_section(
+                text, "Interaction observations", f"- {clean(interaction_observation)}"
+            )
+
+        return _set_frontmatter(
+            text,
+            {
+                "context_id": (
+                    status.metadata.get("context_id")
+                    if status.state in {"declined", "deferred"}
+                    and status.metadata.get("context_id") not in {None, "", "pending"}
+                    else new_context_id()
+                ),
+                "context_file": p.name,
+                "onboarding": "complete",
+            },
         )
 
-    text = _set_frontmatter(
-        text,
-        {
-            "context_id": (
-                status.metadata.get("context_id")
-                if status.state in {"declined", "deferred"}
-                and status.metadata.get("context_id") not in {None, "", "pending"}
-                else new_context_id()
-            ),
-            "context_file": p.name,
-            "onboarding": "complete",
-        },
-    )
-    p.write_text(text, encoding="utf-8")
+    _settle_rewrite(p, guarded)
     return p
 
 
@@ -765,29 +873,31 @@ def decline_onboarding(path: str | Path, *, allow_payload: bool = False) -> Path
     p = Path(path)
     if not p.exists():
         raise FileNotFoundError(p)
-    _refuse_template_settlement(p)
-    _refuse_payload_settlement(p, allow_payload=allow_payload)
 
-    status = inspect_context(p)
-    if status.state == "fork_required":
-        raise ValueError("fork must be normalized before onboarding can be declined")
-    if status.state == "invalid":
-        raise ValueError(status.reason)
-    if status.state == "ready":
-        raise ValueError("ready context cannot be converted to declined")
-    if status.state == "declined":
-        return p
+    def guarded() -> str | None:
+        _refuse_template_settlement(p)
+        _refuse_payload_settlement(p, allow_payload=allow_payload)
 
-    text = p.read_text(encoding="utf-8")
-    text = _set_frontmatter(
-        text,
-        {
-            "context_id": new_context_id(),
-            "context_file": p.name,
-            "onboarding": "declined",
-        },
-    )
-    p.write_text(text, encoding="utf-8")
+        status = inspect_context(p)
+        if status.state == "fork_required":
+            raise ValueError("fork must be normalized before onboarding can be declined")
+        if status.state == "invalid":
+            raise ValueError(status.reason)
+        if status.state == "ready":
+            raise ValueError("ready context cannot be converted to declined")
+        if status.state == "declined":
+            return None
+
+        return _set_frontmatter(
+            p.read_text(encoding="utf-8"),
+            {
+                "context_id": new_context_id(),
+                "context_file": p.name,
+                "onboarding": "declined",
+            },
+        )
+
+    _settle_rewrite(p, guarded)
     return p
 
 
@@ -803,31 +913,34 @@ def defer_onboarding(path: str | Path, *, allow_payload: bool = False) -> Path:
     p = Path(path)
     if not p.exists():
         raise FileNotFoundError(p)
-    _refuse_template_settlement(p)
-    _refuse_payload_settlement(p, allow_payload=allow_payload)
 
-    status = inspect_context(p)
-    if status.state == "fork_required":
-        raise ValueError("fork must be normalized before onboarding can be deferred")
-    if status.state == "invalid":
-        raise ValueError(status.reason)
-    if status.state == "ready":
-        raise ValueError("ready context has nothing left to defer")
-    if status.state == "declined":
-        raise ValueError("declined context cannot be reopened by deferring; onboard it instead")
-    if status.state == "deferred":
-        return p
+    def guarded() -> str | None:
+        _refuse_template_settlement(p)
+        _refuse_payload_settlement(p, allow_payload=allow_payload)
 
-    existing = status.metadata.get("context_id")
-    text = _set_frontmatter(
-        p.read_text(encoding="utf-8"),
-        {
-            "context_id": existing if existing not in {None, "", "pending"} else new_context_id(),
-            "context_file": p.name,
-            "onboarding": "deferred",
-        },
-    )
-    p.write_text(text, encoding="utf-8")
+        status = inspect_context(p)
+        if status.state == "fork_required":
+            raise ValueError("fork must be normalized before onboarding can be deferred")
+        if status.state == "invalid":
+            raise ValueError(status.reason)
+        if status.state == "ready":
+            raise ValueError("ready context has nothing left to defer")
+        if status.state == "declined":
+            raise ValueError("declined context cannot be reopened by deferring; onboard it instead")
+        if status.state == "deferred":
+            return None
+
+        existing = status.metadata.get("context_id")
+        return _set_frontmatter(
+            p.read_text(encoding="utf-8"),
+            {
+                "context_id": existing if existing not in {None, "", "pending"} else new_context_id(),
+                "context_file": p.name,
+                "onboarding": "deferred",
+            },
+        )
+
+    _settle_rewrite(p, guarded)
     return p
 
 
@@ -868,7 +981,10 @@ def fork_context(source: str | Path, destination: str | Path) -> Path:
     )
 
     dst.parent.mkdir(parents=True, exist_ok=True)
-    dst.write_text(text, encoding="utf-8")
+    with _context_lock(dst):
+        if dst.exists():
+            raise FileExistsError(dst)
+        _atomic_write_text(dst, text)
     return dst
 
 

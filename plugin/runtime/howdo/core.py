@@ -41,11 +41,24 @@ def _id(prefix: str) -> str:
     return f"{prefix}_{uuid.uuid4().hex[:12]}"
 
 
+# Absence and a present None must not be conflated: a settlement that adds
+# {key: None} or removes a key whose value was None has changed the state, and
+# a comparison through .get(key) would report it unchanged and skip the
+# revision increment.
+_MISSING = object()
+
+
 def _changed_top_level_keys(
     before: Mapping[str, Any], after: Mapping[str, Any]
 ) -> tuple[str, ...]:
     keys = set(before) | set(after)
-    return tuple(sorted(key for key in keys if before.get(key) != after.get(key)))
+    return tuple(
+        sorted(
+            key
+            for key in keys
+            if before.get(key, _MISSING) != after.get(key, _MISSING)
+        )
+    )
 
 
 @dataclass(frozen=True)
@@ -58,6 +71,13 @@ class Paradigm:
     state: Mapping[str, Any]
     revision: int = 0
     paradigm_id: str = field(default_factory=lambda: _id("paradigm"))
+
+    def __post_init__(self) -> None:
+        # Snapshot for the same reason Request and GateEvidence do: the
+        # revision asserts an identity for this exact state, so a caller that
+        # keeps mutating the mapping it passed in must not be able to change,
+        # behind an unchanged revision, what the paradigm represents.
+        object.__setattr__(self, "state", copy.deepcopy(dict(self.state)))
 
 
 @dataclass(frozen=True)
@@ -160,7 +180,27 @@ class Outcome:
     reported: Mapping[str, Any]
     started_at: float
     finished_at: float
+    # Set when the executor raised instead of returning. Like `reported`, it is
+    # a report and never proof of resulting world state: an executor can fail
+    # after a partial or complete external effect, so the next safe move is
+    # usually Look.
+    error: str | None = None
     outcome_id: str = field(default_factory=lambda: _id("outcome"))
+
+
+class ExecutionError(RuntimeError):
+    """An admitted operation's executor raised.
+
+    The admission was consumed and the operation may have crossed the world
+    boundary before failing, so the attempt cannot disappear from the protocol:
+    the `Outcome` carried here records it, and `observe()` accepts it exactly
+    like a returned one. The original exception is chained as ``__cause__``.
+    No rollback is implied or attempted.
+    """
+
+    def __init__(self, outcome: "Outcome", cause: BaseException) -> None:
+        super().__init__(f"executor raised after admission: {cause!r}")
+        self.outcome = outcome
 
 
 @dataclass(frozen=True)
@@ -262,6 +302,19 @@ def admit(
             evidence_source=evidence.source,
         )
 
+    # The revision counter is an identity claim, not the state itself. A state
+    # mutated in place behind an unchanged counter must still close the gate:
+    # the resolution was located against the snapshot, not against whatever the
+    # mapping says now.
+    if dict(paradigm.state) != dict(resolution.resolved_state):
+        return Fizzle(
+            resolution=resolution,
+            failed_checks=("paradigm_state",),
+            reason="gate closed: paradigm state diverged from the resolved snapshot",
+            route="precondition",
+            evidence_source=evidence.source,
+        )
+
     passed: list[str] = []
     failed_preconditions: list[str] = []
     failed_invariants: list[str] = []
@@ -299,11 +352,26 @@ def operate(admission: Admission, executor: Executor) -> Outcome:
 
     The returned mapping is a report, not proof that the world changed.
     An admission is single-use: a second operate() on the same admission raises.
+
+    An executor that raises does not erase the attempt: the admission stays
+    consumed and an `ExecutionError` carrying an attributable `Outcome` is
+    raised, so observation can still run against the world. "Executor raised"
+    is not evidence that nothing happened.
     """
 
     admission._consume()
     started = time.time()
-    reported = executor(admission.resolution)
+    try:
+        reported = executor(admission.resolution)
+    except Exception as exc:
+        outcome = Outcome(
+            admission=admission,
+            reported={},
+            started_at=started,
+            finished_at=time.time(),
+            error=repr(exc),
+        )
+        raise ExecutionError(outcome, exc) from exc
     finished = time.time()
     return Outcome(
         admission=admission,
@@ -402,11 +470,24 @@ def settle(
         raise ValueError("residual belongs to a different paradigm")
     if paradigm.revision != residual.resolution.paradigm_revision:
         raise ValueError("stale residual: paradigm revision has changed")
+    if dict(paradigm.state) != dict(residual.resolution.resolved_state):
+        raise ValueError(
+            "stale residual: paradigm state diverged from the resolved snapshot"
+        )
 
     if residual.route == "invariant" and accept and patch is not None and not allow_after_invariant:
         raise ValueError(
             "residual is routed to invariant: paradigm is not safe to patch; "
             "pass allow_after_invariant=True to override"
+        )
+
+    # Update changes the smallest part the evidence disproved. A matching
+    # observation disproved nothing, so it cannot earn a write-back: accepting
+    # it with patch=None is the only settlement it supports.
+    if residual.matched and accept and patch is not None:
+        raise ValueError(
+            "residual carries no discrepancy: a matched observation cannot "
+            "license a paradigm rewrite; settle with patch=None to acknowledge it"
         )
 
     if not accept or patch is None:
