@@ -95,27 +95,6 @@ Versions are aligned across `SKILL.md`, `README.md`, `pyproject.toml`, and `CONT
   vacuous verifier in. The runbook now carries the real Harbor commands,
   verified against the CLI.
 
-- **A request's I/O was implied, so it was neither checkable nor portable.** The
-  kernel refuses a consequential operation with no expected state and no
-  precondition, but it never knew what that expected state was *shaped* like,
-  what the operation read, or what a host had to be able to do before the
-  operation was runnable there at all. Those three lived in the caller's head
-  and in Python closures, which meant they could not be checked and could not
-  leave the process. `runtime/howdo/contract.py` states them as data: `accepts`
-  (declared inputs, now carried on `Request.inputs` and reaching the executor on
-  the resolution instead of through a closure), `expects` (the shape of the
-  observable result), `rules` (checks as clauses over a closed operator set,
-  compiling into ordinary `Check` objects so the gate is the same one), and
-  `requires` (capabilities a host must offer). A contract round-trips through
-  JSON and digests to a stable identity, and `bind(contract, host)` answers
-  *can this run here* before anything resolves. A consequential contract must
-  carry its own precondition and its own result shape, because a gate the host
-  happened to supply is not part of what shipped. One new route: an observation
-  that does not match the declared shape is a `contract` residual, not a
-  `postcondition` one — a result that cannot be compared is a different fault
-  from one that came out wrong, and filing it as the latter claims a test ran
-  that did not. Optional, additive, and no invariant above it moved.
-
 - **Writing the analysis before the data caught two defects in the stopping
   rule.** `experiment/analysis/pilot0001.py` is the committed analysis — a
   task-level permutation test and bootstrap, seeded, zero dependencies —
@@ -276,82 +255,6 @@ Versions are aligned across `SKILL.md`, `README.md`, `pyproject.toml`, and `CONT
   (`PREREGISTRATION.md`, the rest of the receipt) and the undeclared values
   (reconnaissance budget, δ\*) that block the pilot.
 
-- **The installer tells the person what is being configured.** A fresh install
-  printed `next  establish the pedagogy before the first substantive HowDo` — an
-  instruction addressed to an agent who is not reading it, shown to a person, in
-  a term nothing on their path had defined. Nothing told them what the first
-  conversation is for, why it cannot be guessed, or that it can be declined or
-  deferred. `install.py` now prints a `CONFIGURATION_NOTE` after the status
-  block on a fresh install only, carrying all four settings and both opt-outs in
-  plain ASCII; `--verify` stays terse and prints none of it, and a reinstall over
-  a settled context has nothing to explain. The `next` line no longer uses the
-  internal term. `QUICKSTART.md` now leads with what gets configured, mapped
-  stage by stage, before the store mechanics.
-
-- **The shell is fixed, its internals are personal, and both halves are stated
-  wherever the term is introduced.** `SKILL.md` called a pedagogy "how
-  understanding gets built for this person"; `references/onboarding.md` called it
-  "the loop itself". Both are true, and the join was stated in one place, on the
-  line a reader reaches last — so onboarding read either as an agent inventing a
-  pedagogy per reader or as an impersonal config step with nothing a person could
-  supply. `SKILL.md`, `CONTEXT.template.md`, and `references/onboarding.md` now
-  each carry the loop as a fixed shell, its internals as personal, and the reason
-  a person is required: the settings have no other source.
-- **The vocabulary is working equipment, not output.** Nothing forbade emitting
-  the local terms, state names, frontmatter keys, or store paths at the person.
-  Guide mode was told it "does not need" the vocabulary — permission to skip,
-  rather than an instruction to withhold — and the one rule about what shows
-  through an answer governs structure, not wording. `SKILL.md` now states the
-  rule and names what leaks most readily, with two narrow exceptions (inspect
-  mode, and working on How Do itself); `references/onboarding.md` carries it
-  beside the anti-label bullet, where it bites hardest.
-- **The glossary defines the words a newcomer trips over first.**
-  `references/vocabulary.md` was silently missing `pedagogy`, `onboarding`,
-  `exemplar`, `payload`, and `store`, plus the new `shell` and `internals`.
-
-- **The default-store test pins the platform it asserts.** `default_store_path()`
-  documents and implements `%APPDATA%\howdo\CONTEXT.md` on Windows and
-  `~/.howdo/CONTEXT.md` elsewhere, but
-  `test_default_store_is_user_scoped_and_keeps_the_canonical_basename` passed no
-  `platform=` and asserted the POSIX branch unconditionally — so it agreed with
-  whatever host ran it, and stayed green on Linux-only CI while proving nothing
-  about Windows. All three branches are now asserted through `subTest` with
-  `platform` pinned per case.
-
-## Unreleased
-
-- **Every skill the emitter produced was unloadable, and so was this one.** A
-  plain YAML scalar may not contain `": "`, and a generated description always
-  does — "not a general-purpose helper: an unrelated question ...". So did this
-  repo's own `SKILL.md`, whose description has read "requested, not ambient: use
-  when ..." since 0.8.0. Claude Code's reader is lenient enough to have hidden
-  it; the paths that are not — claude.ai upload, the Skills API,
-  `package_skill.py` — validate the block and fail with a hard error. Frontmatter
-  values are now quoted unconditionally rather than when a scan believes it is
-  needed, this repo's own description is quoted, and
-  `FrontmatterIsParseableTests` checks both without adding a dependency. Found by
-  giving the generated output to a real parser instead of reading it.
-
-- **Emission had one frontmatter target where there are two.** Outside Claude
-  Code only six fields are accepted and any other key is a hard error, while
-  inside it every documented field works. `render_skill` now takes
-  `target="spec"` (the default, restricted to `name`, `description`, `license`,
-  `compatibility`, `metadata`, `allowed-tools`) or `target="claude-code"`. The
-  distinction is not bookkeeping: a domain-how whose contract is consequential
-  describes an operation with side effects, which is the documented case for
-  `disable-model-invocation: true` — "workflows with side effects or that you
-  want to control timing, like `/commit`, `/deploy`" — and also this
-  discipline's own posture. Consequential artifacts emitted for Claude Code are
-  therefore not left auto-invocable. The portable target cannot say it, states
-  it in the body instead, and that limit is declared in `ADVERSARIAL.md` rather
-  than papered over.
-
-- **Two spec fields were being left on the floor.** `license` is emitted when the
-  caller supplies one — the issuer knows how an artifact was produced, not what
-  covers the domain knowledge in it — and a contract's `requires` now becomes the
-  `compatibility` statement, which is what that field is for, capped at the
-  specification's 500 characters.
-
 ## 0.9.0
 
 Two capabilities, one arc: a request's declared I/O becomes portable, and a run
@@ -414,6 +317,80 @@ requires.
   An untested artifact is refused without an explicit override, and the override
   stamps the output, because an installed skill pre-loads every later session on
   that concern.
+
+- **Every skill the emitter produced was unloadable, and so was this one.** A
+  plain YAML scalar may not contain `": "`, and a generated description always
+  does — "not a general-purpose helper: an unrelated question ...". So did this
+  repo's own `SKILL.md`, whose description has read "requested, not ambient: use
+  when ..." since 0.8.0. Claude Code's reader is lenient enough to have hidden
+  it; the paths that are not — claude.ai upload, the Skills API,
+  `package_skill.py` — validate the block and fail with a hard error. Frontmatter
+  values are now quoted unconditionally rather than when a scan believes it is
+  needed, this repo's own description is quoted, and
+  `FrontmatterIsParseableTests` checks both without adding a dependency. Found by
+  giving the generated output to a real parser instead of reading it.
+
+- **Emission had one frontmatter target where there are two.** Outside Claude
+  Code only six fields are accepted and any other key is a hard error, while
+  inside it every documented field works. `render_skill` now takes
+  `target="spec"` (the default, restricted to `name`, `description`, `license`,
+  `compatibility`, `metadata`, `allowed-tools`) or `target="claude-code"`. The
+  distinction is not bookkeeping: a domain-how whose contract is consequential
+  describes an operation with side effects, which is the documented case for
+  `disable-model-invocation: true` — "workflows with side effects or that you
+  want to control timing, like `/commit`, `/deploy`" — and also this
+  discipline's own posture. Consequential artifacts emitted for Claude Code are
+  therefore not left auto-invocable. The portable target cannot say it, states
+  it in the body instead, and that limit is declared in `ADVERSARIAL.md` rather
+  than papered over.
+
+- **Two spec fields were being left on the floor.** `license` is emitted when the
+  caller supplies one — the issuer knows how an artifact was produced, not what
+  covers the domain knowledge in it — and a contract's `requires` now becomes the
+  `compatibility` statement, which is what that field is for, capped at the
+  specification's 500 characters.
+
+- **The installer tells the person what is being configured.** A fresh install
+  printed `next  establish the pedagogy before the first substantive HowDo` — an
+  instruction addressed to an agent who is not reading it, shown to a person, in
+  a term nothing on their path had defined. Nothing told them what the first
+  conversation is for, why it cannot be guessed, or that it can be declined or
+  deferred. `install.py` now prints a `CONFIGURATION_NOTE` after the status
+  block on a fresh install only, carrying all four settings and both opt-outs in
+  plain ASCII; `--verify` stays terse and prints none of it, and a reinstall over
+  a settled context has nothing to explain. The `next` line no longer uses the
+  internal term. `QUICKSTART.md` now leads with what gets configured, mapped
+  stage by stage, before the store mechanics.
+
+- **The shell is fixed, its internals are personal, and both halves are stated
+  wherever the term is introduced.** `SKILL.md` called a pedagogy "how
+  understanding gets built for this person"; `references/onboarding.md` called it
+  "the loop itself". Both are true, and the join was stated in one place, on the
+  line a reader reaches last — so onboarding read either as an agent inventing a
+  pedagogy per reader or as an impersonal config step with nothing a person could
+  supply. `SKILL.md`, `CONTEXT.template.md`, and `references/onboarding.md` now
+  each carry the loop as a fixed shell, its internals as personal, and the reason
+  a person is required: the settings have no other source.
+- **The vocabulary is working equipment, not output.** Nothing forbade emitting
+  the local terms, state names, frontmatter keys, or store paths at the person.
+  Guide mode was told it "does not need" the vocabulary — permission to skip,
+  rather than an instruction to withhold — and the one rule about what shows
+  through an answer governs structure, not wording. `SKILL.md` now states the
+  rule and names what leaks most readily, with two narrow exceptions (inspect
+  mode, and working on How Do itself); `references/onboarding.md` carries it
+  beside the anti-label bullet, where it bites hardest.
+- **The glossary defines the words a newcomer trips over first.**
+  `references/vocabulary.md` was silently missing `pedagogy`, `onboarding`,
+  `exemplar`, `payload`, and `store`, plus the new `shell` and `internals`.
+
+- **The default-store test pins the platform it asserts.** `default_store_path()`
+  documents and implements `%APPDATA%\howdo\CONTEXT.md` on Windows and
+  `~/.howdo/CONTEXT.md` elsewhere, but
+  `test_default_store_is_user_scoped_and_keeps_the_canonical_basename` passed no
+  `platform=` and asserted the POSIX branch unconditionally — so it agreed with
+  whatever host ran it, and stayed green on Linux-only CI while proving nothing
+  about Windows. All three branches are now asserted through `subTest` with
+  `platform` pinned per case.
 
 ## 0.8.0
 
