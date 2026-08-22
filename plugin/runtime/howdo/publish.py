@@ -21,9 +21,9 @@ is what turns "we worked this out once" into something invocable tomorrow.
 **The index is derived, never declared.** :func:`published` scans the
 destinations for artifacts carrying How Do's own marker rather than trusting a
 manifest of what was *meant* to be there. A skill someone deleted stops being
-listed; one someone moved in by hand starts. That is the same rule
-`experiment/CROSSINGS.md` sets for the skill graph and `domain.py` sets for the
-artifact index: the files are the evidence, the catalogue is a projection.
+listed; one someone moved in by hand starts. The same rule the artifact index
+follows: what can be derived is recomputed, and only what cannot be recomputed
+is frozen -- the files are the evidence, the catalogue is a projection.
 
 The rendered catalogue is written to the **store**, beside `CONTEXT.md`, because
 the payload is replaced by every update and a reference settled inside it is

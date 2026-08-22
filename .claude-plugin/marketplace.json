@@ -1,0 +1,17 @@
+{
+  "name": "howdo",
+  "owner": {
+    "name": "bdo",
+    "url": "https://github.com/bdf1992"
+  },
+  "metadata": {
+    "description": "How Do — an understanding-before-acting discipline, requested rather than ambient."
+  },
+  "plugins": [
+    {
+      "name": "how-do",
+      "source": "./plugin",
+      "description": "Understanding-before-acting discipline: Map, Path, Check, Do, Look, Update. Requested, not ambient."
+    }
+  ]
+}

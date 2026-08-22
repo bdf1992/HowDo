@@ -26,9 +26,9 @@ jobs:
         run: python -m unittest discover -s tests -t . -v
       - name: Examples
         run: |
-          python examples/jira_workflow.py
-          python examples/portable_contract.py
-          python examples/issue_domain_how.py
+          python plugin/examples/jira_workflow.py
+          python plugin/examples/portable_contract.py
+          python plugin/examples/issue_domain_how.py
 
   install:
     # The suite exercises the library; this exercises what a person actually
@@ -53,7 +53,7 @@ jobs:
         shell: bash
         run: |
           python - <<'EOF'
-          import sys; sys.path.insert(0, "runtime")
+          import sys; sys.path.insert(0, "plugin/runtime")
           from howdo.context import complete_onboarding, inspect_context, resolve_context_path
           p = resolve_context_path(None)
           complete_onboarding(
@@ -67,3 +67,41 @@ jobs:
           EOF
           python install.py
           python install.py --verify
+
+  plugin:
+    # The plugin path is a second way to install the same payload, and the way
+    # two install paths fail is by drifting. This runs the assembler on every
+    # platform the ordinary install runs on: the Windows leg is the point, since
+    # that is where the exec bit does not exist and the shebang means nothing.
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Assemble a plugin root
+        shell: bash
+        run: |
+          python install.py --plugin dist/how-do --dry-run
+          python install.py --plugin dist/how-do
+      - name: The manifest is valid JSON and versioned from the skill
+        shell: bash
+        run: |
+          python - <<'EOF'
+          import json, pathlib, re
+          manifest = json.loads(pathlib.Path("dist/how-do/.claude-plugin/plugin.json").read_text())
+          skill = pathlib.Path("dist/how-do/SKILL.md").read_text(encoding="utf-8")
+          declared = re.search(r'(?m)^\s*version:\s*"?([^"\s]+)"?\s*$', skill).group(1)
+          assert manifest["version"] == declared, (manifest["version"], declared)
+          assert manifest["name"] == "how-do", manifest["name"]
+          print("manifest ok:", manifest["name"], manifest["version"])
+          EOF
+      - name: The shipped helper runs where a host would put it
+        shell: bash
+        run: |
+          python dist/how-do/bin/howdo-context --path
+          python dist/how-do/bin/howdo-context

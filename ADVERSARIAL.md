@@ -20,7 +20,7 @@ The runtime is a small protocol kernel, not a complete trust system. v0.9 makes 
 
 ## Enforced request-contract invariants
 
-Optional runtime surface. These hold for `runtime/howdo/contract.py`, and the
+Optional runtime surface. These hold for `plugin/runtime/howdo/contract.py`, and the
 kernel invariants above are unchanged by it: a contract's rules compile into
 ordinary `Check` objects and go through the same gate.
 
@@ -69,7 +69,7 @@ runtime surface; the kernel invariants above are unchanged.
 
 ## Enforced emitter invariants
 
-Emission installs something. These hold for `runtime/howdo/emit.py`.
+Emission installs something. These hold for `plugin/runtime/howdo/emit.py`.
 
 | Attack | Emitter response |
 |---|---|
@@ -94,7 +94,7 @@ Emission installs something. These hold for `runtime/howdo/emit.py`.
 ## Enforced publishing invariants
 
 Publishing installs something someone may later invoke. These hold for
-`runtime/howdo/publish.py`.
+`plugin/runtime/howdo/publish.py`.
 
 | Attack | Publisher response |
 |---|---|
@@ -131,6 +131,7 @@ Publishing installs something someone may later invoke. These hold for
 | install or update run over a settled store | `ensure_context()` never overwrites an existing store |
 | store deliberately pointed inside the payload | `install.py` refuses before copying anything unless `--shared` opts in |
 | unmarked context inside the payload settled | `PayloadContextError`; only a declared `scope: shared` store is admitted there |
+| `scope: shared` store settled inside a **plugin** payload | `PayloadContextError` naming `$CLAUDE_PLUGIN_DATA`; the opt-in describes a trade a version-scoped payload does not offer — the store is orphaned in the previous release's directory, not discarded |
 | `scope` key absent or blank | read as `user`; genericness is never inferred |
 | build noise present in the working tree at install time | excluded from the payload |
 | install directory name drifts from the skill's declared `name:` | `--verify` fails |
@@ -143,7 +144,7 @@ surface.
 
 | Attack | Adapter response |
 |---|---|
-| pilot adapter reaches end users by sitting in `runtime/` | `install.py` copies `runtime/`; the adapter is not there, and an install test imports the installed package in a clean interpreter and finds no pilot API |
+| pilot adapter reaches end users by sitting in the payload | the payload is `plugin/` and the adapter is outside it, and an install test imports the installed package in a clean interpreter and finds no pilot API |
 | installed skill points at a directory it does not ship | no payload file names `PILOT-0001`; the kind hook that remains is generic |
 | person context relabelled `context_kind: environment` | `invalid`; the required metadata keys differ and the evidence sections do not overlap |
 | environment context relabelled `context_kind: person` | not ready; `onboarding` is missing and person evidence is absent |

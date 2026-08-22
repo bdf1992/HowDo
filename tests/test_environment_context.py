@@ -12,7 +12,8 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "runtime"))
+PAYLOAD = ROOT / "plugin"
+sys.path.insert(0, str(PAYLOAD / "runtime"))
 sys.path.insert(0, str(ROOT / "experiment" / "PILOT-0001"))
 
 # The split in these two imports is the packaging boundary. Kind-awareness is

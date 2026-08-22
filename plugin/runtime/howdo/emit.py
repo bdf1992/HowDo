@@ -5,15 +5,17 @@ host can actually load: a `SKILL.md` bundle per the Agent Skills specification,
 and a dynamic-workflow script for `.claude/workflows/`.
 
 Emission is a *projection*, never a second artifact. Nothing here is stored back
-into the index, for the reason `experiment/CROSSINGS.md` gives about the skill
-graph: derived things are recomputed, and only what cannot be recomputed is
-frozen. Re-emit whenever the domain-how moves.
+into the index, by the rule that governs every derived view in this runtime:
+what can be recomputed is recomputed, and only what cannot is frozen. Re-emit
+whenever the domain-how moves.
 
 One refusal shapes the module. An untested domain-how is not emitted without an
 explicit override, because a `SKILL.md` on disk is loaded by every future
-session on that concern -- which is exactly where `ADVERSARIAL.md` warns a minted
-artifact compounds what a spoken one did not. The override exists for review, and
-it stamps the output so a reader cannot mistake a draft for settled ground.
+session on that concern -- which is where a minted artifact compounds what a
+spoken one does not: a wrong answer said once is heard once, while a wrong
+answer written to disk is re-read by everything that comes after. The override
+exists for review, and it stamps the output so a reader cannot mistake a draft
+for settled ground.
 
 Format constraints come from the two specifications, not from taste:
 

@@ -4,12 +4,14 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "runtime"))
+PAYLOAD = ROOT / "plugin"
+sys.path.insert(0, str(PAYLOAD / "runtime"))
 
 from howdo import (  # noqa: E402
     PayloadContextError,
     defer_onboarding,
     default_store_path,
+    is_plugin_payload,
     is_shared,
     TemplateContextError,
     fork_context,
@@ -21,7 +23,7 @@ from howdo import (  # noqa: E402
     resolve_context_path,
 )
 
-SHIPPED_TEMPLATE = ROOT / "CONTEXT.template.md"
+SHIPPED_TEMPLATE = PAYLOAD / "CONTEXT.template.md"
 
 EVIDENCE = {
     "calibration_domain": "distributed queues; runs incident review",
@@ -402,6 +404,60 @@ class SharedScopeTest(unittest.TestCase):
             )
             self.assertTrue(is_shared(status.metadata))
             complete_onboarding(status.path, **EVIDENCE)
+            self.assertEqual(inspect_context(status.path).state, "ready")
+
+    def test_a_plugin_payload_is_distinguishable_from_a_skill_directory(self):
+        """The manifest is the marker, because only a plugin root ships one."""
+        with tempfile.TemporaryDirectory() as tmp:
+            payload = self._payload(Path(tmp))
+            self.assertFalse(is_plugin_payload(payload))
+            (payload / ".claude-plugin").mkdir()
+            (payload / ".claude-plugin" / "plugin.json").write_text(
+                '{"name": "how-do"}\n', encoding="utf-8"
+            )
+            self.assertTrue(is_plugin_payload(payload))
+
+    def test_shared_is_refused_inside_a_plugin_payload(self):
+        """The escape hatch describes a trade a plugin does not offer.
+
+        ``scope: shared`` is admitted inside a skill directory because the
+        person accepted that a reinstall discards the store. A plugin payload
+        is version-scoped: the next release is installed into a *new*
+        directory, so the store is not discarded but orphaned -- still on disk,
+        still readable, and no longer the file anything loads. Nothing raises
+        and nothing goes missing, which is why this has to raise here instead.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            payload = self._payload(Path(tmp))
+            status = ensure_context(
+                payload / "CONTEXT.md", template=SHIPPED_TEMPLATE, scope="shared"
+            )
+            (payload / ".claude-plugin").mkdir()
+            (payload / ".claude-plugin" / "plugin.json").write_text(
+                '{"name": "how-do"}\n', encoding="utf-8"
+            )
+            with self.assertRaises(PayloadContextError) as caught:
+                complete_onboarding(status.path, **EVIDENCE)
+            message = str(caught.exception)
+            self.assertIn("version-scoped", message)
+            self.assertIn("CLAUDE_PLUGIN_DATA", message, "the refusal names no way out")
+            self.assertEqual(
+                inspect_context(status.path).state, "onboarding_required",
+                "the refusal must leave the file untouched",
+            )
+
+    def test_an_explicit_override_still_works_under_a_plugin(self):
+        """A caller who states the risk is not the accident being guarded."""
+        with tempfile.TemporaryDirectory() as tmp:
+            payload = self._payload(Path(tmp))
+            status = ensure_context(
+                payload / "CONTEXT.md", template=SHIPPED_TEMPLATE, scope="shared"
+            )
+            (payload / ".claude-plugin").mkdir()
+            (payload / ".claude-plugin" / "plugin.json").write_text(
+                '{"name": "how-do"}\n', encoding="utf-8"
+            )
+            complete_onboarding(status.path, allow_payload=True, **EVIDENCE)
             self.assertEqual(inspect_context(status.path).state, "ready")
 
     def test_scope_absence_reads_as_user(self):

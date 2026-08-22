@@ -1,3 +1,4 @@
+import json
 import os
 import re
 import shutil
@@ -8,7 +9,8 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "runtime"))
+PAYLOAD = ROOT / "plugin"
+sys.path.insert(0, str(PAYLOAD / "runtime"))
 
 from howdo.context import inspect_context  # noqa: E402
 
@@ -23,27 +25,89 @@ def _flatten(text: str) -> str:
 
 
 
+#: The release, pinned once and deliberately. Reading it from one of the files
+#: below would make the check self-fulfilling: every place could drift together
+#: and still agree. Editing this literal is what a release *is*.
+RELEASE = "0.10.0"
+
+
 class ReleaseContractTests(unittest.TestCase):
     def test_release_versions_are_aligned(self):
-        skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
-        readme = (ROOT / "README.md").read_text(encoding="utf-8")
-        pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
-        context = (ROOT / "CONTEXT.template.md").read_text(encoding="utf-8")
-        self.assertIn('version: "0.9.0"', skill)
-        self.assertIn("How Do v0.9.0", readme)
-        self.assertIn('version = "0.9.0"', pyproject)
-        self.assertIn('skill_version: "0.9.0"', context)
-        changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
-        self.assertIn("## 0.9.0", changelog)
+        """Seven places, not four.
+
+        Three of these went unchecked until a release exposed them: the runtime
+        constant that stamps `skill_version` into every context it writes, the
+        quickstart title, and the manifest a marketplace reads. CONTRIBUTING
+        rule 4 already listed the first as one that must move with the rest, so
+        the rule was right and only the test was behind. A release that bumped
+        four of seven and passed CI is the failure this now prevents.
+        """
+        places = {
+            "plugin/SKILL.md": (
+                (PAYLOAD / "SKILL.md").read_text(encoding="utf-8"),
+                f'version: "{RELEASE}"',
+            ),
+            "README.md": (
+                (ROOT / "README.md").read_text(encoding="utf-8"),
+                f"How Do v{RELEASE}",
+            ),
+            "pyproject.toml": (
+                (ROOT / "pyproject.toml").read_text(encoding="utf-8"),
+                f'version = "{RELEASE}"',
+            ),
+            "plugin/CONTEXT.template.md": (
+                (PAYLOAD / "CONTEXT.template.md").read_text(encoding="utf-8"),
+                f'skill_version: "{RELEASE}"',
+            ),
+            "CHANGELOG.md": (
+                (ROOT / "CHANGELOG.md").read_text(encoding="utf-8"),
+                f"## {RELEASE}",
+            ),
+            "plugin/runtime/howdo/context.py": (
+                (PAYLOAD / "runtime" / "howdo" / "context.py").read_text(encoding="utf-8"),
+                f'SKILL_VERSION = "{RELEASE}"',
+            ),
+            "plugin/QUICKSTART.md": (
+                (PAYLOAD / "QUICKSTART.md").read_text(encoding="utf-8"),
+                f"How Do v{RELEASE}",
+            ),
+        }
+        for name, (text, expected) in places.items():
+            with self.subTest(place=name):
+                self.assertIn(expected, text, f"{name} does not carry {RELEASE}")
+
+    def test_the_plugin_manifest_carries_the_release_too(self):
+        """It is derived, so this checks the derivation ran, not that someone typed it."""
+        manifest = json.loads(
+            (PAYLOAD / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(manifest["version"], RELEASE)
+
+    def test_the_marketplace_catalog_pins_no_release(self):
+        """An eighth place to edit, and the one nothing would derive.
+
+        A marketplace manifest versions the *catalog*, not the plugin in it, and
+        the plugin's own version is already stated in its own manifest. A number
+        here that happened to match the release would assert a coupling nothing
+        maintains, and would go stale on the first bump that forgot it.
+        """
+        catalog = json.loads(
+            (ROOT / ".claude-plugin" / "marketplace.json").read_text(encoding="utf-8")
+        )
+        self.assertNotIn("version", catalog, "the catalog pins a version")
+        self.assertNotIn(
+            "version", catalog.get("metadata", {}),
+            "the catalog's metadata pins a version; the plugin manifest states it",
+        )
 
     def test_tracked_context_is_the_template_not_a_settled_context(self):
         # Personal contexts are never committed; only the template is tracked.
-        status = inspect_context(ROOT / "CONTEXT.template.md")
+        status = inspect_context(PAYLOAD / "CONTEXT.template.md")
         self.assertEqual(status.state, "template", status.reason)
         self.assertFalse((ROOT / "CONTEXT.md").exists(), "a personal store is tracked")
 
     def test_first_run_contract_is_not_lazy(self):
-        skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
+        skill = (PAYLOAD / "SKILL.md").read_text(encoding="utf-8")
         # The gate is a guarantee, so it stays in SKILL.md even though the
         # interview it triggers moved to a reference.
         self.assertIn("before the first substantive howdo", skill.lower())
@@ -53,7 +117,7 @@ class ReleaseContractTests(unittest.TestCase):
 
     def test_look_is_defined_as_running_the_test_check_wrote(self):
         """The word stays; the definition has to carry the testing weight."""
-        skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
+        skill = (PAYLOAD / "SKILL.md").read_text(encoding="utf-8")
         self.assertIn("Check writes the test", skill)
         self.assertIn("Check wrote the test; Look runs it", skill)
         self.assertIn("test it against what you predicted", skill)
@@ -61,35 +125,35 @@ class ReleaseContractTests(unittest.TestCase):
 
     def test_onboarding_settings_are_tied_to_loop_stages(self):
         """The pedagogy is the loop; onboarding tunes it, so say which stage."""
-        reference = (ROOT / "references" / "onboarding.md").read_text(encoding="utf-8")
+        reference = (PAYLOAD / "references" / "onboarding.md").read_text(encoding="utf-8")
         for stage in ("tunes `Map`", "tunes `Path`", "tunes `Check` and `Look`", "tunes `Update`"):
             self.assertIn(stage, reference)
 
     def test_agency_modifier_keeps_one_loop(self):
-        skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
+        skill = (PAYLOAD / "SKILL.md").read_text(encoding="utf-8")
         self.assertIn("How[actor] : Map → Path → Check → Do → Look → Update", skill)
         for form in ("How do I", "How do you", "How do we", "How do they"):
             self.assertIn(form, skill)
 
     def test_context_separates_rendering_from_actor_capability(self):
-        context = (ROOT / "CONTEXT.template.md").read_text(encoding="utf-8")
+        context = (PAYLOAD / "CONTEXT.template.md").read_text(encoding="utf-8")
         # The invariant is the separation, not the wording: durable context
         # shapes how you teach and present, never what the actor can do.
         self.assertIn("does not grant facts, capability, or authority", context)
         self.assertIn("primarily informs", context)
 
     def test_deferral_is_documented_as_distinct_from_decline(self):
-        skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
-        reference = (ROOT / "references" / "onboarding.md").read_text(encoding="utf-8")
+        skill = (PAYLOAD / "SKILL.md").read_text(encoding="utf-8")
+        reference = (PAYLOAD / "references" / "onboarding.md").read_text(encoding="utf-8")
         self.assertIn("onboarding: deferred", skill)
         self.assertIn("offer stays open", skill.lower())
         self.assertIn("deferral is not a decline", skill.lower())
         self.assertIn("never record", reference.lower())
 
     def test_decline_semantics_are_durable(self):
-        skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
+        skill = (PAYLOAD / "SKILL.md").read_text(encoding="utf-8")
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
-        reference = (ROOT / "references" / "onboarding.md").read_text(encoding="utf-8")
+        reference = (PAYLOAD / "references" / "onboarding.md").read_text(encoding="utf-8")
         self.assertIn("onboarding: declined", skill)
         self.assertIn("do not ask again", skill.lower())
         # The README names the persisted state a user can see; the runtime
@@ -98,7 +162,7 @@ class ReleaseContractTests(unittest.TestCase):
         self.assertIn("decline_onboarding", reference)
 
     def test_completion_claim_is_structural_not_truth_claim(self):
-        skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
+        skill = (PAYLOAD / "SKILL.md").read_text(encoding="utf-8")
         self.assertIn("structural completeness only", skill)
         self.assertIn("does not prove", skill)
 
@@ -142,7 +206,7 @@ class FrontmatterIsParseableTests(unittest.TestCase):
     def test_the_skill_frontmatter_has_no_unquoted_hazard(self):
         for name in ("SKILL.md", "CONTEXT.template.md"):
             with self.subTest(document=name):
-                self.assertEqual(self._hazards(self._frontmatter(ROOT / name)), [])
+                self.assertEqual(self._hazards(self._frontmatter(PAYLOAD / name)), [])
 
     def test_it_parses_when_a_yaml_parser_is_available(self):
         yaml = __import__("importlib").util.find_spec("yaml")
@@ -152,7 +216,7 @@ class FrontmatterIsParseableTests(unittest.TestCase):
 
         for name in ("SKILL.md", "CONTEXT.template.md"):
             with self.subTest(document=name):
-                data = parser.safe_load(self._frontmatter(ROOT / name))
+                data = parser.safe_load(self._frontmatter(PAYLOAD / name))
                 self.assertIsInstance(data, dict)
 
 
@@ -165,19 +229,19 @@ class IssuerGuaranteeTests(unittest.TestCase):
     """
 
     def test_the_skill_says_an_artifact_is_issued_from_a_run(self):
-        skill = _flatten((ROOT / "SKILL.md").read_text(encoding="utf-8"))
+        skill = _flatten((PAYLOAD / "SKILL.md").read_text(encoding="utf-8"))
         self.assertIn("issued rather than described", skill)
         self.assertIn("from a completed howdo rather than from a plan", skill)
 
     def test_the_skill_keeps_untested_separate_from_grounded(self):
-        skill = _flatten((ROOT / "SKILL.md").read_text(encoding="utf-8"))
+        skill = _flatten((PAYLOAD / "SKILL.md").read_text(encoding="utf-8"))
         self.assertIn("untested", skill)
         self.assertIn("residual that *matched* grounds it".replace("*", ""), skill.replace("*", ""))
         self.assertIn("drops the grounding its predecessor earned", skill)
 
     def test_the_skill_states_where_the_kernels_staleness_check_stops(self):
         """The one guarantee a persisted artifact cannot inherit from admit()."""
-        skill = _flatten((ROOT / "SKILL.md").read_text(encoding="utf-8"))
+        skill = _flatten((PAYLOAD / "SKILL.md").read_text(encoding="utf-8"))
         self.assertIn("ends at the process boundary", skill)
         self.assertIn("revision it was observed against", skill)
 
@@ -195,10 +259,10 @@ class PedagogyIntentTests(unittest.TestCase):
     """Onboarding establishes a pedagogy. Preference language invites a narrower read."""
 
     def _reference(self) -> str:
-        return (ROOT / "references" / "onboarding.md").read_text(encoding="utf-8")
+        return (PAYLOAD / "references" / "onboarding.md").read_text(encoding="utf-8")
 
     def test_the_target_is_pedagogy_not_presentation(self):
-        for text in (self._reference(), (ROOT / "CONTEXT.template.md").read_text(encoding="utf-8")):
+        for text in (self._reference(), (PAYLOAD / "CONTEXT.template.md").read_text(encoding="utf-8")):
             self.assertIn("pedagogy", text.lower())
         reference = self._reference().lower()
         for dimension in ("anchor", "build direction", "counts as understood", "correction"):
@@ -227,12 +291,12 @@ class PedagogyIntentTests(unittest.TestCase):
 
     def test_identity_labels_are_still_refused(self):
         """Pedagogy is about how understanding builds, never what type someone is."""
-        for text in (self._reference(), (ROOT / "CONTEXT.template.md").read_text(encoding="utf-8")):
+        for text in (self._reference(), (PAYLOAD / "CONTEXT.template.md").read_text(encoding="utf-8")):
             self.assertIn("visual learner", text, "the anti-label guard went missing")
         self.assertIn("observations, not identities", self._reference())
 
     def test_skill_carries_the_latitude_so_a_reference_miss_does_not_lose_it(self):
-        skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
+        skill = (PAYLOAD / "SKILL.md").read_text(encoding="utf-8")
         self.assertIn("pedagogy", skill.lower())
         self.assertIn("yours to choose", skill.lower())
         self.assertIn("never an intake form", skill.lower())
@@ -246,7 +310,7 @@ class PedagogyIntentTests(unittest.TestCase):
         the line a reader reaches last, is what let both readings stand.
         """
         for name in ("SKILL.md", "CONTEXT.template.md", "references/onboarding.md"):
-            flat = _flatten((ROOT / name).read_text(encoding="utf-8"))
+            flat = _flatten((PAYLOAD / name).read_text(encoding="utf-8"))
             with self.subTest(document=name):
                 self.assertIn("fixed shell", flat, "the shell half is missing")
                 self.assertIn("internals are personal", flat, "the personal half is missing")
@@ -282,7 +346,7 @@ class VocabularyTests(unittest.TestCase):
     )
 
     def _defined_terms(self) -> set[str]:
-        text = (ROOT / "references" / "vocabulary.md").read_text(encoding="utf-8")
+        text = (PAYLOAD / "references" / "vocabulary.md").read_text(encoding="utf-8")
         terms = set()
         for line in text.splitlines():
             if not line.startswith("|"):
@@ -305,7 +369,7 @@ class ReaderFacingOutputTests(unittest.TestCase):
     """The local terms are equipment. Nothing forbade emitting them at the person."""
 
     def _skill(self) -> str:
-        return (ROOT / "SKILL.md").read_text(encoding="utf-8")
+        return (PAYLOAD / "SKILL.md").read_text(encoding="utf-8")
 
     def _rule(self) -> str:
         for line in self._skill().splitlines():
@@ -318,7 +382,7 @@ class ReaderFacingOutputTests(unittest.TestCase):
         rule = self._rule()
         self.assertIn("not what the person reads back", rule)
         self.assertIn("do not say", rule)
-        vocabulary = _flatten((ROOT / "references" / "vocabulary.md").read_text(encoding="utf-8"))
+        vocabulary = _flatten((PAYLOAD / "references" / "vocabulary.md").read_text(encoding="utf-8"))
         self.assertIn("withholds these words", vocabulary)
         self.assertNotIn("does not need it", vocabulary)
 
@@ -337,7 +401,7 @@ class ReaderFacingOutputTests(unittest.TestCase):
         self.assertIn("inspect mode", rule)
         self.assertIn("working on how do itself", rule)
         self.assertIn("never its wording", rule)
-        onboarding = _flatten((ROOT / "references" / "onboarding.md").read_text(encoding="utf-8"))
+        onboarding = _flatten((PAYLOAD / "references" / "onboarding.md").read_text(encoding="utf-8"))
         self.assertIn("never say the machinery at them", onboarding)
 
 
@@ -345,7 +409,7 @@ class InvocationIntentTests(unittest.TestCase):
     """How Do is requested. A broad description makes it ambient by accident."""
 
     def _description(self) -> str:
-        text = (ROOT / "SKILL.md").read_text(encoding="utf-8")
+        text = (PAYLOAD / "SKILL.md").read_text(encoding="utf-8")
         front = text[3 : text.index("\n---", 3)]
         line = next(l for l in front.splitlines() if l.startswith("description:"))
         value = line.split(":", 1)[1].strip()
@@ -374,7 +438,7 @@ class InvocationIntentTests(unittest.TestCase):
         self.assertLessEqual(len(self._description()), 700)
 
     def test_body_keeps_handles_separate_from_triggers(self):
-        skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
+        skill = (PAYLOAD / "SKILL.md").read_text(encoding="utf-8")
         self.assertIn("requested, not ambient", skill.lower())
         self.assertIn("moves within a HowDo already underway", skill)
 
@@ -472,10 +536,10 @@ class ReferenceSplitTests(unittest.TestCase):
     """Detail loads on demand; the guarantees it backs stay in SKILL.md."""
 
     def test_references_are_pointed_to_and_exist(self):
-        skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
+        skill = (PAYLOAD / "SKILL.md").read_text(encoding="utf-8")
         for name in ("references/onboarding.md", "references/vocabulary.md"):
             self.assertIn(name, skill, f"SKILL.md never tells anyone to read {name}")
-            self.assertTrue((ROOT / name).is_file(), f"{name} is missing")
+            self.assertTrue((PAYLOAD / name).is_file(), f"{name} is missing")
 
     def test_references_ship_with_the_payload(self):
         sys.path.insert(0, str(ROOT))
@@ -490,14 +554,14 @@ class ReferenceSplitTests(unittest.TestCase):
 
     def test_skill_keeps_the_guarantees_the_reference_details(self):
         """A reference that is never read must not take a guarantee with it."""
-        skill = (ROOT / "SKILL.md").read_text(encoding="utf-8").lower()
+        skill = (PAYLOAD / "SKILL.md").read_text(encoding="utf-8").lower()
         self.assertIn("onboarding: declined", skill)
         self.assertIn("do not ask again", skill)
         self.assertIn("structural completeness only", skill)
         self.assertIn("does not prove", skill)
 
     def test_skill_has_no_dangling_section_pointers(self):
-        skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
+        skill = (PAYLOAD / "SKILL.md").read_text(encoding="utf-8")
         headings = {line[3:].strip() for line in skill.splitlines() if line.startswith("## ")}
         for pointer in re.findall(r"as in \*\*([^*]+)\*\*", skill):
             self.assertIn(pointer, headings, f"SKILL.md points at a section it lost: {pointer}")
@@ -513,7 +577,7 @@ class PayloadHygieneTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             # The README tells contributors to run the tests before installing,
             # so bytecode is present in a realistic working tree.
-            junk = ROOT / "runtime" / "howdo" / "__pycache__"
+            junk = PAYLOAD / "runtime" / "howdo" / "__pycache__"
             junk.mkdir(parents=True, exist_ok=True)
             (junk / "context.cpython-311.pyc").write_bytes(b"stale")
 

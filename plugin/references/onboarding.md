@@ -158,13 +158,24 @@ one environment always resolves to one path. Anyone moving a settled store point
 `HOWDO_CONTEXT` at it. The basename stays `CONTEXT.md`; a different basename is
 read as a fork.
 
-If the payload ships `runtime/`, the helpers answer all of this directly:
+If the payload ships `bin/` on `PATH` — a plugin host puts it there — one
+command answers all of this from any directory:
+
+```bash
+howdo-context --ensure
+```
+
+Otherwise the helpers answer it directly, from the payload root:
 
 ```bash
 python -c "import sys; sys.path.insert(0, 'runtime'); \
 from howdo.context import ensure_context, inspect_context; \
 s = ensure_context(template='CONTEXT.template.md'); print(s.path, s.state)"
 ```
+
+That second form resolves `runtime` relative to the working directory, so run
+it from the payload or give it an absolute path. `howdo-context` has no such
+requirement, which is the reason it exists.
 
 If `runtime/` or `CONTEXT.template.md` is absent — the skill was copied by hand
 rather than installed — do not guess a store into the payload. Create the
@@ -177,10 +188,24 @@ named above, then onboard it.
 
 `scope: user` is the default: this context records how one person takes
 explanations. `scope: shared` marks a generic store for everyone using one
-install — opted into via `install.py --shared`, never inferred, and the only kind
-admitted inside the payload. A shared store calibrates to whoever onboarded
-first: treat its observations as weaker evidence, never as a claim about the
-current user.
+install — never inferred, always opted into, and the only kind admitted inside
+the payload. A shared store calibrates to whoever onboarded first: treat its
+observations as weaker evidence, never as a claim about the current user.
+
+**How it is opted into depends on how the skill was installed, and under a
+plugin the payload is the wrong place for it.** A skill directory is replaced wholesale on
+update, which is why its installer carries a `--shared` opt-in at all, and why
+it is explicit rather than inferred. A plugin's payload is *version-scoped* — it sits
+under a directory named for the release — so a shared store settled inside it is
+discarded by the next version, not merely overwritten. Under a plugin, point
+`$HOWDO_CONTEXT` at a path the host does not replace, or use the directory the
+host names in `$CLAUDE_PLUGIN_DATA`, and mark the store `scope: shared` there.
+`howdo-context --path` reports where resolution currently lands.
+
+Settling a shared store inside a plugin payload is **refused**, not merely
+discouraged: the runtime raises rather than letting a context be written
+somewhere the next release stops reading. The refusal names the directory to use
+instead.
 
 ## Fork / rename rule
 

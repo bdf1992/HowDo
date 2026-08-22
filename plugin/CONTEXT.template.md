@@ -4,7 +4,7 @@ template: true
 context_id: template
 context_file: CONTEXT.template.md
 skill: how-do
-skill_version: "0.9.0"
+skill_version: "0.10.0"
 onboarding: required
 parent_context_id: none
 ---

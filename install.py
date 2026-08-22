@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 """Install How Do as a skill directory, keeping the durable context out of it.
 
+This is one of two routes and no longer the usual one. ``plugin/`` is a plugin
+root committed in the repository, so a marketplace installs How Do without this
+file running at all. What remains here is the skill-directory install, the
+assembler that lays the same payload out somewhere else, and ``--verify``.
+
 Two things live in different places on purpose:
 
     template  <skills-dir>/how-do/CONTEXT.template.md   shipped artifact; replaced on update
@@ -21,18 +26,29 @@ Usage:
     python install.py --shared        opt in to one generic store inside the payload
     python install.py --verify        check an existing install; change nothing
     python install.py --dry-run       print what would happen
+    python install.py --plugin DIR    assemble a plugin root instead of a skill dir
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import shutil
+import stat
 import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent
-sys.path.insert(0, str(REPO / "runtime"))
+
+# The payload is a committed directory, not a set of root files gathered at
+# assembly time. ``plugin/`` *is* the plugin root -- manifest, bin/ and all --
+# so a marketplace can clone this repository and point at a subdirectory, which
+# a generated ``dist/`` could never offer. The boundary that keeps ``tests/``
+# and ``experiment/`` out of an install is now a filesystem fact rather than a
+# property of the code below.
+PAYLOAD_ROOT = REPO / "plugin"
+sys.path.insert(0, str(PAYLOAD_ROOT / "runtime"))
 
 from howdo.context import (  # noqa: E402
     default_store_path,
@@ -46,6 +62,10 @@ DEFAULT_SKILLS_DIR = Path.home() / ".claude" / "skills"
 
 # The payload is what a host loads. Tests, packaging, and contributor docs are
 # repository concerns and are deliberately not shipped into the skill directory.
+# Relative to PAYLOAD_ROOT. This is what an *ordinary skill directory* gets:
+# the plugin root's own `bin/` and `.claude-plugin/` are deliberately absent,
+# because a skill directory is not a plugin and a host that found a manifest
+# there would be right to be confused.
 PAYLOAD = ("SKILL.md", "CONTEXT.template.md", "QUICKSTART.md", "LICENSE",
            "references", "runtime", "examples")
 
@@ -56,6 +76,16 @@ NOISE = shutil.ignore_patterns(
     "__pycache__", "*.py[cod]", "*.egg-info", ".pytest_cache",
     ".mypy_cache", ".ruff_cache", ".DS_Store",
 )
+
+# A plugin root is the same payload with a manifest and an executables
+# directory added. Keeping it a *view* of PAYLOAD rather than a second list is
+# the whole point: the boundary that keeps `experiment/` and `tests/` out of an
+# install is enforced in one place, and the plugin inherits it rather than
+# re-deriving it and drifting.
+MANIFEST_SOURCE = REPO / "packaging" / "plugin.json"
+MANIFEST_DIR = ".claude-plugin"
+MANIFEST_NAME = "plugin.json"
+PLUGIN_EXTRA = ("bin",)
 
 
 def skill_name(skill_md: Path) -> str:
@@ -74,7 +104,7 @@ def skill_name(skill_md: Path) -> str:
 def copy_payload(destination: Path, *, dry_run: bool) -> list[str]:
     actions = []
     for item in PAYLOAD:
-        source = REPO / item
+        source = PAYLOAD_ROOT / item
         if not source.exists():
             raise FileNotFoundError(source)
         target = destination / item
@@ -86,6 +116,82 @@ def copy_payload(destination: Path, *, dry_run: bool) -> list[str]:
         else:
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, target)
+    return actions
+
+
+def skill_version(skill_md: Path) -> str:
+    """Read ``version:`` from the skill metadata.
+
+    The manifest does not carry its own version. A plugin that pinned one would
+    be a sixth place to edit on release and the first place to forget, so the
+    assembled manifest derives it from the skill it ships.
+    """
+    text = skill_md.read_text(encoding="utf-8")
+    if not text.startswith("---"):
+        raise ValueError(f"{skill_md} has no frontmatter")
+    end = text.find("\n---", 3)
+    front = text[3 : end if end != -1 else len(text)]
+    match = re.search(r'(?m)^\s*version:\s*"?([^"\s]+)"?\s*$', front)
+    if not match:
+        raise ValueError(f"{skill_md} frontmatter has no version")
+    return match.group(1).strip()
+
+
+def plugin_manifest() -> dict:
+    """The manifest as it must appear in a plugin root.
+
+    ``packaging/plugin.json`` still carries no version and the version still
+    comes from ``SKILL.md``, so release alignment stays where it was. What
+    changed is that the result is committed at ``plugin/.claude-plugin/`` rather
+    than existing only inside an assembled directory -- a marketplace has to be
+    able to read it out of a clone. A committed derived file can go stale, so
+    ``tests/test_plugin.py`` compares the committed bytes against this function
+    and fails if they differ. Derived and checked, not duplicated.
+    """
+    manifest = json.loads(MANIFEST_SOURCE.read_text(encoding="utf-8"))
+    manifest["version"] = skill_version(PAYLOAD_ROOT / "SKILL.md")
+    return manifest
+
+
+def manifest_bytes() -> str:
+    """The exact text of the committed manifest, so a test can compare bytes."""
+    return json.dumps(plugin_manifest(), indent=2) + "\n"
+
+
+def assemble_plugin(destination: Path, *, dry_run: bool) -> list[str]:
+    """Lay the payload out as a plugin root.
+
+    ``SKILL.md`` stays at the root rather than moving under ``skills/``. That
+    is not a stylistic choice: a plugin whose skill lives at the root is
+    invoked by the plugin's own name, so this one stays ``/how-do``, while the
+    ``skills/<name>/`` layout would namespace it to ``/how-do:how-do`` and
+    break the invocation the skill description promises.
+    """
+    actions = copy_payload(destination, dry_run=dry_run)
+
+    for item in PLUGIN_EXTRA:
+        source = PAYLOAD_ROOT / item
+        if not source.exists():
+            raise FileNotFoundError(source)
+        target = destination / item
+        actions.append(f"copy {item} -> {target}")
+        if dry_run:
+            continue
+        shutil.copytree(source, target, dirs_exist_ok=True, ignore=NOISE)
+        # copytree preserves the mode, but a checkout on a filesystem without
+        # a permission bit does not. A bin/ entry that is not executable is
+        # silently absent from PATH rather than broken, so set it here.
+        for path in target.iterdir():
+            if path.is_file():
+                path.chmod(path.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+
+    manifest = plugin_manifest()
+    written = destination / MANIFEST_DIR / MANIFEST_NAME
+    actions.append(f"write {MANIFEST_DIR}/{MANIFEST_NAME} -> {written}")
+    if not dry_run:
+        written.parent.mkdir(parents=True, exist_ok=True)
+        written.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+
     return actions
 
 
@@ -132,7 +238,19 @@ def report(payload: Path, store_path: Path, *, shared: bool = False) -> int:
         return 1
 
     expected = skill_name(payload / "SKILL.md")
-    if payload.name != expected:
+    manifest_path = payload / MANIFEST_DIR / MANIFEST_NAME
+    if manifest_path.is_file():
+        # A plugin is identified by its manifest, not by where it sits: a host
+        # reads `name` from plugin.json and ignores the directory entirely
+        # (a plugin in a directory called `divergent` whose manifest says
+        # `how-do` loads as `how-do`). So the directory is free here, and the
+        # name that has to match is the one that decides the invocation.
+        declared = json.loads(manifest_path.read_text(encoding="utf-8")).get("name")
+        print(f"  plugin {declared!r} (manifest)")
+        if declared != expected:
+            print(f"  FAIL  manifest declares {declared!r} but SKILL.md declares {expected!r}")
+            problems += 1
+    elif payload.name != expected:
         print(f"  FAIL  directory is {payload.name!r} but SKILL.md declares {expected!r}")
         problems += 1
 
@@ -171,12 +289,18 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--shared", action="store_true",
                         help="opt in to one generic store inside the payload, shared by every "
                              "user of this install (default: a per-user store outside it)")
+    parser.add_argument("--plugin", type=Path, default=None, metavar="DIR",
+                        help="assemble a plugin root at DIR (manifest + bin/) instead of "
+                             "installing a bare skill directory")
     parser.add_argument("--verify", action="store_true", help="check an install without changing it")
     parser.add_argument("--dry-run", action="store_true", help="print planned actions only")
     args = parser.parse_args(argv)
 
-    name = skill_name(REPO / "SKILL.md")
-    payload = args.target / name
+    name = skill_name(PAYLOAD_ROOT / "SKILL.md")
+    # A plugin root is named by the manifest, not by the skill frontmatter, and
+    # it is a complete directory rather than one entry inside a skills dir --
+    # so --plugin names the destination outright instead of a parent to nest in.
+    payload = args.plugin if args.plugin is not None else args.target / name
 
     # The skill is per-person by design: it records how one reader takes
     # explanations, so the default store is per-user and lives outside the
@@ -195,7 +319,8 @@ def main(argv: list[str] | None = None) -> int:
         print("pick a path outside the install, set HOWDO_CONTEXT, or pass --shared", file=sys.stderr)
         return 1
 
-    for action in copy_payload(payload, dry_run=args.dry_run):
+    build = assemble_plugin if args.plugin is not None else copy_payload
+    for action in build(payload, dry_run=args.dry_run):
         print(action)
 
     if args.dry_run:
