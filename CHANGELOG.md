@@ -4,6 +4,22 @@ Versions are aligned across `plugin/SKILL.md`, `README.md`, `pyproject.toml`, an
 
 ## 0.10.0
 
+- **Shipped code cited documents the reader does not have.** `domain.py` and
+  `emit.py` pointed at `experiment/CROSSINGS.md` and `ADVERSARIAL.md` for
+  principles they rest on — the index being a view rather than an authority, and
+  what a minted artifact compounds that a spoken one does not. Both are
+  repository documents and neither ships, so a plugin user reading the source
+  found paths that do not exist on their disk and reasoning that was nowhere in
+  what they had. The direction is the one rule 14 already sets for imports:
+  `experiment/` may depend on the runtime, never the reverse, and a docstring is
+  a dependency written in prose. Each now states the principle instead of
+  citing where it is stated — the knowledge was the point, the pointer was not.
+  A test fails on any shipped file referencing `experiment/`, `packaging/`,
+  `tests/`, `ADVERSARIAL.md`, `CONTRIBUTING.md` or `README.md`. Naming the other
+  *install route* stays allowed: `bin/howdo-context` calling itself the
+  plugin-native replacement for `install.py --verify` orients a reader rather
+  than sending them to a missing file.
+
 - **The one escape hatch in the payload guard described a trade the plugin route
   does not offer.** `_refuse_payload_settlement` lets a store through when it
   declares `scope: shared`, on the stated grounds that whoever declared it

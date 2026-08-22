@@ -175,6 +175,43 @@ class DistributionTests(unittest.TestCase):
             "shipped documents tell the reader to run install.py, which the payload does not ship",
         )
 
+    def test_no_shipped_file_cites_a_document_the_payload_does_not_carry(self):
+        """A citation the reader cannot follow is worse than no citation.
+
+        `domain.py` and `emit.py` pointed at `experiment/CROSSINGS.md` and
+        `ADVERSARIAL.md` for principles they depend on. Both are repository
+        documents; neither ships. A plugin user reading the source found a path
+        that does not exist on their disk, and the reasoning it stood for was
+        nowhere in what they had.
+
+        The direction matters and is the same one rule 14 sets for imports:
+        `experiment/` may depend on the runtime, never the reverse. A docstring
+        is a dependency in prose. Fixing these meant stating the principle in
+        the shipped file rather than deleting the thought -- the knowledge was
+        the point, the pointer was not.
+
+        Naming the *other install route* stays allowed: `bin/howdo-context`
+        calls itself the plugin-native replacement for ``install.py --verify``,
+        which orients a reader rather than sending them to a missing file.
+        """
+        forbidden = ("experiment/", "packaging/", "tests/",
+                     "ADVERSARIAL.md", "CONTRIBUTING.md", "README.md")
+        offenders = []
+        for path in sorted(install.PAYLOAD_ROOT.rglob("*")):
+            if not path.is_file() or "__pycache__" in path.parts:
+                continue
+            try:
+                text = path.read_text(encoding="utf-8")
+            except (UnicodeDecodeError, OSError):
+                continue
+            for token in forbidden:
+                if token in text:
+                    offenders.append(f"{path.relative_to(install.PAYLOAD_ROOT)} -> {token}")
+        self.assertEqual(
+            offenders, [],
+            "shipped files cite repository documents the payload does not carry",
+        )
+
     def test_the_marketplace_points_at_the_committed_plugin_root(self):
         entries = self._marketplace()["plugins"]
         sources = {entry["name"]: entry["source"] for entry in entries}
