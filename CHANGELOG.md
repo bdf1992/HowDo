@@ -25,6 +25,51 @@ Versions are aligned across `SKILL.md`, `README.md`, `pyproject.toml`, and `CONT
   from one that came out wrong, and filing it as the latter claims a test ran
   that did not. Optional, additive, and no invariant above it moved.
 
+- **The host already guarantees what `install.py` was built by hand to
+  provide.** Almost all of the installer exists to keep `CONTEXT.md` out of the
+  payload, because the payload is replaced on update and a context settled
+  inside it is discarded with no error raised. A plugin host declares
+  `$CLAUDE_PLUGIN_DATA`, a directory contracted to survive updates — the same
+  guarantee, enforced by the host rather than detected after the fact. It now
+  sits in the store precedence between `$HOWDO_CONTEXT` and the platform
+  default: below the environment variable, so installing the plugin never
+  relocates a store somebody already placed, and above the platform default,
+  so a host that states its own directory is believed over one this repository
+  guesses. Absent the variable, resolution is byte-for-byte what it was.
+
+- **How Do can be installed as a plugin, and it is still `/how-do`.**
+  `install.py --plugin DIR` lays the same payload out as a plugin root: a
+  `.claude-plugin/plugin.json` derived from `packaging/plugin.json`, plus
+  `bin/`. `SKILL.md` stays at the root rather than moving under `skills/`,
+  which is what keeps the invocation un-namespaced — verified against the
+  runtime, not the documentation, which claims the frontmatter `name` decides
+  it. It does not: a root-`SKILL.md` plugin is invoked by the *plugin* name, so
+  a `skills/how-do/` layout would silently rename the skill to `/how-do:how-do`
+  and break the string the description promises and `test_release.py` asserts.
+  The manifest carries no version of its own; the assembler reads it from
+  `SKILL.md`, so release alignment stays at four places rather than five.
+
+- **The onboarding helper is addressable from anywhere.**
+  `references/onboarding.md` told the agent to run a `sys.path` insert against
+  the relative path `runtime`, which resolves only when the process happens to
+  be sitting in the payload. `bin/howdo-context` reports, resolves, and
+  instantiates the store with no such requirement; a plugin host puts `bin/` on
+  the shell `PATH` while the plugin is enabled. `howdo-context.cmd` ships
+  beside it because an extensionless file with a shebang is not executable on
+  Windows, and this project branches the store location on Windows explicitly
+  enough that a POSIX-only affordance would be a real gap rather than a
+  cosmetic one.
+
+- **Parity is tested in both directions.** `tests/test_plugin.py` asserts the
+  plugin root contains everything an ordinary install contains and nothing
+  beyond the manifest and `bin/`, comparing against `install.copy_payload`
+  rather than a second hand-maintained file list — two install paths fail by
+  drifting, and a payload rule enforced on one path and absent on the other is
+  the shape that failure takes. One check is skipped rather than passing: the
+  assembled plugin still names PILOT-0001, because `runtime/howdo/environment.py`
+  is the pilot adapter and every install path carries it. Moving it out of the
+  payload is separate work in flight; the check activates itself when it lands.
+
 - **A benchmark agent cannot honestly hold a person's context, so it gets a
   different kind.** `CONTEXT.template.md` says a pedagogy "cannot be generated"
   because it has no source but the person, and the required evidence sections

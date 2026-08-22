@@ -107,6 +107,12 @@ _SCOPE_KEY = "scope"
 _SCOPE_USER = "user"
 _SCOPE_SHARED = "shared"
 _STORE_ENV = "HOWDO_CONTEXT"
+# A plugin host tells the plugin where per-install persistent state belongs.
+# That directory survives updates by contract, which is the same guarantee the
+# payload/store split exists to provide -- so when a host offers it, it is a
+# better default than a path this module invents. It stays *below* HOWDO_CONTEXT
+# so that a person who has already moved a settled store keeps it.
+_STORE_PLUGIN_DATA_ENV = "CLAUDE_PLUGIN_DATA"
 _STORE_DIRNAME = ".howdo"
 # Windows keeps per-user application state under %APPDATA%; a dotdir in the
 # profile root works but is not where a Windows user looks for it.
@@ -371,7 +377,14 @@ def resolve_context_path(
     1. an explicitly selected file (never auto-merge several contexts);
     2. ``HOWDO_CONTEXT``, so a host can place the store wherever it keeps
        per-person state;
-    3. the platform default from :func:`default_store_path`.
+    3. ``CLAUDE_PLUGIN_DATA``, the directory a plugin host guarantees will
+       survive updates -- present only when running as an installed plugin;
+    4. the platform default from :func:`default_store_path`.
+
+    Three and four are both "the host's per-install state directory"; the
+    difference is that a plugin host states its own, so we do not have to
+    guess one from the platform. Ordering it under ``HOWDO_CONTEXT`` means
+    installing the plugin never moves a store somebody already relocated.
 
     The basename stays ``CONTEXT.md`` for the canonical lineage because
     :func:`inspect_context` treats a different basename as a fork. Separation
@@ -384,6 +397,10 @@ def resolve_context_path(
     configured = environ.get(_STORE_ENV)
     if configured:
         return Path(configured).expanduser()
+
+    plugin_data = environ.get(_STORE_PLUGIN_DATA_ENV)
+    if plugin_data:
+        return Path(plugin_data).expanduser() / _CONTEXT_BASENAME
 
     return default_store_path(env=environ, home=home, platform=platform)
 
