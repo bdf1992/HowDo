@@ -1,6 +1,8 @@
 # Packaging lane — handoff
 
-Branch `claude/howdo-fullscope-plugin-qqvw7h`, first commit `647d4a0`.
+Branch `claude/howdo-fullscope-plugin-qqvw7h`. Draft PR #14.
+Work in `647d4a0`, handoff in `f5d400b`, merged up to `main` at `f8b9236`
+(release 0.9.0) in `9c86850`.
 
 This lane converts How Do into a Claude Code plugin. It is **packaging only**:
 no hook, no agent, no `settings.json`, nothing that would make the discipline
@@ -64,7 +66,7 @@ root layout for exactly this reason.
 - `install.py::report()` — plugin-aware. A plugin root is judged by its
   manifest name; the directory is free. An ordinary skill dir still has to
   match `SKILL.md`.
-- `tests/test_plugin.py` — 28 tests. Parity is asserted **in both directions**
+- `tests/test_plugin.py` — 28 tests of 302. Parity is asserted **in both directions**
   against `copy_payload`'s output rather than a second file list.
 - CI `plugin:` job — appended at the end of `tests.yml` deliberately, so it
   cannot conflict with in-flight edits to the `suite:` job.
@@ -91,7 +93,10 @@ Two ways to close it, both cheap once the branches below have landed:
   to main and push the result to a `plugin` branch that the marketplace points
   at. No file moves, but the boundary stays a property of the assembler.
 
-Prefer the first once the tree is quiet. Do not do either while PR #13 is open.
+Prefer the first once the tree is quiet. PR #13 has merged, so the payload
+files are no longer contested; #12 and `experiment/m0-harbor-runner` both
+live entirely under `experiment/`, so neither blocks the move. This is now
+the next actionable item in the lane.
 
 ### 2. `CONFIGURATION_NOTE` never reaches a plugin user — blocks parity
 
@@ -128,23 +133,26 @@ the remaining `__init__.py` re-exports, so it also catches a partial fix.
 
 ## Collision map
 
-Dry-run merges as of `647d4a0`, both against `origin/main` at `c721c39`:
+Dry-run merges as of `9c86850`, against `origin/main` at `f8b9236`:
 
-| open PR | branch | conflicts with this lane |
+| in flight | branch | conflicts with this lane |
 |---|---|---|
-| **#12** experiment/packaging boundary | `claude/skill-graph-benchmark-index-s1vxax` | `CHANGELOG.md` |
-| **#13** request contracts / domain-how | `claude/how-do-request-contract-3jqsr1` | `CHANGELOG.md`, `README.md` |
+| **#12** experiment/packaging boundary | `claude/skill-graph-benchmark-index-s1vxax` | **none — clean** |
+| — | `experiment/m0-harbor-runner` | `CHANGELOG.md` |
 
-No conflicts in `install.py`, `runtime/howdo/context.py`, `SKILL.md`,
-`tests/`, or `.github/workflows/tests.yml`. Both remaining conflicts are
-additive — a changelog block and two list entries.
+**#13 merged** (release 0.9.0) and this lane has merged main in. The two
+conflicts it caused were both additive and are resolved: a changelog block and
+a QA-command list entry. Nothing in `install.py`, `runtime/howdo/context.py`,
+`SKILL.md`, `tests/`, or `.github/workflows/tests.yml` was ever contested.
+
+The 0.9.0 bump needed **no edit here**: the manifest derives its version from
+`SKILL.md`, so `--plugin` emitted 0.9.0 on its own. That is the design working;
+do not add a version to `packaging/plugin.json` to "keep them in sync".
 
 `howdo/payload-store-split` is empty against main. Stale; ignore.
 
-**Suggested order.** Let #12 land first (item 3 closes for free). Then #13 —
-note it moves the release to 0.9.0, and because the manifest derives its
-version from `SKILL.md` there is nothing extra to bump here. Rebase this lane
-onto the result, then do item 1.
+**Suggested order.** #12 next — item 3 closes for free and it merges clean
+today. Then item 1, which is now unblocked.
 
 To re-check collisions after anything moves:
 
@@ -159,8 +167,10 @@ git merge --abort; git checkout <this-branch>; git branch -D probe
 ## Verifying this lane
 
 ```bash
-python -m unittest discover -s tests -v        # 206 tests, exactly 1 skip (item 3)
+python -m unittest discover -s tests -v        # 302 tests, exactly 1 skip (item 3)
 python examples/jira_workflow.py
+python examples/portable_contract.py
+python examples/issue_domain_how.py
 python install.py --plugin dist/how-do
 claude plugin validate dist/how-do             # expects: Validation passed, no warnings
 python install.py --plugin dist/how-do --verify
