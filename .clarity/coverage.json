@@ -1,9 +1,9 @@
 {
   "reviews": {
     "README.md": {
-      "artifact_digest": "sha256:1ef812b6752a6649ca8e0b3fb40902981b7b1be66cc76902829d56467d298028",
+      "artifact_digest": "sha256:f6f8007fd94cd1ba2c6c376873f765079649bfb1c654cdbd7b11748b4bdb8549",
       "basis": [],
-      "changed": false
+      "changed": true
     }
   },
   "schema": "soveraeign-clarity-coverage/v1",
